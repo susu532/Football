@@ -592,10 +592,7 @@ function SoccerPitch({
         <meshStandardMaterial color="#888" />
       </mesh>
       {/* Stadium stands (simple) */}
-      <mesh position={[0, wallHeight+0.5, 0]}>
-        <boxGeometry args={[size[0]+6, 1, size[2]+6]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
+      {/* Removed the top black platform */}
     </group>
   )
 }
@@ -837,7 +834,7 @@ export default function Scene() {
       <Html fullscreen>
         <div className="hud">
           <div className="hud-left">Use WASD/arrows to move. Soccer controls coming soon. Multiplayer enabled.</div>
-        </div>
+          </div>
       </Html>
     </Canvas>
   )
