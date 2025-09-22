@@ -833,7 +833,7 @@ export default function Scene() {
       {/* HUD and overlays (keep for now) */}
       <Html fullscreen>
         <div className="hud">
-          <div className="hud-left">Use WASD/arrows to move. Soccer controls coming soon. Multiplayer enabled.</div>
+          <div className="hud-left">Use WASD/arrows to move. Soccer controls coming soon.</div>
         </div>
       </Html>
     </Canvas>
