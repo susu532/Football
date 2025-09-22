@@ -767,7 +767,7 @@ export default function Scene() {
 
   // Connect to socket.io server
   useEffect(() => {
-    const s = io('http://localhost:3001')
+    const s = io('https://football-p9ll.onrender.com')
     setSocket(s)
     s.on('init', ({ id, players, ball }) => {
       setPlayerId(id)
