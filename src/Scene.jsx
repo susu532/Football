@@ -8,6 +8,7 @@ import useStore from './store'
 import { createWorld, stepWorld, getWorld, createSoccerBallBody } from './physics'
 import * as CANNON from 'cannon-es'
 import { useSpring, a } from '@react-spring/three'
+import { io } from 'socket.io-client'
 
 // Small Emperia placeholder - replace with real widget/SDK integration
 export function openEmperiaPlaceholder() {
@@ -699,187 +700,110 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-// SoccerBallWithPhysics: handles physics sync and useFrame
-function SoccerBallWithPhysics({ ballBody }) {
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel }) {
+  // Send player movement to server
+  useFrame(() => {
+    if (!socket || !playerId || !playerRef.current) return
+    const pos = playerRef.current.position
+    const rot = playerRef.current.rotation ? playerRef.current.rotation.y : 0
+    socket.emit('move', { position: [pos.x, pos.y, pos.z], rotation: rot })
+  })
+  // Render local player
+  return hasModel ? (
+    <PlayerModel ref={playerRef} position={[0, 1, 0]} />
+  ) : (
+    <Player ref={playerRef} position={[0, 1, 0]} />
+  )
+}
+
+function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
   const meshRef = useRef()
+  // Sync mesh with physics
   useFrame(() => {
     if (meshRef.current && ballBody) {
       meshRef.current.position.copy(ballBody.position)
       meshRef.current.quaternion.copy(ballBody.quaternion)
     }
   })
+  // Host sends ball state to server
+  useFrame(() => {
+    if (!socket || !playerId) return
+    if (Object.keys(remotePlayers)[0] === playerId) {
+      if (ballBody) {
+        socket.emit('ball-update', {
+          position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
+          velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
+        })
+      }
+    }
+  })
   return <SoccerBall ref={meshRef} />
+}
+
+function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0 }) {
+  // Simple capsule for remote players
+  return (
+    <group position={position} rotation={[0, rotation, 0]}>
+      <mesh castShadow>
+        <capsuleGeometry args={[0.3, 0.8, 8, 16]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[0, 0.7, 0]}>
+        <sphereGeometry args={[0.28, 16, 16]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+    </group>
+  )
 }
 
 export default function Scene() {
   const playerRef = useRef()
   const [hasModel, setHasModel] = useState(false)
-  // Soccer ball physics
+  const [socket, setSocket] = useState(null)
+  const [playerId, setPlayerId] = useState(null)
+  const [remotePlayers, setRemotePlayers] = useState({})
   const [ballBody] = useState(() => createSoccerBallBody())
-  // Define pitchSize at the top so it's available for all uses
   const pitchSize = [24, 0.2, 14]
-  const ballMeshRef = useRef()
-  const coins = useStore((s) => s.coins)
-  const lives = useStore((s) => s.lives)
-  const level = useStore((s) => s.level)
-  const resetGame = useStore((s) => s.resetGame)
-  const nextLevel = useStore((s) => s.nextLevel)
-  // Door state
-  const [doorOpen, setDoorOpen] = useState(false)
 
-  // simple platforms for the level
-  const platforms = [
-    { position: [0, 0, 0], size: [10, 0.5, 6] },
-    { position: [6, 1.5, 0], size: [4, 0.5, 2] },
-    { position: [-6, 2.8, 0], size: [3.5, 0.5, 2] },
-    { position: [12, 0.8, 0], size: [4, 0.5, 2] },
-    { position: [0, 2, -6], size: [3, 0.5, 2], isMoving: true, range: 4, speed: 1 }, // Moving platform
-  ]
-
-  // obstacles for collision detection
-  const obstacles = [
-    // Major Buildings - Downtown
-    { position: [-25, 0, -15], size: [8, 20, 8] },
-    { position: [-25, 0, 15], size: [6, 18, 6] },
-    { position: [25, 0, -15], size: [10, 22, 8] },
-    { position: [25, 0, 15], size: [8, 16, 8] },
-    { position: [0, 0, -30], size: [12, 25, 10] },
-    { position: [0, 0, 30], size: [10, 20, 10] },
-    
-    // Residential Houses
-    { position: [-40, 0, -20], size: [4, 6, 4] },
-    { position: [-40, 0, -10], size: [4, 6, 4] },
-    { position: [-40, 0, 0], size: [4, 6, 4] },
-    { position: [-40, 0, 10], size: [4, 6, 4] },
-    { position: [-40, 0, 20], size: [4, 6, 4] },
-    { position: [40, 0, -20], size: [4, 6, 4] },
-    { position: [40, 0, -10], size: [4, 6, 4] },
-    { position: [40, 0, 0], size: [4, 6, 4] },
-    { position: [40, 0, 10], size: [4, 6, 4] },
-    { position: [40, 0, 20], size: [4, 6, 4] },
-    { position: [-20, 0, -40], size: [4, 6, 4] },
-    { position: [-10, 0, -40], size: [4, 6, 4] },
-    { position: [0, 0, -40], size: [4, 6, 4] },
-    { position: [10, 0, -40], size: [4, 6, 4] },
-    { position: [20, 0, -40], size: [4, 6, 4] },
-    { position: [-20, 0, 40], size: [4, 6, 4] },
-    { position: [-10, 0, 40], size: [4, 6, 4] },
-    { position: [0, 0, 40], size: [4, 6, 4] },
-    { position: [10, 0, 40], size: [4, 6, 4] },
-    { position: [20, 0, 40], size: [4, 6, 4] },
-    
-    // Additional Commercial Buildings
-    { position: [-15, 0, -25], size: [6, 12, 6] },
-    { position: [15, 0, -25], size: [6, 14, 6] },
-    { position: [-15, 0, 25], size: [6, 10, 6] },
-    { position: [15, 0, 25], size: [6, 16, 6] },
-    
-    // Cars
-    { position: [-18, 0, 0], size: [2, 1, 4] },
-    { position: [-8, 0, 0], size: [2, 1, 4] },
-    { position: [8, 0, 0], size: [2, 1, 4] },
-    { position: [18, 0, 0], size: [2, 1, 4] },
-    { position: [0, 0, -18], size: [4, 1, 2] },
-    { position: [0, 0, -8], size: [4, 1, 2] },
-    { position: [0, 0, 8], size: [4, 1, 2] },
-    { position: [0, 0, 18], size: [4, 1, 2] },
-    { position: [-15, 0, -15], size: [2, 1, 4] },
-    { position: [15, 0, -15], size: [2, 1, 4] },
-    { position: [-15, 0, 15], size: [2, 1, 4] },
-    { position: [15, 0, 15], size: [2, 1, 4] },
-    { position: [-25, 0, 0], size: [2, 1, 4] },
-    { position: [25, 0, 0], size: [2, 1, 4] },
-    { position: [0, 0, -25], size: [4, 1, 2] },
-    { position: [0, 0, 25], size: [4, 1, 2] },
-    
-    // Trees (collision with trunk only)
-    { position: [-10, 0, -5], size: [0.4, 2, 0.4] },
-    { position: [10, 0, -5], size: [0.4, 2, 0.4] },
-    { position: [-10, 0, 5], size: [0.4, 2, 0.4] },
-    { position: [10, 0, 5], size: [0.4, 2, 0.4] },
-    { position: [-30, 0, -10], size: [0.4, 2, 0.4] },
-    { position: [30, 0, -10], size: [0.4, 2, 0.4] },
-    { position: [-30, 0, 10], size: [0.4, 2, 0.4] },
-    { position: [30, 0, 10], size: [0.4, 2, 0.4] },
-    { position: [-5, 0, -35], size: [0.4, 2, 0.4] },
-    { position: [5, 0, -35], size: [0.4, 2, 0.4] },
-    { position: [-5, 0, 35], size: [0.4, 2, 0.4] },
-    { position: [5, 0, 35], size: [0.4, 2, 0.4] },
-    { position: [-35, 0, -5], size: [0.4, 2, 0.4] },
-    { position: [35, 0, -5], size: [0.4, 2, 0.4] },
-    { position: [-35, 0, 5], size: [0.4, 2, 0.4] },
-    { position: [35, 0, 5], size: [0.4, 2, 0.4] },
-    { position: [-20, 0, -20], size: [0.4, 2, 0.4] },
-    { position: [20, 0, -20], size: [0.4, 2, 0.4] },
-    { position: [-20, 0, 20], size: [0.4, 2, 0.4] },
-    { position: [20, 0, 20], size: [0.4, 2, 0.4] },
-    { position: [0, 0, -15], size: [0.4, 2, 0.4] },
-    { position: [0, 0, 15], size: [0.4, 2, 0.4] },
-    { position: [-15, 0, 0], size: [0.4, 2, 0.4] },
-    { position: [15, 0, 0], size: [0.4, 2, 0.4] },
-    
-    // Streetlights
-    { position: [-20, 0, 0], size: [0.2, 4, 0.2] },
-    { position: [-10, 0, 0], size: [0.2, 4, 0.2] },
-    { position: [0, 0, 0], size: [0.2, 4, 0.2] },
-    { position: [10, 0, 0], size: [0.2, 4, 0.2] },
-    { position: [20, 0, 0], size: [0.2, 4, 0.2] },
-    { position: [0, 0, -20], size: [0.2, 4, 0.2] },
-    { position: [0, 0, -10], size: [0.2, 4, 0.2] },
-    { position: [0, 0, 10], size: [0.2, 4, 0.2] },
-    { position: [0, 0, 20], size: [0.2, 4, 0.2] },
-    { position: [-20, 0, -20], size: [0.2, 4, 0.2] },
-    { position: [-20, 0, 20], size: [0.2, 4, 0.2] },
-    { position: [20, 0, -20], size: [0.2, 4, 0.2] },
-    { position: [20, 0, 20], size: [0.2, 4, 0.2] },
-    
-    // Urban details
-    { position: [-3, 0, 3], size: [0.8, 1, 0.8] }, // TrashCan
-    { position: [3, 0, -3], size: [0.8, 1, 0.8] },
-    { position: [-15, 0, 5], size: [0.8, 1, 0.8] },
-    { position: [15, 0, -5], size: [0.8, 1, 0.8] },
-    { position: [-5, 0, -15], size: [0.8, 1, 0.8] },
-    { position: [5, 0, 15], size: [0.8, 1, 0.8] },
-    { position: [-25, 0, 0], size: [0.8, 1, 0.8] },
-    { position: [25, 0, 0], size: [0.8, 1, 0.8] },
-    
-    { position: [-6, 0, 0], size: [2, 0.5, 0.5] }, // Bench
-    { position: [6, 0, 0], size: [2, 0.5, 0.5] },
-    { position: [-20, 0, -10], size: [2, 0.5, 0.5] },
-    { position: [20, 0, 10], size: [2, 0.5, 0.5] },
-    { position: [-10, 0, -20], size: [2, 0.5, 0.5] },
-    { position: [10, 0, 20], size: [2, 0.5, 0.5] },
-    { position: [0, 0, -30], size: [2, 0.5, 0.5] },
-    { position: [0, 0, 30], size: [2, 0.5, 0.5] },
-  ]
-
-  // check for model availability once on mount
+  // Connect to socket.io server
   useEffect(() => {
-    let mounted = true
-    const check = async () => {
-      try {
-        const res = await fetch('/models/player.glb', { method: 'HEAD' })
-        if (mounted && res.ok) setHasModel(true)
-      } catch (e) {
-        // ignore — model missing
+    const s = io('http://localhost:3001')
+    setSocket(s)
+    s.on('init', ({ id, players, ball }) => {
+      setPlayerId(id)
+      setRemotePlayers(players)
+      if (ballBody) {
+        ballBody.position.set(...ball.position)
+        ballBody.velocity.set(...ball.velocity)
       }
-    }
-    check()
-    // create physics world and platform bodies
-    const world = createWorld()
-    // add ground plane
-    const groundMat = new CANNON.Material('ground')
-    const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() })
-    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
-    world.addBody(groundBody)
-    // add platform bodies
-    platforms.forEach((p) => {
-      const shape = new CANNON.Box(new CANNON.Vec3(p.size[0] / 2, p.size[1] / 2, p.size[2] / 2))
-      const body = new CANNON.Body({ mass: 0, shape })
-      body.position.set(p.position[0], p.position[1], p.position[2])
-      world.addBody(body)
     })
+    s.on('player-joined', (player) => {
+      setRemotePlayers((prev) => ({ ...prev, [player.id]: player }))
+    })
+    s.on('player-move', ({ id, position, rotation }) => {
+      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation } } : prev)
+    })
+    s.on('player-left', (id) => {
+      setRemotePlayers((prev) => {
+        const copy = { ...prev }
+        delete copy[id]
+        return copy
+      })
+    })
+    s.on('ball-update', (ball) => {
+      if (ballBody) {
+        ballBody.position.set(...ball.position)
+        ballBody.velocity.set(...ball.velocity)
+      }
+    })
+    return () => {
+      s.disconnect()
+    }
+  }, [ballBody])
+
+  useEffect(() => {
     // Add soccer ball to physics world
+    const world = createWorld()
     world.addBody(ballBody)
     return () => {
       world.removeBody(ballBody)
@@ -899,20 +823,20 @@ export default function Scene() {
       {/* Goals */}
       <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} />
       <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} />
-      {/* Soccer ball with physics */}
-      <SoccerBallWithPhysics ballBody={ballBody} />
-      {/* Players (to be replaced with multiplayer logic) */}
-      {hasModel ? (
-        <PlayerModel ref={playerRef} position={[0, 1, 0]} />
-      ) : (
-        <Player ref={playerRef} position={[0, 1, 0]} />
-      )}
+      {/* Soccer ball with physics (syncs with server) */}
+      <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
+      {/* Local player with multiplayer sync */}
+      <LocalPlayerWithSync socket={socket} playerId={playerId} playerRef={playerRef} hasModel={hasModel} />
+      {/* Remote players */}
+      {Object.entries(remotePlayers).map(([id, p]) => (
+        id !== playerId && <RemotePlayer key={id} position={p.position} color={p.color} rotation={p.rotation} />
+      ))}
       {/* Camera controller */}
       <CameraController targetRef={playerRef} />
       {/* HUD and overlays (keep for now) */}
       <Html fullscreen>
         <div className="hud">
-          <div className="hud-left">Use WASD/arrows to move. Soccer controls coming soon.</div>
+          <div className="hud-left">Use WASD/arrows to move. Soccer controls coming soon. Multiplayer enabled.</div>
         </div>
       </Html>
     </Canvas>
