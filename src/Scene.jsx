@@ -599,41 +599,116 @@ function SoccerPitch({
   )
 }
 
-// Soccer Goal (placeholder)
-function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1 }) {
+// Soccer Goal (improved, with net)
+function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1.2 }) {
+  // Net grid
+  const netRows = 7
+  const netCols = 10
+  const netW = width
+  const netH = height
+  const netD = depth
+  const netThickness = 0.04
+  const netColor = '#e0e0e0'
+  const postsColor = '#fff'
   return (
     <group position={position}>
       {/* Posts */}
-      <mesh position={[-width/2, height/2, 0]}>
-        <boxGeometry args={[0.15, height, 0.15]} />
-        <meshStandardMaterial color="#fff" />
+      <mesh position={[-netW/2, netH/2, 0]}>
+        <cylinderGeometry args={[0.08, 0.08, netH, 16]} />
+        <meshStandardMaterial color={postsColor} />
       </mesh>
-      <mesh position={[width/2, height/2, 0]}>
-        <boxGeometry args={[0.15, height, 0.15]} />
-        <meshStandardMaterial color="#fff" />
+      <mesh position={[netW/2, netH/2, 0]}>
+        <cylinderGeometry args={[0.08, 0.08, netH, 16]} />
+        <meshStandardMaterial color={postsColor} />
       </mesh>
       {/* Crossbar */}
-      <mesh position={[0, height, 0]}>
-        <boxGeometry args={[width+0.15, 0.15, 0.15]} />
-        <meshStandardMaterial color="#fff" />
+      <mesh position={[0, netH, 0]} rotation={[0, 0, Math.PI/2]}>
+        <cylinderGeometry args={[0.08, 0.08, netW, 16]} />
+        <meshStandardMaterial color={postsColor} />
       </mesh>
-      {/* Net (simple) */}
-      <mesh position={[0, height/2, -depth/2]}>
-        <boxGeometry args={[width, height, 0.1]} />
-        <meshStandardMaterial color="#eee" transparent opacity={0.3} />
+      {/* Back bar */}
+      <mesh position={[0, 0.08, -netD]} rotation={[0, 0, Math.PI/2]}>
+        <cylinderGeometry args={[0.06, 0.06, netW, 12]} />
+        <meshStandardMaterial color={postsColor} />
       </mesh>
+      {/* Side bars (top to back) */}
+      <mesh position={[-netW/2, netH, -netD/2]} rotation={[0, Math.PI/2, 0]}>
+        <cylinderGeometry args={[0.06, 0.06, netD, 12]} />
+        <meshStandardMaterial color={postsColor} />
+      </mesh>
+      <mesh position={[netW/2, netH, -netD/2]} rotation={[0, Math.PI/2, 0]}>
+        <cylinderGeometry args={[0.06, 0.06, netD, 12]} />
+        <meshStandardMaterial color={postsColor} />
+      </mesh>
+      {/* Net (vertical and horizontal lines) */}
+      {Array.from({ length: netCols + 1 }).map((_, i) => (
+        <mesh key={'net-v-' + i} position={[-netW/2 + (i * netW / netCols), netH/2, -netD/2]} rotation={[0, 0, 0]}>
+          <cylinderGeometry args={[netThickness, netThickness, netH, 8]} />
+          <meshStandardMaterial color={netColor} />
+        </mesh>
+      ))}
+      {Array.from({ length: netRows + 1 }).map((_, j) => (
+        <mesh key={'net-h-' + j} position={[0, (j * netH / netRows), -netD/2]} rotation={[0, 0, Math.PI/2]}>
+          <cylinderGeometry args={[netThickness, netThickness, netW, 8]} />
+          <meshStandardMaterial color={netColor} />
+        </mesh>
+      ))}
+      {/* Net depth lines */}
+      {Array.from({ length: netCols + 1 }).map((_, i) => (
+        <mesh key={'net-d-' + i} position={[-netW/2 + (i * netW / netCols), 0.08, -netD/2]} rotation={[Math.PI/2, 0, 0]}>
+          <cylinderGeometry args={[netThickness, netThickness, netD, 8]} />
+          <meshStandardMaterial color={netColor} />
+        </mesh>
+      ))}
+      {Array.from({ length: netCols + 1 }).map((_, i) => (
+        <mesh key={'net-d-top-' + i} position={[-netW/2 + (i * netW / netCols), netH, -netD/2]} rotation={[Math.PI/2, 0, 0]}>
+          <cylinderGeometry args={[netThickness, netThickness, netD, 8]} />
+          <meshStandardMaterial color={netColor} />
+        </mesh>
+      ))}
     </group>
   )
 }
 
-// Soccer Ball (placeholder)
-function SoccerBall({ position = [0, 0.25, 0], radius = 0.3 }) {
+// Soccer Ball (classic black and white pattern)
+const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0], radius = 0.3 }, ref) {
+  // Use a mesh with a texture for the classic look
+  // For now, use a procedural pattern with black pentagons
+  // (for full realism, a texture can be loaded later)
   return (
-    <mesh position={position} castShadow receiveShadow>
+    <mesh ref={ref} position={position} castShadow receiveShadow>
       <sphereGeometry args={[radius, 32, 32]} />
+      {/* White base */}
       <meshStandardMaterial color="#fff" />
+      {/* Black pentagons (approximate, not perfect) */}
+      {Array.from({ length: 12 }).map((_, i) => {
+        // Distribute pentagons roughly on sphere
+        const phi = Math.acos(-1 + (2 * i) / 12)
+        const theta = Math.PI * (1 + Math.sqrt(5)) * i
+        const x = Math.cos(theta) * Math.sin(phi) * radius
+        const y = Math.cos(phi) * radius
+        const z = Math.sin(theta) * Math.sin(phi) * radius
+        return (
+          <mesh key={i} position={[x, y, z]}>
+            <circleGeometry args={[radius * 0.18, 8]} />
+            <meshStandardMaterial color="#222" />
+          </mesh>
+        )
+      })}
     </mesh>
   )
+})
+
+// SoccerBallWithPhysics: handles physics sync and useFrame
+function SoccerBallWithPhysics({ ballBody }) {
+  const meshRef = useRef()
+  useFrame(() => {
+    if (meshRef.current && ballBody) {
+      meshRef.current.position.copy(ballBody.position)
+      meshRef.current.quaternion.copy(ballBody.quaternion)
+    }
+  })
+  return <SoccerBall ref={meshRef} />
 }
 
 export default function Scene() {
@@ -641,6 +716,8 @@ export default function Scene() {
   const [hasModel, setHasModel] = useState(false)
   // Soccer ball physics
   const [ballBody] = useState(() => createSoccerBallBody())
+  // Define pitchSize at the top so it's available for all uses
+  const pitchSize = [24, 0.2, 14]
   const ballMeshRef = useRef()
   const coins = useStore((s) => s.coins)
   const lives = useStore((s) => s.lives)
@@ -804,16 +881,10 @@ export default function Scene() {
     })
     // Add soccer ball to physics world
     world.addBody(ballBody)
-    return () => (mounted = false)
-  }, [ballBody])
-
-  useFrame(() => {
-    // Sync soccer ball mesh with physics body
-    if (ballMeshRef.current && ballBody) {
-      ballMeshRef.current.position.copy(ballBody.position)
-      ballMeshRef.current.quaternion.copy(ballBody.quaternion)
+    return () => {
+      world.removeBody(ballBody)
     }
-  })
+  }, [ballBody])
 
   return (
     <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
@@ -829,7 +900,7 @@ export default function Scene() {
       <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} />
       <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} />
       {/* Soccer ball with physics */}
-      <SoccerBall ref={ballMeshRef} />
+      <SoccerBallWithPhysics ballBody={ballBody} />
       {/* Players (to be replaced with multiplayer logic) */}
       {hasModel ? (
         <PlayerModel ref={playerRef} position={[0, 1, 0]} />
