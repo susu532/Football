@@ -809,7 +809,7 @@ export default function Scene() {
 
   return (
     <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
-      <color attach="background" args={["#1a2a3a"]} />
+      <color attach="background" args={["#87CEEB"]} />
       <ambientLight intensity={0.7} color="#FFFFFF" />
       <directionalLight position={[10, 30, 10]} intensity={2} color="#fff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
       {/* Stadium lights */}
@@ -834,7 +834,7 @@ export default function Scene() {
       <Html fullscreen>
         <div className="hud">
           <div className="hud-left">Use WASD/arrows to move. Soccer controls coming soon. Multiplayer enabled.</div>
-          </div>
+        </div>
       </Html>
     </Canvas>
   )
