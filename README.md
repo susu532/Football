@@ -1,8 +1,8 @@
-# Soccer 3D shop (demo)
+# Soccer 3D game (demo)
 
-This is a small demo project showcasing a tiny 3D platformer / virtual shop built with Vite, React, Three.js (via `@react-three/fiber`), and `zustand` for state.
+This is a small demo project showcasing a tiny 3D platformer / virtual game built with Vite, React, Three.js (via `@react-three/fiber`), and `zustand` for state.
 
-The project started as a 3D product viewer and shopping demo; it now includes a simple Super Mario–style platformer shop (player, platforms, camera follow) and keeps the shopping sidebar for demonstration. The project also contains an Soccer placeholder where you can integrate a real AR/3D commerce widget.
+The project started as a 3D product viewer and game demo; it now includes a simple Super Mario–style platformer game (player, platforms, camera follow) and keeps the game sidebar for demonstration. The project also contains an Soccer placeholder where you can integrate a real AR/3D commerce widget.
 
 Getting started
 
@@ -18,7 +18,7 @@ npm install
 npm run dev
 ```
 
-Controls in the 3D shop
+Controls in the 3D game
 
 - Move: `A` / `D` or `←` / `→`
 - Jump: `Space`
