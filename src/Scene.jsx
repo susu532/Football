@@ -1,0 +1,927 @@
+import React, { useRef, useEffect, useState } from 'react'
+import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
+import { Html, Sparkles, Stars } from '@react-three/drei'
+import * as THREE from 'three'
+import Player from './Player'
+import PlayerModel from './PlayerModel'
+import useStore from './store'
+import { createWorld, stepWorld, getWorld, createSoccerBallBody } from './physics'
+import * as CANNON from 'cannon-es'
+import { useSpring, a } from '@react-spring/three'
+
+// Small Emperia placeholder - replace with real widget/SDK integration
+export function openEmperiaPlaceholder() {
+  // In a real integration you'd open Emperia's SDK or widget here.
+  // Keep this lightweight for the demo.
+  window.alert('Open Emperia (placeholder)')
+}
+
+function Platform({ position = [0, 0, 0], size = [4, 0.5, 2], color = '#6b8e23' }) {
+  return (
+    <mesh position={position} receiveShadow>
+      <boxGeometry args={size} />
+      <meshStandardMaterial color={color} />
+    </mesh>
+  )
+}
+
+function CameraController({ targetRef }) {
+  const { camera } = useThree()
+  const orbit = useRef({
+    azimuth: 0,
+    polar: Math.PI / 4,
+    distance: 8,
+    targetDistance: 8,
+    dragging: false,
+    lastX: 0,
+    lastY: 0,
+  })
+
+  useEffect(() => {
+    const onPointerDown = (e) => {
+      if (e.button !== 0) return
+      orbit.current.dragging = true
+      orbit.current.lastX = e.clientX
+      orbit.current.lastY = e.clientY
+    }
+    const onPointerUp = () => {
+      orbit.current.dragging = false
+    }
+    const onPointerMove = (e) => {
+      if (!orbit.current.dragging) return
+      const dx = e.clientX - orbit.current.lastX
+      const dy = e.clientY - orbit.current.lastY
+      orbit.current.lastX = e.clientX
+      orbit.current.lastY = e.clientY
+      orbit.current.azimuth -= dx * 0.01
+      orbit.current.polar -= dy * 0.01
+      orbit.current.polar = Math.max(0.2, Math.min(Math.PI / 2, orbit.current.polar))
+    }
+    window.addEventListener('pointerdown', onPointerDown)
+    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointermove', onPointerMove)
+    // Wheel -> zoom
+    const onWheel = (e) => {
+      // Normalize wheel delta (deltaY direction: positive = scroll down = zoom out)
+      const delta = e.deltaY
+      const zoomSensitivity = 0.025 // tweakable sensitivity
+      const minDistance = 3
+      const maxDistance = 18
+      const current = orbit.current
+      current.targetDistance = THREE.MathUtils.clamp(current.targetDistance + delta * zoomSensitivity, minDistance, maxDistance)
+    }
+    window.addEventListener('wheel', onWheel, { passive: true })
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown)
+      window.removeEventListener('pointerup', onPointerUp)
+      window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('wheel', onWheel)
+    }
+  }, [])
+
+  useFrame(() => {
+    const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
+    const { azimuth, polar } = orbit.current
+    // Smoothly approach target distance for easing
+    orbit.current.distance = THREE.MathUtils.lerp(orbit.current.distance, orbit.current.targetDistance ?? orbit.current.distance, 0.12)
+    const distance = orbit.current.distance
+    const x = p.x + distance * Math.sin(polar) * Math.sin(azimuth)
+    const y = p.y + distance * Math.cos(polar) + 2.2
+    const z = p.z + distance * Math.sin(polar) * Math.cos(azimuth)
+    camera.position.lerp(new THREE.Vector3(x, y, z), 0.15)
+    camera.lookAt(p.x, p.y + 1, p.z)
+  })
+  return null
+}
+
+function Door({ position = [16, 1, 0], open = false }) {
+  // Door slides up when open
+  return (
+    <mesh position={[position[0], position[1] + (open ? 2 : 0), position[2]]} castShadow>
+      <boxGeometry args={[1, 3, 0.2]} />
+      <meshStandardMaterial color={open ? '#8f8' : '#444'} />
+    </mesh>
+  )
+}
+
+function Button({ position = [14, 0.5, 0], onPress }) {
+  const [pressed, setPressed] = useState(false)
+  const [showSparkles, setShowSparkles] = useState(false)
+  const { scale, color } = useSpring({ 
+    scale: pressed ? 1.3 : 1, 
+    color: pressed ? '#f06292' : '#ffb6d5',
+    config: { tension: 300, friction: 10 } 
+  })
+  
+  const handlePress = () => {
+    setPressed(true)
+    setShowSparkles(true)
+    onPress && onPress()
+    setTimeout(() => {
+      setPressed(false)
+      setShowSparkles(false)
+    }, 500)
+  }
+  
+  return (
+    <group position={position}>
+      <a.mesh
+        onClick={handlePress}
+        castShadow
+        scale-x={scale}
+        scale-y={scale}
+        scale-z={scale}
+      >
+        <cylinderGeometry args={[0.5, 0.5, 0.2, 32]} />
+        <a.meshStandardMaterial color={color} />
+      </a.mesh>
+      {showSparkles && (
+        <Sparkles count={20} scale={2} size={2} speed={0.4} color="#f06292" />
+      )}
+    </group>
+  )
+}
+
+function MovingPlatform({ position = [0, 2, -6], size = [3, 0.5, 2], range = 4, speed = 1, platforms, platformIndex }) {
+  const meshRef = useRef()
+  const [isPlayerOn, setIsPlayerOn] = useState(false)
+  
+  useFrame(({ clock }) => {
+    if (meshRef.current) {
+      const newZ = position[2] + Math.sin(clock.getElapsedTime() * speed) * range
+      meshRef.current.position.z = newZ
+      
+      // Update the platform position in the platforms array for collision detection
+      if (platforms && platformIndex !== undefined) {
+        platforms[platformIndex].position[2] = newZ
+      }
+    }
+  })
+  
+  return (
+    <group>
+      <mesh ref={meshRef} position={position} receiveShadow castShadow>
+        <boxGeometry args={size} />
+        <meshPhysicalMaterial 
+          color={isPlayerOn ? "#ff6b9d" : "#bada55"} 
+          metalness={0.3}
+          roughness={0.4}
+          clearcoat={0.5}
+        />
+      </mesh>
+      {isPlayerOn && (
+        <Sparkles
+          position={[position[0], position[1] + 0.5, position[2]]}
+          count={10}
+          scale={1.5}
+          size={1}
+          speed={0.3}
+          color="#ff6b9d"
+        />
+      )}
+    </group>
+  )
+}
+
+function Tree({ position = [10, 0.75, -4] }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.75, 0]} castShadow>
+        <cylinderGeometry args={[0.2, 0.3, 1.5, 12]} />
+        <meshStandardMaterial color="#8b5a2b" />
+      </mesh>
+      <mesh position={[0, 1.7, 0]} castShadow>
+        <sphereGeometry args={[0.8, 16, 16]} />
+        <meshStandardMaterial color="#228B22" />
+      </mesh>
+    </group>
+  )
+}
+
+
+function Skybox() {
+  // Simple color background, can be replaced with textures
+  useThree(({ scene }) => {
+    scene.background = new THREE.Color('#b3e0ff')
+  })
+  return null
+}
+
+function BlueSky() {
+  useThree(({ scene }) => {
+    scene.background = null
+  })
+  return (
+    <color attach="background" args={["#87CEEB"]} />
+  )
+}
+
+function GrassTerrain({ position = [0, -0.05, 0], size = [200, 200] }) {
+  return (
+    <mesh position={position} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={size} />
+      <meshStandardMaterial color="#90EE90" roughness={0.8} />
+    </mesh>
+  )
+}
+
+function Street({ position = [0, -0.04, 0], size = [20, 20] }) {
+  return (
+    <mesh position={position} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={size} />
+      <meshStandardMaterial color="#2C2C2C" roughness={0.9} />
+    </mesh>
+  )
+}
+
+function Sidewalk({ position = [0, -0.03, 0], size = [25, 25] }) {
+  return (
+    <mesh position={position} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
+      <planeGeometry args={size} />
+      <meshStandardMaterial color="#C0C0C0" roughness={0.8} />
+    </mesh>
+  )
+}
+
+function Building({ position = [0, 0, 0], size = [8, 12, 8], color = "#A0A0A0", windows = true, type = "office" }) {
+  return (
+    <group position={position}>
+      {/* Main building */}
+      <mesh position={[0, size[1]/2, 0]} castShadow receiveShadow>
+        <boxGeometry args={size} />
+        <meshPhysicalMaterial color={color} roughness={0.7} metalness={0.2} />
+      </mesh>
+      
+      {/* Windows */}
+      {windows && (
+        <>
+          {Array.from({ length: Math.floor(size[1]/3) }, (_, i) => (
+            <mesh key={i} position={[0, i * 3 - size[1]/2 + 1.5, size[2]/2 + 0.01]}>
+              <planeGeometry args={[size[0] * 0.8, 2]} />
+              <meshStandardMaterial color="#87CEEB" transparent opacity={0.7} />
+            </mesh>
+          ))}
+        </>
+      )}
+      
+      {/* Building details based on type */}
+      {type === "office" && (
+        <>
+          {/* Rooftop antenna */}
+          <mesh position={[0, size[1] + 0.5, 0]}>
+            <cylinderGeometry args={[0.05, 0.05, 1, 8]} />
+            <meshStandardMaterial color="#404040" />
+          </mesh>
+          {/* Air conditioning units */}
+          <mesh position={[size[0]/3, size[1] + 0.1, size[2]/3]}>
+            <boxGeometry args={[1, 0.3, 0.8]} />
+            <meshStandardMaterial color="#C0C0C0" />
+          </mesh>
+        </>
+      )}
+      
+      {type === "residential" && (
+        <>
+          {/* Chimney */}
+          <mesh position={[size[0]/4, size[1] + 0.3, size[2]/4]}>
+            <cylinderGeometry args={[0.3, 0.3, 0.6, 8]} />
+            <meshStandardMaterial color="#8B4513" />
+          </mesh>
+          {/* Door */}
+          <mesh position={[0, 0.5, size[2]/2 + 0.01]}>
+            <planeGeometry args={[1, 2]} />
+            <meshStandardMaterial color="#654321" />
+          </mesh>
+        </>
+      )}
+      
+      {type === "skyscraper" && (
+        <>
+          {/* Spire */}
+          <mesh position={[0, size[1] + 2, 0]}>
+            <coneGeometry args={[0.5, 2, 8]} />
+            <meshStandardMaterial color="#FFD700" metalness={0.8} />
+          </mesh>
+          {/* Multiple antennas */}
+          <mesh position={[-size[0]/4, size[1] + 1, 0]}>
+            <cylinderGeometry args={[0.02, 0.02, 1.5, 6]} />
+            <meshStandardMaterial color="#404040" />
+          </mesh>
+          <mesh position={[size[0]/4, size[1] + 1, 0]}>
+            <cylinderGeometry args={[0.02, 0.02, 1.5, 6]} />
+            <meshStandardMaterial color="#404040" />
+          </mesh>
+        </>
+      )}
+    </group>
+  )
+}
+
+function Streetlight({ position = [0, 0, 0] }) {
+  return (
+    <group position={position}>
+      {/* Pole */}
+      <mesh position={[0, 2, 0]} castShadow>
+        <cylinderGeometry args={[0.05, 0.05, 4, 8]} />
+        <meshStandardMaterial color="#404040" metalness={0.8} />
+      </mesh>
+      {/* Light */}
+      <mesh position={[0, 4.2, 0]} castShadow>
+        <sphereGeometry args={[0.3, 16, 16]} />
+        <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={0.5} />
+      </mesh>
+    </group>
+  )
+}
+
+function Car({ position = [0, 0, 0], color = "#FF0000" }) {
+  return (
+    <group position={position}>
+      {/* Body */}
+      <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
+        <boxGeometry args={[2, 0.6, 4]} />
+        <meshStandardMaterial color={color} metalness={0.8} roughness={0.2} />
+      </mesh>
+      {/* Wheels */}
+      <mesh position={[-0.7, 0.1, 1.2]} castShadow>
+        <cylinderGeometry args={[0.2, 0.2, 0.3, 8]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0.7, 0.1, 1.2]} castShadow>
+        <cylinderGeometry args={[0.2, 0.2, 0.3, 8]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[-0.7, 0.1, -1.2]} castShadow>
+        <cylinderGeometry args={[0.2, 0.2, 0.3, 8]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+      <mesh position={[0.7, 0.1, -1.2]} castShadow>
+        <cylinderGeometry args={[0.2, 0.2, 0.3, 8]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+    </group>
+  )
+}
+
+function CityTree({ position = [0, 0, 0], type = "oak" }) {
+  return (
+    <group position={position}>
+      {/* Trunk */}
+      <mesh position={[0, 1, 0]} castShadow>
+        <cylinderGeometry args={[0.2, 0.3, 2, 8]} />
+        <meshStandardMaterial color="#8B4513" />
+      </mesh>
+      
+      {/* Foliage based on type */}
+      {type === "oak" && (
+        <>
+          <mesh position={[0, 2.5, 0]} castShadow>
+            <sphereGeometry args={[1.2, 16, 16]} />
+            <meshStandardMaterial color="#228B22" />
+          </mesh>
+        </>
+      )}
+      
+      {type === "pine" && (
+        <>
+          <mesh position={[0, 2.2, 0]} castShadow>
+            <coneGeometry args={[0.8, 1.5, 8]} />
+            <meshStandardMaterial color="#2E8B57" />
+          </mesh>
+          <mesh position={[0, 3.2, 0]} castShadow>
+            <coneGeometry args={[0.6, 1.2, 8]} />
+            <meshStandardMaterial color="#2E8B57" />
+          </mesh>
+          <mesh position={[0, 4.1, 0]} castShadow>
+            <coneGeometry args={[0.4, 0.8, 8]} />
+            <meshStandardMaterial color="#2E8B57" />
+          </mesh>
+        </>
+      )}
+      
+      {type === "palm" && (
+        <>
+          <mesh position={[0, 2.8, 0]} castShadow>
+            <sphereGeometry args={[0.3, 8, 8]} />
+            <meshStandardMaterial color="#8B4513" />
+          </mesh>
+          {/* Palm fronds */}
+          {[...Array(6)].map((_, i) => (
+            <mesh key={i} position={[0, 2.8, 0]} rotation={[0, (i * Math.PI) / 3, 0]}>
+              <planeGeometry args={[0.1, 1.5]} />
+              <meshStandardMaterial color="#228B22" side={THREE.DoubleSide} />
+            </mesh>
+          ))}
+        </>
+      )}
+    </group>
+  )
+}
+
+function Rock({ position = [0, 0.3, 0], scale = 1, type = "boulder" }) {
+  return (
+    <group position={position} scale={scale}>
+      {type === "boulder" && (
+        <mesh castShadow receiveShadow>
+          <dodecahedronGeometry args={[0.5, 1]} />
+          <meshPhysicalMaterial color="#696969" roughness={0.8} metalness={0.1} />
+        </mesh>
+      )}
+      
+      {type === "small" && (
+        <mesh castShadow receiveShadow>
+          <octahedronGeometry args={[0.3, 0]} />
+          <meshPhysicalMaterial color="#A9A9A9" roughness={0.7} metalness={0.2} />
+        </mesh>
+      )}
+      
+      {type === "flat" && (
+        <mesh castShadow receiveShadow>
+          <boxGeometry args={[0.8, 0.2, 0.6]} />
+          <meshPhysicalMaterial color="#778899" roughness={0.9} metalness={0.1} />
+        </mesh>
+      )}
+    </group>
+  )
+}
+
+function Bush({ position = [0, 0.2, 0], scale = 1 }) {
+  return (
+    <group position={position} scale={scale}>
+      <mesh position={[0, 0.3, 0]} castShadow>
+        <sphereGeometry args={[0.4, 12, 12]} />
+        <meshStandardMaterial color="#32CD32" />
+      </mesh>
+      <mesh position={[0.2, 0.4, 0.1]} castShadow>
+        <sphereGeometry args={[0.3, 10, 10]} />
+        <meshStandardMaterial color="#228B22" />
+      </mesh>
+      <mesh position={[-0.2, 0.4, -0.1]} castShadow>
+        <sphereGeometry args={[0.3, 10, 10]} />
+        <meshStandardMaterial color="#228B22" />
+      </mesh>
+    </group>
+  )
+}
+
+function TrashCan({ position = [0, 0, 0] }) {
+  return (
+    <group position={position}>
+      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
+        <cylinderGeometry args={[0.3, 0.3, 1, 8]} />
+        <meshStandardMaterial color="#404040" metalness={0.6} />
+      </mesh>
+    </group>
+  )
+}
+
+function Bench({ position = [0, 0, 0] }) {
+  return (
+    <group position={position}>
+      {/* Seat */}
+      <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
+        <boxGeometry args={[2, 0.1, 0.5]} />
+        <meshStandardMaterial color="#8B4513" />
+      </mesh>
+      {/* Back */}
+      <mesh position={[0, 0.6, -0.2]} castShadow>
+        <boxGeometry args={[2, 0.6, 0.1]} />
+        <meshStandardMaterial color="#8B4513" />
+      </mesh>
+      {/* Legs */}
+      <mesh position={[-0.8, 0.15, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.3, 0.1]} />
+        <meshStandardMaterial color="#8B4513" />
+      </mesh>
+      <mesh position={[0.8, 0.15, 0]} castShadow>
+        <boxGeometry args={[0.1, 0.3, 0.1]} />
+        <meshStandardMaterial color="#8B4513" />
+      </mesh>
+    </group>
+  )
+}
+
+function PinkFlower({ position = [0, 0.1, 0], scale = 1, color = "#f06292" }) {
+  return (
+    <group position={position} scale={scale}>
+      {/* Stem */}
+      <mesh position={[0, 0.15, 0]}>
+        <cylinderGeometry args={[0.04, 0.04, 0.3, 8]} />
+        <meshStandardMaterial color="#a5d6a7" />
+      </mesh>
+      {/* Petals */}
+      {[...Array(6)].map((_, i) => (
+        <mesh key={i} position={[Math.cos(i * Math.PI/3) * 0.13, 0.32, Math.sin(i * Math.PI/3) * 0.13]}>
+          <sphereGeometry args={[0.07, 8, 8]} />
+          <meshStandardMaterial color={color} />
+        </mesh>
+      ))}
+      {/* Center */}
+      <mesh position={[0, 0.32, 0]}>
+        <sphereGeometry args={[0.06, 8, 8]} />
+        <meshStandardMaterial color="#fff59d" />
+      </mesh>
+    </group>
+  )
+}
+
+function PinkHeart({ position = [0, 0.2, 0], scale = 1, color = "#f06292" }) {
+  // Heart shape using two spheres and a cone
+  return (
+    <group position={position} scale={scale}>
+      <mesh position={[-0.07, 0.22, 0]}>
+        <sphereGeometry args={[0.09, 10, 10]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh position={[0.07, 0.22, 0]}>
+        <sphereGeometry args={[0.09, 10, 10]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+      <mesh rotation={[Math.PI, 0, Math.PI/4]} position={[0, 0.13, 0]}>
+        <coneGeometry args={[0.13, 0.18, 16]} />
+        <meshStandardMaterial color={color} />
+      </mesh>
+    </group>
+  )
+}
+
+// Soccer Pitch (Stadium Look)
+function SoccerPitch({
+  size = [24, 0.2, 14],
+  wallHeight = 2.5,
+  wallThickness = 0.4,
+}) {
+  // Pitch
+  return (
+    <group>
+      {/* Grass field */}
+      <mesh position={[0, 0, 0]} receiveShadow>
+        <boxGeometry args={size} />
+        <meshStandardMaterial color="#3a9d23" />
+      </mesh>
+      {/* White lines */}
+      <mesh position={[0, 0.01, 0]} receiveShadow>
+        <planeGeometry args={[size[0] * 0.98, size[2] * 0.98]} />
+        <meshStandardMaterial color="#ffffff" transparent opacity={0.08} />
+      </mesh>
+      {/* Center circle */}
+      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <ringGeometry args={[2.5, 2.7, 32]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
+      </mesh>
+      {/* Walls */}
+      {/* Left */}
+      <mesh position={[-size[0]/2 - wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[wallThickness, wallHeight, size[2]+wallThickness*2]} />
+        <meshStandardMaterial color="#888" />
+      </mesh>
+      {/* Right */}
+      <mesh position={[size[0]/2 + wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
+        <boxGeometry args={[wallThickness, wallHeight, size[2]+wallThickness*2]} />
+        <meshStandardMaterial color="#888" />
+      </mesh>
+      {/* Top */}
+      <mesh position={[0, wallHeight/2, -size[2]/2 - wallThickness/2]} castShadow receiveShadow>
+        <boxGeometry args={[size[0]+wallThickness*2, wallHeight, wallThickness]} />
+        <meshStandardMaterial color="#888" />
+      </mesh>
+      {/* Bottom */}
+      <mesh position={[0, wallHeight/2, size[2]/2 + wallThickness/2]} castShadow receiveShadow>
+        <boxGeometry args={[size[0]+wallThickness*2, wallHeight, wallThickness]} />
+        <meshStandardMaterial color="#888" />
+      </mesh>
+      {/* Stadium stands (simple) */}
+      <mesh position={[0, wallHeight+0.5, 0]}>
+        <boxGeometry args={[size[0]+6, 1, size[2]+6]} />
+        <meshStandardMaterial color="#222" />
+      </mesh>
+    </group>
+  )
+}
+
+// Soccer Goal (placeholder)
+function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1 }) {
+  return (
+    <group position={position}>
+      {/* Posts */}
+      <mesh position={[-width/2, height/2, 0]}>
+        <boxGeometry args={[0.15, height, 0.15]} />
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+      <mesh position={[width/2, height/2, 0]}>
+        <boxGeometry args={[0.15, height, 0.15]} />
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+      {/* Crossbar */}
+      <mesh position={[0, height, 0]}>
+        <boxGeometry args={[width+0.15, 0.15, 0.15]} />
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+      {/* Net (simple) */}
+      <mesh position={[0, height/2, -depth/2]}>
+        <boxGeometry args={[width, height, 0.1]} />
+        <meshStandardMaterial color="#eee" transparent opacity={0.3} />
+      </mesh>
+    </group>
+  )
+}
+
+// Soccer Ball (placeholder)
+function SoccerBall({ position = [0, 0.25, 0], radius = 0.3 }) {
+  return (
+    <mesh position={position} castShadow receiveShadow>
+      <sphereGeometry args={[radius, 32, 32]} />
+      <meshStandardMaterial color="#fff" />
+    </mesh>
+  )
+}
+
+export default function Scene() {
+  const playerRef = useRef()
+  const [hasModel, setHasModel] = useState(false)
+  // Soccer ball physics
+  const [ballBody] = useState(() => createSoccerBallBody())
+  const ballMeshRef = useRef()
+  const coins = useStore((s) => s.coins)
+  const lives = useStore((s) => s.lives)
+  const level = useStore((s) => s.level)
+  const resetGame = useStore((s) => s.resetGame)
+  const nextLevel = useStore((s) => s.nextLevel)
+  // Door state
+  const [doorOpen, setDoorOpen] = useState(false)
+
+  // simple platforms for the level
+  const platforms = [
+    { position: [0, 0, 0], size: [10, 0.5, 6] },
+    { position: [6, 1.5, 0], size: [4, 0.5, 2] },
+    { position: [-6, 2.8, 0], size: [3.5, 0.5, 2] },
+    { position: [12, 0.8, 0], size: [4, 0.5, 2] },
+    { position: [0, 2, -6], size: [3, 0.5, 2], isMoving: true, range: 4, speed: 1 }, // Moving platform
+  ]
+
+  // obstacles for collision detection
+  const obstacles = [
+    // Major Buildings - Downtown
+    { position: [-25, 0, -15], size: [8, 20, 8] },
+    { position: [-25, 0, 15], size: [6, 18, 6] },
+    { position: [25, 0, -15], size: [10, 22, 8] },
+    { position: [25, 0, 15], size: [8, 16, 8] },
+    { position: [0, 0, -30], size: [12, 25, 10] },
+    { position: [0, 0, 30], size: [10, 20, 10] },
+    
+    // Residential Houses
+    { position: [-40, 0, -20], size: [4, 6, 4] },
+    { position: [-40, 0, -10], size: [4, 6, 4] },
+    { position: [-40, 0, 0], size: [4, 6, 4] },
+    { position: [-40, 0, 10], size: [4, 6, 4] },
+    { position: [-40, 0, 20], size: [4, 6, 4] },
+    { position: [40, 0, -20], size: [4, 6, 4] },
+    { position: [40, 0, -10], size: [4, 6, 4] },
+    { position: [40, 0, 0], size: [4, 6, 4] },
+    { position: [40, 0, 10], size: [4, 6, 4] },
+    { position: [40, 0, 20], size: [4, 6, 4] },
+    { position: [-20, 0, -40], size: [4, 6, 4] },
+    { position: [-10, 0, -40], size: [4, 6, 4] },
+    { position: [0, 0, -40], size: [4, 6, 4] },
+    { position: [10, 0, -40], size: [4, 6, 4] },
+    { position: [20, 0, -40], size: [4, 6, 4] },
+    { position: [-20, 0, 40], size: [4, 6, 4] },
+    { position: [-10, 0, 40], size: [4, 6, 4] },
+    { position: [0, 0, 40], size: [4, 6, 4] },
+    { position: [10, 0, 40], size: [4, 6, 4] },
+    { position: [20, 0, 40], size: [4, 6, 4] },
+    
+    // Additional Commercial Buildings
+    { position: [-15, 0, -25], size: [6, 12, 6] },
+    { position: [15, 0, -25], size: [6, 14, 6] },
+    { position: [-15, 0, 25], size: [6, 10, 6] },
+    { position: [15, 0, 25], size: [6, 16, 6] },
+    
+    // Cars
+    { position: [-18, 0, 0], size: [2, 1, 4] },
+    { position: [-8, 0, 0], size: [2, 1, 4] },
+    { position: [8, 0, 0], size: [2, 1, 4] },
+    { position: [18, 0, 0], size: [2, 1, 4] },
+    { position: [0, 0, -18], size: [4, 1, 2] },
+    { position: [0, 0, -8], size: [4, 1, 2] },
+    { position: [0, 0, 8], size: [4, 1, 2] },
+    { position: [0, 0, 18], size: [4, 1, 2] },
+    { position: [-15, 0, -15], size: [2, 1, 4] },
+    { position: [15, 0, -15], size: [2, 1, 4] },
+    { position: [-15, 0, 15], size: [2, 1, 4] },
+    { position: [15, 0, 15], size: [2, 1, 4] },
+    { position: [-25, 0, 0], size: [2, 1, 4] },
+    { position: [25, 0, 0], size: [2, 1, 4] },
+    { position: [0, 0, -25], size: [4, 1, 2] },
+    { position: [0, 0, 25], size: [4, 1, 2] },
+    
+    // Trees (collision with trunk only)
+    { position: [-10, 0, -5], size: [0.4, 2, 0.4] },
+    { position: [10, 0, -5], size: [0.4, 2, 0.4] },
+    { position: [-10, 0, 5], size: [0.4, 2, 0.4] },
+    { position: [10, 0, 5], size: [0.4, 2, 0.4] },
+    { position: [-30, 0, -10], size: [0.4, 2, 0.4] },
+    { position: [30, 0, -10], size: [0.4, 2, 0.4] },
+    { position: [-30, 0, 10], size: [0.4, 2, 0.4] },
+    { position: [30, 0, 10], size: [0.4, 2, 0.4] },
+    { position: [-5, 0, -35], size: [0.4, 2, 0.4] },
+    { position: [5, 0, -35], size: [0.4, 2, 0.4] },
+    { position: [-5, 0, 35], size: [0.4, 2, 0.4] },
+    { position: [5, 0, 35], size: [0.4, 2, 0.4] },
+    { position: [-35, 0, -5], size: [0.4, 2, 0.4] },
+    { position: [35, 0, -5], size: [0.4, 2, 0.4] },
+    { position: [-35, 0, 5], size: [0.4, 2, 0.4] },
+    { position: [35, 0, 5], size: [0.4, 2, 0.4] },
+    { position: [-20, 0, -20], size: [0.4, 2, 0.4] },
+    { position: [20, 0, -20], size: [0.4, 2, 0.4] },
+    { position: [-20, 0, 20], size: [0.4, 2, 0.4] },
+    { position: [20, 0, 20], size: [0.4, 2, 0.4] },
+    { position: [0, 0, -15], size: [0.4, 2, 0.4] },
+    { position: [0, 0, 15], size: [0.4, 2, 0.4] },
+    { position: [-15, 0, 0], size: [0.4, 2, 0.4] },
+    { position: [15, 0, 0], size: [0.4, 2, 0.4] },
+    
+    // Streetlights
+    { position: [-20, 0, 0], size: [0.2, 4, 0.2] },
+    { position: [-10, 0, 0], size: [0.2, 4, 0.2] },
+    { position: [0, 0, 0], size: [0.2, 4, 0.2] },
+    { position: [10, 0, 0], size: [0.2, 4, 0.2] },
+    { position: [20, 0, 0], size: [0.2, 4, 0.2] },
+    { position: [0, 0, -20], size: [0.2, 4, 0.2] },
+    { position: [0, 0, -10], size: [0.2, 4, 0.2] },
+    { position: [0, 0, 10], size: [0.2, 4, 0.2] },
+    { position: [0, 0, 20], size: [0.2, 4, 0.2] },
+    { position: [-20, 0, -20], size: [0.2, 4, 0.2] },
+    { position: [-20, 0, 20], size: [0.2, 4, 0.2] },
+    { position: [20, 0, -20], size: [0.2, 4, 0.2] },
+    { position: [20, 0, 20], size: [0.2, 4, 0.2] },
+    
+    // Urban details
+    { position: [-3, 0, 3], size: [0.8, 1, 0.8] }, // TrashCan
+    { position: [3, 0, -3], size: [0.8, 1, 0.8] },
+    { position: [-15, 0, 5], size: [0.8, 1, 0.8] },
+    { position: [15, 0, -5], size: [0.8, 1, 0.8] },
+    { position: [-5, 0, -15], size: [0.8, 1, 0.8] },
+    { position: [5, 0, 15], size: [0.8, 1, 0.8] },
+    { position: [-25, 0, 0], size: [0.8, 1, 0.8] },
+    { position: [25, 0, 0], size: [0.8, 1, 0.8] },
+    
+    { position: [-6, 0, 0], size: [2, 0.5, 0.5] }, // Bench
+    { position: [6, 0, 0], size: [2, 0.5, 0.5] },
+    { position: [-20, 0, -10], size: [2, 0.5, 0.5] },
+    { position: [20, 0, 10], size: [2, 0.5, 0.5] },
+    { position: [-10, 0, -20], size: [2, 0.5, 0.5] },
+    { position: [10, 0, 20], size: [2, 0.5, 0.5] },
+    { position: [0, 0, -30], size: [2, 0.5, 0.5] },
+    { position: [0, 0, 30], size: [2, 0.5, 0.5] },
+  ]
+
+  // check for model availability once on mount
+  useEffect(() => {
+    let mounted = true
+    const check = async () => {
+      try {
+        const res = await fetch('/models/player.glb', { method: 'HEAD' })
+        if (mounted && res.ok) setHasModel(true)
+      } catch (e) {
+        // ignore — model missing
+      }
+    }
+    check()
+    // create physics world and platform bodies
+    const world = createWorld()
+    // add ground plane
+    const groundMat = new CANNON.Material('ground')
+    const groundBody = new CANNON.Body({ mass: 0, shape: new CANNON.Plane() })
+    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
+    world.addBody(groundBody)
+    // add platform bodies
+    platforms.forEach((p) => {
+      const shape = new CANNON.Box(new CANNON.Vec3(p.size[0] / 2, p.size[1] / 2, p.size[2] / 2))
+      const body = new CANNON.Body({ mass: 0, shape })
+      body.position.set(p.position[0], p.position[1], p.position[2])
+      world.addBody(body)
+    })
+    // Add soccer ball to physics world
+    world.addBody(ballBody)
+    return () => (mounted = false)
+  }, [ballBody])
+
+  useFrame(() => {
+    // Sync soccer ball mesh with physics body
+    if (ballMeshRef.current && ballBody) {
+      ballMeshRef.current.position.copy(ballBody.position)
+      ballMeshRef.current.quaternion.copy(ballBody.quaternion)
+    }
+  })
+
+  return (
+    <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
+      <color attach="background" args={["#1a2a3a"]} />
+      <ambientLight intensity={0.7} color="#FFFFFF" />
+      <directionalLight position={[10, 30, 10]} intensity={2} color="#fff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
+      {/* Stadium lights */}
+      <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
+      <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
+      {/* Soccer pitch */}
+      <SoccerPitch size={pitchSize} />
+      {/* Goals */}
+      <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} />
+      <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} />
+      {/* Soccer ball with physics */}
+      <SoccerBall ref={ballMeshRef} />
+      {/* Players (to be replaced with multiplayer logic) */}
+      {hasModel ? (
+        <PlayerModel ref={playerRef} position={[0, 1, 0]} />
+      ) : (
+        <Player ref={playerRef} position={[0, 1, 0]} />
+      )}
+      {/* Camera controller */}
+      <CameraController targetRef={playerRef} />
+      {/* HUD and overlays (keep for now) */}
+      <Html fullscreen>
+        <div className="hud">
+          <div className="hud-left">Use WASD/arrows to move. Soccer controls coming soon.</div>
+        </div>
+      </Html>
+    </Canvas>
+  )
+}
+
+
+// Note: we check for model availability inside the Scene component on mount.
+
+function Coins({ playerRef, positions = [] }) {
+  const collectCoin = useStore((s) => s.collectCoin)
+  const coinsRef = useRef([])
+  const [collected, setCollected] = useState(Array(positions.length).fill(false))
+  const [showSparkles, setShowSparkles] = useState(Array(positions.length).fill(false))
+
+  useFrame(() => {
+    stepWorld()
+    const playerPos = playerRef.current ? playerRef.current.position : null
+    if (!playerPos) return
+    positions.forEach((pos, i) => {
+      const cr = coinsRef.current[i]
+      if (!cr) return
+      cr.rotation.y += 0.1
+      if (!collected[i] && playerPos.distanceTo(cr.position) < 1) {
+        collectCoin()
+        setCollected((prev) => {
+          const arr = [...prev]; arr[i] = true; return arr;
+        })
+        setShowSparkles((prev) => {
+          const arr = [...prev]; arr[i] = true; return arr;
+        })
+        setTimeout(() => {
+          setShowSparkles((prev) => {
+            const arr = [...prev]; arr[i] = false; return arr;
+          })
+        }, 1000)
+      }
+    })
+  })
+
+  return (
+    <group>
+      {positions.map((p, i) => {
+        const { scale, rotation } = useSpring({
+          scale: collected[i] ? 0 : 1,
+          rotation: [0, 0, 0],
+          config: { tension: 300, friction: 20 },
+        })
+        return (
+          <group key={i} position={p}>
+            <a.mesh
+          ref={(el) => (coinsRef.current[i] = el)}
+          rotation={[0, 0, 0]}
+          castShadow
+              scale-x={scale}
+              scale-y={scale}
+              scale-z={scale}
+            >
+              <torusGeometry args={[0.25, 0.08, 18, 32]} />
+              <meshPhysicalMaterial 
+                color="#ffd7fa" 
+                metalness={0.8} 
+                roughness={0.2} 
+                clearcoat={0.6} 
+                iridescence={0.4}
+                emissive="#ffa"
+                emissiveIntensity={0.3}
+              />
+              {/* Heart pattern */}
+              <mesh position={[0, 0, 0.13]} scale={[0.18, 0.18, 0.01]}>
+                <sphereGeometry args={[1, 8, 8]} />
+                <meshStandardMaterial color="#f06292" />
+        </mesh>
+            </a.mesh>
+            {showSparkles[i] && (
+              <Sparkles count={15} scale={1.5} size={1.5} speed={0.6} color="#ffd700" />
+            )}
+          </group>
+        )
+      })}
+    </group>
+  )
+}
