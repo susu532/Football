@@ -28,9 +28,9 @@ export default function Sidebar({ products = [] }) {
         <div>Lives: <strong>{lives}</strong></div>
       </div>
 
-      <div className="emperia-note">
-        <strong>Emperia:</strong>
-        <p>Placeholder for Emperia integration (AR/3D commerce). See README.</p>
+      <div className="Soccer-note">
+        <strong>Soccer:</strong>
+        <p>Placeholder for Soccer integration (AR/3D commerce). See README.</p>
       </div>
     </div>
   )

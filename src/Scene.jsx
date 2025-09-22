@@ -10,11 +10,11 @@ import * as CANNON from 'cannon-es'
 import { useSpring, a } from '@react-spring/three'
 import { io } from 'socket.io-client'
 
-// Small Emperia placeholder - replace with real widget/SDK integration
-export function openEmperiaPlaceholder() {
-  // In a real integration you'd open Emperia's SDK or widget here.
+// Small Soccer placeholder - replace with real widget/SDK integration
+export function openSoccerPlaceholder() {
+  // In a real integration you'd open Soccer's SDK or widget here.
   // Keep this lightweight for the demo.
-  window.alert('Open Emperia (placeholder)')
+  window.alert('Open Soccer (placeholder)')
 }
 
 function Platform({ position = [0, 0, 0], size = [4, 0.5, 2], color = '#6b8e23' }) {
