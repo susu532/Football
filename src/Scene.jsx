@@ -855,6 +855,7 @@ export default function Scene() {
   const [playerId, setPlayerId] = useState(null)
   const [remotePlayers, setRemotePlayers] = useState({})
   const [ballBody] = useState(() => createSoccerBallBody())
+  const [scores, setScores] = useState({ red: 0, blue: 0 })
   const pitchSize = [24, 0.2, 14]
   
   // Get player state from store
@@ -872,9 +873,10 @@ export default function Scene() {
   useEffect(() => {
     const s = io('https://socket-rox7.onrender.com')
     setSocket(s)
-    s.on('init', ({ id, players, ball }) => {
+    s.on('init', ({ id, players, ball, scores }) => {
       setPlayerId(id)
       setRemotePlayers(players)
+      if (scores) setScores(scores)
       if (ballBody) {
         ballBody.position.set(...ball.position)
         ballBody.velocity.set(...ball.velocity)
@@ -897,6 +899,16 @@ export default function Scene() {
       if (ballBody) {
         ballBody.position.set(...ball.position)
         ballBody.velocity.set(...ball.velocity)
+      }
+    })
+    s.on('score-update', (newScores) => {
+      setScores(newScores)
+    })
+    s.on('ball-reset', (ball) => {
+      if (ballBody) {
+        ballBody.position.set(...ball.position)
+        ballBody.velocity.set(...ball.velocity)
+        ballBody.angularVelocity.set(0, 0, 0)
       }
     })
     return () => {
@@ -954,6 +966,40 @@ export default function Scene() {
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [ballBody, socket])
 
+  // Goal Detection (Host only)
+  useFrame(() => {
+    if (!ballBody || !socket || !playerId) return
+    // Only the host (first player) checks for goals to avoid duplicate events
+    // A simple way to check if host is to see if we are the first key in remotePlayers, 
+    // but remotePlayers doesn't include us. 
+    // Better: checking if we are the one sending ball updates? 
+    // Actually, let's just let the client who is currently "authoritative" or just the first connected player do it.
+    // For simplicity, let's say if we are the player with the lowest ID (lexicographically) or just rely on server?
+    // Server doesn't have physics.
+    // Let's use a simple heuristic: if Object.keys(remotePlayers).length === 0, we are alone (host).
+    // If there are others, we need a consistent way.
+    // Let's assume the player with the alphabetically first ID is the host.
+    const allIds = [playerId, ...Object.keys(remotePlayers)].sort()
+    const isHost = allIds[0] === playerId
+
+    if (isHost) {
+      const { x, z } = ballBody.position
+      // Blue Goal (Top, z < -6) -> Red Scores
+      if (z < -pitchSize[2]/2 - 0.5 && Math.abs(x) < 2) {
+         // Reset ball immediately to prevent multiple triggers locally before server reset
+         ballBody.position.set(0, 0.5, 0) 
+         ballBody.velocity.set(0, 0, 0)
+         socket.emit('goal', 'red')
+      }
+      // Red Goal (Bottom, z > 6) -> Blue Scores
+      else if (z > pitchSize[2]/2 + 0.5 && Math.abs(x) < 2) {
+         ballBody.position.set(0, 0.5, 0)
+         ballBody.velocity.set(0, 0, 0)
+         socket.emit('goal', 'blue')
+      }
+    }
+  })
+
 
 
   if (!hasJoined) {
@@ -996,6 +1042,15 @@ export default function Scene() {
       {/* HUD and overlays */}
       <Html fullscreen>
         <div className="hud">
+          <div className="hud-score" style={{ 
+            position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', 
+            fontSize: '48px', fontWeight: 'bold', color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+            display: 'flex', gap: '40px'
+          }}>
+            <span style={{ color: '#ff4757' }}>{scores.red}</span>
+            <span>-</span>
+            <span style={{ color: '#3742fa' }}>{scores.blue}</span>
+          </div>
           <div className="hud-left">Use WASD/arrows to move. {playerName && `Playing as: ${playerName}`}</div>
         </div>
       </Html>
