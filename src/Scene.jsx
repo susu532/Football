@@ -869,7 +869,9 @@ export default function Scene() {
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(true)
+  const [celebration, setCelebration] = useState(null) // { team: 'red' | 'blue' }
   const chatRef = useRef(null)
+  const prevScoresRef = useRef({ red: 0, blue: 0 })
   const pitchSize = [24, 0.2, 14]
   
   // Get player state from store
@@ -916,6 +918,15 @@ export default function Scene() {
       }
     })
     s.on('score-update', (newScores) => {
+      // Check if a goal was scored
+      if (newScores.red > prevScoresRef.current.red) {
+        setCelebration({ team: 'red' })
+        setTimeout(() => setCelebration(null), 3000) // Hide after 3 seconds
+      } else if (newScores.blue > prevScoresRef.current.blue) {
+        setCelebration({ team: 'blue' })
+        setTimeout(() => setCelebration(null), 3000)
+      }
+      prevScoresRef.current = { ...newScores }
       setScores(newScores)
     })
     s.on('ball-reset', (ball) => {
@@ -1035,7 +1046,91 @@ export default function Scene() {
         </div>
        
       </div>
+
+      {/* Goal Celebration Overlay */}
+      {celebration && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 10000,
+          pointerEvents: 'none',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0,0,0,0.3)'
+        }}>
+          {/* Confetti particles */}
+          {Array.from({ length: 50 }).map((_, i) => (
+            <div
+              key={i}
+              style={{
+                position: 'absolute',
+                width: `${Math.random() * 15 + 5}px`,
+                height: `${Math.random() * 15 + 5}px`,
+                background: celebration.team === 'red' 
+                  ? ['#ff4757', '#ff6b81', '#ffd32a', '#fff200'][Math.floor(Math.random() * 4)]
+                  : ['#3742fa', '#5f6cff', '#00d2d3', '#54a0ff'][Math.floor(Math.random() * 4)],
+                borderRadius: Math.random() > 0.5 ? '50%' : '0',
+                left: `${Math.random() * 100}%`,
+                top: `-10%`,
+                animation: `confettiFall ${2 + Math.random() * 2}s ease-out forwards`,
+                animationDelay: `${Math.random() * 0.5}s`,
+                transform: `rotate(${Math.random() * 360}deg)`
+              }}
+            />
+          ))}
+          {/* GOAL Text */}
+          <div style={{
+            fontSize: '120px',
+            fontWeight: '900',
+            color: celebration.team === 'red' ? '#ff4757' : '#3742fa',
+            textShadow: `0 0 20px ${celebration.team === 'red' ? '#ff4757' : '#3742fa'}, 
+                         0 0 40px ${celebration.team === 'red' ? '#ff4757' : '#3742fa'},
+                         0 0 60px ${celebration.team === 'red' ? '#ff4757' : '#3742fa'},
+                         4px 4px 0 #000`,
+            animation: 'goalPulse 0.5s ease-in-out infinite alternate',
+            textTransform: 'uppercase',
+            letterSpacing: '20px'
+          }}>
+            ⚽ GOAL! ⚽
+          </div>
+          <div style={{
+            position: 'absolute',
+            bottom: '30%',
+            fontSize: '36px',
+            fontWeight: 'bold',
+            color: 'white',
+            textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
+          }}>
+            {celebration.team.toUpperCase()} TEAM SCORES!
+          </div>
+        </div>
+      )}
       
+      {/* CSS Animations */}
+      <style>{`
+        @keyframes confettiFall {
+          0% {
+            transform: translateY(0) rotate(0deg);
+            opacity: 1;
+          }
+          100% {
+            transform: translateY(100vh) rotate(720deg);
+            opacity: 0;
+          }
+        }
+        @keyframes goalPulse {
+          0% {
+            transform: scale(1);
+          }
+          100% {
+            transform: scale(1.1);
+          }
+        }
+      `}</style>
       {/* 3D Canvas */}
       <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
         <PhysicsHandler />
