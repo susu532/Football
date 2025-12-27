@@ -755,32 +755,23 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
 
 function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
   const meshRef = useRef()
-  // Host sends ball state to server
-  useFrame(() => {
-    if (!socket || !playerId || !ballBody) return
-    
-    // Use sorted IDs to determine master consistently across all clients
-    const playerIds = Object.keys(remotePlayers).sort()
-    const isMaster = playerIds[0] === playerId
-    
-    if (isMaster) {
-      socket.emit('ball-update', {
-        position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
-        velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
-      })
-    }
-  })
-  
   // Sync mesh with physics
   useFrame(() => {
     if (meshRef.current && ballBody) {
-      meshRef.current.position.set(ballBody.position.x, ballBody.position.y, ballBody.position.z)
-      meshRef.current.quaternion.set(
-        ballBody.quaternion.x,
-        ballBody.quaternion.y,
-        ballBody.quaternion.z,
-        ballBody.quaternion.w
-      )
+      meshRef.current.position.copy(ballBody.position)
+      meshRef.current.quaternion.copy(ballBody.quaternion)
+    }
+  })
+  // Host sends ball state to server
+  useFrame(() => {
+    if (!socket || !playerId) return
+    if (Object.keys(remotePlayers)[0] === playerId) {
+      if (ballBody) {
+        socket.emit('ball-update', {
+          position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
+          velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
+        })
+      }
     }
   })
   return <SoccerBall ref={meshRef} />
@@ -882,15 +873,8 @@ export default function Scene() {
     })
     s.on('ball-update', (ball) => {
       if (ballBody) {
-        // Only snap if the difference is significant to avoid jitter
-        const currentPos = ballBody.position
-        const newPos = new CANNON.Vec3(...ball.position)
-        const dist = currentPos.distanceTo(newPos)
-        
-        if (dist > 0.05) {
-          ballBody.position.copy(newPos)
-          ballBody.velocity.set(...ball.velocity)
-        }
+        ballBody.position.set(...ball.position)
+        ballBody.velocity.set(...ball.velocity)
       }
     })
     return () => {

@@ -62,11 +62,11 @@ export function createSoccerBallBody(position = [0, 2, 0]) {
   const radius = 0.3
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
-    mass: 0.8, // Slightly heavier for better feel
+    mass: 0.45, // Standard soccer ball mass approx 0.45kg
     position: new CANNON.Vec3(...position),
     material: ballMaterial,
-    linearDamping: 0.1, // Air resistance
-    angularDamping: 0.5, // Rolling resistance (grass)
+    linearDamping: 0.2, // Air resistance
+    angularDamping: 0.2, // Rolling resistance
   })
   body.addShape(shape)
   return body
@@ -116,14 +116,4 @@ function createWalls(world) {
   addWall(0, pitchDepth / 2 + wallThickness / 2, pitchWidth + 2, wallThickness) // Bottom
   addWall(-pitchWidth / 2 - wallThickness / 2, 0, wallThickness, pitchDepth + 2) // Left
   addWall(pitchWidth / 2 + wallThickness / 2, 0, wallThickness, pitchDepth + 2) // Right
-
-  // Goal posts (approximate)
-  const goalZ = pitchDepth / 2 - 0.7
-  const goalWidth = 4
-  // Top goal posts
-  addWall(-goalWidth / 2, -goalZ, 0.2, 0.2)
-  addWall(goalWidth / 2, -goalZ, 0.2, 0.2)
-  // Bottom goal posts
-  addWall(-goalWidth / 2, goalZ, 0.2, 0.2)
-  addWall(goalWidth / 2, goalZ, 0.2, 0.2)
 }
