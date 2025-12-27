@@ -10,6 +10,7 @@ import * as CANNON from 'cannon-es'
 import { useSpring, a } from '@react-spring/three'
 import { io } from 'socket.io-client'
 import TeamSelectPopup from './TeamSelectPopup'
+import { PhysicsHandler, GoalDetector } from './GameLogic'
 
 // Small Soccer placeholder - replace with real widget/SDK integration
 export function openSoccerPlaceholder() {
@@ -687,10 +688,7 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
         const y = Math.cos(phi) * radius
         const z = Math.sin(theta) * Math.sin(phi) * radius
         return (
-          <mesh key={i} position={[x, y, z]}>
-            <circleGeometry args={[radius * 0.18, 8]} />
-            <meshStandardMaterial color="#222" />
-          </mesh>
+          <mesh key={i} position={[x, y, z]}><circleGeometry args={[radius * 0.18, 8]} /><meshStandardMaterial color="#222" /></mesh>
         )
       })}
     </mesh>
@@ -733,21 +731,17 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
   return (
     <group>
       {hasModel ? (
-        <PlayerModel ref={playerRef} position={spawnPosition} color={teamColor}>
-          {playerName && (
+        <PlayerModel ref={playerRef} position={spawnPosition} color={teamColor}>{playerName && (
             <Html position={[0, 2.2, 0]} center distanceFactor={8}>
               <div className={`player-name-label ${playerTeam}`}>{playerName}</div>
             </Html>
-          )}
-        </PlayerModel>
+          )}</PlayerModel>
       ) : (
-        <Player ref={playerRef} position={spawnPosition} color={teamColor}>
-          {playerName && (
+        <Player ref={playerRef} position={spawnPosition} color={teamColor}>{playerName && (
             <Html position={[0, 2.2, 0]} center distanceFactor={8}>
               <div className={`player-name-label ${playerTeam}`}>{playerName}</div>
             </Html>
-          )}
-        </Player>
+          )}</Player>
       )}
     </group>
   )
@@ -801,21 +795,19 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
         <meshStandardMaterial color={color} />
       </mesh>
       {/* Eyes */}
-      <group position={[-0.12, 0.82, 0.08]}> 
-        <mesh scale={[0.105, 0.06, 0.01]}> <sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
-        <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}> <circleGeometry args={[1, 32]} /><meshStandardMaterial color="#000" /></mesh>
+      <group position={[-0.12, 0.82, 0.08]}>
+        <mesh scale={[0.105, 0.06, 0.01]}><sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
+        <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}><circleGeometry args={[1, 32]} /><meshStandardMaterial color="#000" /></mesh>
       </group>
-      <group position={[0.12, 0.82, 0.08]}> 
-        <mesh scale={[0.105, 0.06, 0.01]}> <sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
-        <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}> <circleGeometry args={[1, 32]} /><meshStandardMaterial color="#000" /></mesh>
+      <group position={[0.12, 0.82, 0.08]}>
+        <mesh scale={[0.105, 0.06, 0.01]}><sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
+        <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}><circleGeometry args={[1, 32]} /><meshStandardMaterial color="#000" /></mesh>
       </group>
-      {/* Player name label */}
-      {playerName && (
+      {/* Player name label */}{playerName && (
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>
           <div className={`player-name-label ${team}`}>{playerName}</div>
         </Html>
-      )}
-    </group>
+      )}</group>
   )
 }
 
@@ -841,40 +833,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   )
 }
 
-function PhysicsHandler() {
-  useFrame((_, delta) => {
-    stepWorld(Math.min(delta, 0.1))
-  })
-  return null
-}
 
-function GoalDetector({ ballBody, socket, playerId, remotePlayers, pitchSize }) {
-  useFrame(() => {
-    if (!ballBody || !socket || !playerId) return
-    
-    // Determine host (lowest ID)
-    const allIds = [playerId, ...Object.keys(remotePlayers)].sort()
-    const isHost = allIds[0] === playerId
-
-    if (isHost) {
-      const { x, z } = ballBody.position
-      // Blue Goal (Top, z < -6) -> Red Scores
-      if (z < -pitchSize[2]/2 - 0.5 && Math.abs(x) < 2) {
-         // Reset ball immediately to prevent multiple triggers locally before server reset
-         ballBody.position.set(0, 0.5, 0) 
-         ballBody.velocity.set(0, 0, 0)
-         socket.emit('goal', 'red')
-      }
-      // Red Goal (Bottom, z > 6) -> Blue Scores
-      else if (z > pitchSize[2]/2 + 0.5 && Math.abs(x) < 2) {
-         ballBody.position.set(0, 0.5, 0)
-         ballBody.velocity.set(0, 0, 0)
-         socket.emit('goal', 'blue')
-      }
-    }
-  })
-  return null
-}
 
 export default function Scene() {
   const playerRef = useRef()

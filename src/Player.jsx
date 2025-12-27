@@ -289,21 +289,21 @@ const Player = forwardRef(function Player({ position = [0, 1, 0], platforms = []
             <meshStandardMaterial color="#d6b39a" />
           </mesh>
           {/* Eyes: sclera + iris + vertical slit pupil */}
-          <group position={[-0.12, 0.82, 0.08]}> 
-            <mesh scale={[0.105, 0.06, 0.01]}> <sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
-            <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}> <circleGeometry args={[1, 32]} /><meshStandardMaterial color="#7b5a35" /></mesh>
-            <mesh ref={leftPupilRef} position={[0, 0, 0.012]} scale={[0.01, 0.035, 0.01]}> <boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="#000" /></mesh>
+          <group position={[-0.12, 0.82, 0.08]}>
+            <mesh scale={[0.105, 0.06, 0.01]}><sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
+            <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}><circleGeometry args={[1, 32]} /><meshStandardMaterial color="#7b5a35" /></mesh>
+            <mesh ref={leftPupilRef} position={[0, 0, 0.012]} scale={[0.01, 0.035, 0.01]}><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="#000" /></mesh>
           </group>
-          <group position={[0.12, 0.82, 0.08]}> 
-            <mesh scale={[0.105, 0.06, 0.01]}> <sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
-            <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}> <circleGeometry args={[1, 32]} /><meshStandardMaterial color="#7b5a35" /></mesh>
-            <mesh ref={rightPupilRef} position={[0, 0, 0.012]} scale={[0.01, 0.035, 0.01]}> <boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="#000" /></mesh>
+          <group position={[0.12, 0.82, 0.08]}>
+            <mesh scale={[0.105, 0.06, 0.01]}><sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
+            <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}><circleGeometry args={[1, 32]} /><meshStandardMaterial color="#7b5a35" /></mesh>
+            <mesh ref={rightPupilRef} position={[0, 0, 0.012]} scale={[0.01, 0.035, 0.01]}><boxGeometry args={[1, 1, 1]} /><meshStandardMaterial color="#000" /></mesh>
           </group>
           {/* Nose and mouth (subtle) */}
-          <mesh position={[0, 0.75, 0.14]} scale={[0.04, 0.025, 0.01]}> <sphereGeometry args={[1, 8, 8]} /><meshStandardMaterial color="#e48aa4" /></mesh>
+          <mesh position={[0, 0.75, 0.14]} scale={[0.04, 0.025, 0.01]}><sphereGeometry args={[1, 8, 8]} /><meshStandardMaterial color="#e48aa4" /></mesh>
           {/* Whiskers: thin lines */}
-          <mesh position={[0.12, 0.74, 0.14]} rotation={[0, 0, -0.05]}> <boxGeometry args={[0.22, 0.002, 0.002]} /><meshStandardMaterial color="#ddd" /></mesh>
-          <mesh position={[-0.12, 0.74, 0.14]} rotation={[0, 0, 0.05]}> <boxGeometry args={[0.22, 0.002, 0.002]} /><meshStandardMaterial color="#ddd" /></mesh>
+          <mesh position={[0.12, 0.74, 0.14]} rotation={[0, 0, -0.05]}><boxGeometry args={[0.22, 0.002, 0.002]} /><meshStandardMaterial color="#ddd" /></mesh>
+          <mesh position={[-0.12, 0.74, 0.14]} rotation={[0, 0, 0.05]}><boxGeometry args={[0.22, 0.002, 0.002]} /><meshStandardMaterial color="#ddd" /></mesh>
           {/* Tail: longer, tapered */}
           <mesh position={[0, 0.18, -0.5]} rotation={[1.2, 0, 0.5]} scale={[0.06, 0.6, 0.06]} castShadow>
             <cylinderGeometry args={[1, 0.6, 1, 12]} />
@@ -335,8 +335,7 @@ const Player = forwardRef(function Player({ position = [0, 1, 0], platforms = []
           {/* ...existing chibi geometry (legs, head, eyes, nose, mouth, whiskers, tail) ... */}
         </>
       )}
-      {children}
-    </group>
+      {children}</group>
   )
 })
 

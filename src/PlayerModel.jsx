@@ -145,9 +145,7 @@ const PlayerModel = forwardRef(function PlayerModel({ position = [0, 1, 0], plat
   })
 
   return (
-    <primitive ref={modelRef} object={gltf.scene} position={position} castShadow>
-      {children}
-    </primitive>
+    <primitive ref={modelRef} object={gltf.scene} position={position} castShadow>{children}</primitive>
   )
 })
 
