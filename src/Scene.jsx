@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import Player from './Player'
 import PlayerModel from './PlayerModel'
 import useStore from './store'
-import { createWorld, stepWorld, getWorld, createSoccerBallBody, createPlayerBody, groundMaterial } from './physics'
+import { createWorld, stepWorld, getWorld, createSoccerBallBody, createPlayerBody } from './physics'
 import * as CANNON from 'cannon-es'
 import { useSpring, a } from '@react-spring/three'
 import { io } from 'socket.io-client'
@@ -600,25 +600,6 @@ function SoccerPitch({
 
 // Soccer Goal (improved, with net and team color support)
 function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1.2, netColor = '#e0e0e0' }) {
-  // Physics bodies for posts
-  useEffect(() => {
-    const world = createWorld()
-    const posts = []
-    
-    // Left post
-    const lp = new CANNON.Body({ mass: 0, shape: new CANNON.Cylinder(0.1, 0.1, height, 8), position: new CANNON.Vec3(position[0] - width/2, position[1] + height/2, position[2]) })
-    // Right post
-    const rp = new CANNON.Body({ mass: 0, shape: new CANNON.Cylinder(0.1, 0.1, height, 8), position: new CANNON.Vec3(position[0] + width/2, position[1] + height/2, position[2]) })
-    // Crossbar
-    const cb = new CANNON.Body({ mass: 0, shape: new CANNON.Cylinder(0.1, 0.1, width, 8), position: new CANNON.Vec3(position[0], position[1] + height, position[2]) })
-    cb.quaternion.setFromEuler(0, 0, Math.PI/2)
-    
-    posts.push(lp, rp, cb)
-    posts.forEach(p => world.addBody(p))
-    
-    return () => posts.forEach(p => world.removeBody(p))
-  }, [position, width, height])
-
   // Net grid
   const netRows = 7
   const netCols = 10
@@ -717,32 +698,21 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
 })
 
 function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0] }) {
-  // Create physics body for local player
-  const playerBody = React.useMemo(() => createPlayerBody({ position: spawnPosition }), [])
+  // Physics body for the player (to push the ball)
+  const [body] = useState(() => createPlayerBody(spawnPosition))
   
   useEffect(() => {
-    const world = createWorld()
-    world.addBody(playerBody)
-    return () => world.removeBody(playerBody)
-  }, [playerBody])
+    const world = getWorld()
+    world.addBody(body)
+    return () => world.removeBody(body)
+  }, [body])
 
-  // Sync physics body with visual position and handle kick
+  // Sync physics body with player position
   useFrame(() => {
-    if (playerRef.current) {
+    if (playerRef.current && body) {
+      // Update physics body to match player position (Kinematic)
       const pos = playerRef.current.position
-      playerBody.position.set(pos.x, pos.y, pos.z)
-      
-      // Automatic kick when close and moving
-      const ballBody = getWorld()?.bodies.find(b => b.shapes[0] instanceof CANNON.Sphere && b.mass > 0)
-      if (ballBody) {
-        const dist = playerRef.current.position.distanceTo(new THREE.Vector3(ballBody.position.x, ballBody.position.y, ballBody.position.z))
-        if (dist < 0.8) {
-          const dir = new CANNON.Vec3().copy(ballBody.position).vsub(playerBody.position)
-          dir.y = 0.2 // Slight upward lift
-          dir.normalize()
-          ballBody.applyImpulse(dir.scale(0.3), new CANNON.Vec3(0, 0, 0))
-        }
-      }
+      body.position.set(pos.x, pos.y, pos.z)
     }
   })
 
@@ -785,43 +755,38 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
 
 function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
   const meshRef = useRef()
+  // Host sends ball state to server
+  useFrame(() => {
+    if (!socket || !playerId || !ballBody) return
+    
+    // Use sorted IDs to determine master consistently across all clients
+    const playerIds = Object.keys(remotePlayers).sort()
+    const isMaster = playerIds[0] === playerId
+    
+    if (isMaster) {
+      socket.emit('ball-update', {
+        position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
+        velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
+      })
+    }
+  })
+  
   // Sync mesh with physics
   useFrame(() => {
     if (meshRef.current && ballBody) {
-      meshRef.current.position.copy(ballBody.position)
-      meshRef.current.quaternion.copy(ballBody.quaternion)
-    }
-  })
-  // Host sends ball state to server
-  useFrame(() => {
-    if (!socket || !playerId) return
-    if (Object.keys(remotePlayers)[0] === playerId) {
-      if (ballBody) {
-        socket.emit('ball-update', {
-          position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
-          velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
-        })
-      }
+      meshRef.current.position.set(ballBody.position.x, ballBody.position.y, ballBody.position.z)
+      meshRef.current.quaternion.set(
+        ballBody.quaternion.x,
+        ballBody.quaternion.y,
+        ballBody.quaternion.z,
+        ballBody.quaternion.w
+      )
     }
   })
   return <SoccerBall ref={meshRef} />
 }
 
 function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
-  // Create physics body for remote player
-  const playerBody = React.useMemo(() => createPlayerBody({ position }), [])
-  
-  useEffect(() => {
-    const world = createWorld()
-    world.addBody(playerBody)
-    return () => world.removeBody(playerBody)
-  }, [playerBody])
-
-  // Sync physics body with remote position
-  useFrame(() => {
-    playerBody.position.set(position[0], position[1], position[2])
-  })
-
   // Remote player using cat-like geometry for consistency
   return (
     <group position={position} rotation={[0, rotation, 0]}>
@@ -861,6 +826,13 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
       )}
     </group>
   )
+}
+
+function PhysicsHandler() {
+  useFrame((_, delta) => {
+    stepWorld(Math.min(delta, 0.1))
+  })
+  return null
 }
 
 export default function Scene() {
@@ -910,8 +882,15 @@ export default function Scene() {
     })
     s.on('ball-update', (ball) => {
       if (ballBody) {
-        ballBody.position.set(...ball.position)
-        ballBody.velocity.set(...ball.velocity)
+        // Only snap if the difference is significant to avoid jitter
+        const currentPos = ballBody.position
+        const newPos = new CANNON.Vec3(...ball.position)
+        const dist = currentPos.distanceTo(newPos)
+        
+        if (dist > 0.05) {
+          ballBody.position.copy(newPos)
+          ballBody.velocity.set(...ball.velocity)
+        }
       }
     })
     return () => {
@@ -923,22 +902,12 @@ export default function Scene() {
     // Add soccer ball to physics world
     const world = createWorld()
     world.addBody(ballBody)
-
-    // Add ground physics
-    const groundShape = new CANNON.Plane()
-    const groundBody = new CANNON.Body({
-      mass: 0,
-      shape: groundShape,
-      material: groundMaterial
-    })
-    groundBody.quaternion.setFromEuler(-Math.PI / 2, 0, 0)
-    world.addBody(groundBody)
-
     return () => {
       world.removeBody(ballBody)
-      world.removeBody(groundBody)
     }
   }, [ballBody])
+
+
 
   if (!hasJoined) {
     return <TeamSelectPopup />
@@ -946,6 +915,7 @@ export default function Scene() {
 
   return (
     <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
+      <PhysicsHandler />
       <color attach="background" args={["#87CEEB"]} />
       <ambientLight intensity={0.7} color="#FFFFFF" />
       <directionalLight position={[10, 30, 10]} intensity={2} color="#fff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
@@ -997,7 +967,7 @@ function Coins({ playerRef, positions = [] }) {
   const [showSparkles, setShowSparkles] = useState(Array(positions.length).fill(false))
 
   useFrame(() => {
-    stepWorld()
+    // stepWorld() - Moved to Scene component
     const playerPos = playerRef.current ? playerRef.current.position : null
     if (!playerPos) return
     positions.forEach((pos, i) => {

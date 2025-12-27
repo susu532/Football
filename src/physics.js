@@ -1,80 +1,129 @@
 import * as CANNON from 'cannon-es'
 
+// Singleton physics world
 let world = null
-let lastTime = null
+let groundBody = null
 
 // Materials
-export const ballMaterial = new CANNON.Material('ball')
-export const groundMaterial = new CANNON.Material('ground')
-export const playerMaterial = new CANNON.Material('player')
+const groundMaterial = new CANNON.Material('ground')
+const ballMaterial = new CANNON.Material('ball')
+const playerMaterial = new CANNON.Material('player')
+
+// Contact materials (define interactions)
+const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
+  friction: 0.5,
+  restitution: 0.7, // Bounciness
+})
+
+const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
+  friction: 0.3,
+  restitution: 0.5, // Player kicks are slightly bouncy
+})
 
 export function createWorld() {
   if (world) return world
-  world = new CANNON.World({ gravity: new CANNON.Vec3(0, -15, 0) }) // Slightly stronger gravity for snappier feel
+
+  world = new CANNON.World()
+  world.gravity.set(0, -9.82, 0)
   world.broadphase = new CANNON.NaiveBroadphase()
   world.solver.iterations = 10
-  
-  // Contact Materials
-  const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-    friction: 0.4,
-    restitution: 0.7, // Bouncy ball
-    contactEquationStiffness: 1e7,
-    contactEquationRelaxation: 3
-  })
-  world.addContactMaterial(ballGroundContact)
 
-  const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
-    friction: 0.1,
-    restitution: 0.5, // Kick power
-    contactEquationStiffness: 1e7,
-    contactEquationRelaxation: 3
-  })
+  // Add contact materials
+  world.addContactMaterial(ballGroundContact)
   world.addContactMaterial(ballPlayerContact)
 
-  lastTime = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  return world
-}
+  // Create ground plane
+  const groundShape = new CANNON.Plane()
+  groundBody = new CANNON.Body({
+    mass: 0, // Static
+    material: groundMaterial,
+  })
+  groundBody.addShape(groundShape)
+  groundBody.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), -Math.PI / 2)
+  world.addBody(groundBody)
 
-export function stepWorld() {
-  if (!world) return
-  const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
-  const dt = (now - lastTime) / 1000
-  const step = 1 / 60
-  const maxSubs = 3
-  let accumulator = dt
-  if (accumulator > maxSubs * step) accumulator = maxSubs * step
-  while (accumulator >= step) {
-    world.step(step)
-    accumulator -= step
-  }
-  lastTime = now
+  // Create walls (invisible boundaries)
+  createWalls(world)
+
+  return world
 }
 
 export function getWorld() {
-  return world
+  return world || createWorld()
 }
 
-export function createSoccerBallBody({ position = [0, 2, 0], radius = 0.3, mass = 0.4 } = {}) {
-  const ballShape = new CANNON.Sphere(radius)
-  const ballBody = new CANNON.Body({ 
-    mass, 
-    shape: ballShape, 
-    position: new CANNON.Vec3(...position),
-    material: ballMaterial
-  })
-  ballBody.linearDamping = 0.1 // Air resistance
-  ballBody.angularDamping = 0.1
-  return ballBody
+export function stepWorld(dt = 1 / 60) {
+  if (world) {
+    world.step(dt)
+  }
 }
 
-export function createPlayerBody({ position = [0, 1, 0], radius = 0.4 } = {}) {
+export function createSoccerBallBody(position = [0, 2, 0]) {
+  const radius = 0.3
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
-    mass: 0, 
-    type: CANNON.Body.KINEMATIC,
-    shape: shape,
+    mass: 0.8, // Slightly heavier for better feel
     position: new CANNON.Vec3(...position),
-    material: playerMaterial
+    material: ballMaterial,
+    linearDamping: 0.1, // Air resistance
+    angularDamping: 0.5, // Rolling resistance (grass)
   })
+  body.addShape(shape)
   return body
+}
+
+// Helper to create a player body (kinematic)
+export function createPlayerBody(position = [0, 1, 0]) {
+  const radius = 0.5
+  const shape = new CANNON.Sphere(radius) // Simple sphere for player collision
+  const body = new CANNON.Body({
+    mass: 0, // Kinematic bodies have infinite mass effectively, but we set type to KINEMATIC
+    type: CANNON.Body.KINEMATIC,
+    position: new CANNON.Vec3(...position),
+    material: playerMaterial,
+  })
+  body.addShape(shape)
+  return body
+}
+
+function createWalls(world) {
+  const pitchWidth = 24
+  const pitchDepth = 14
+  const wallThickness = 1
+  const wallHeight = 2
+
+  const wallMaterial = new CANNON.Material('wall')
+  const ballWallContact = new CANNON.ContactMaterial(ballMaterial, wallMaterial, {
+    friction: 0.2,
+    restitution: 0.5,
+  })
+  world.addContactMaterial(ballWallContact)
+
+  // Helper for walls
+  const addWall = (x, z, w, d) => {
+    const shape = new CANNON.Box(new CANNON.Vec3(w / 2, wallHeight / 2, d / 2))
+    const body = new CANNON.Body({
+      mass: 0,
+      position: new CANNON.Vec3(x, wallHeight / 2, z),
+      material: wallMaterial,
+    })
+    body.addShape(shape)
+    world.addBody(body)
+  }
+
+  // Side walls
+  addWall(0, -pitchDepth / 2 - wallThickness / 2, pitchWidth + 2, wallThickness) // Top
+  addWall(0, pitchDepth / 2 + wallThickness / 2, pitchWidth + 2, wallThickness) // Bottom
+  addWall(-pitchWidth / 2 - wallThickness / 2, 0, wallThickness, pitchDepth + 2) // Left
+  addWall(pitchWidth / 2 + wallThickness / 2, 0, wallThickness, pitchDepth + 2) // Right
+
+  // Goal posts (approximate)
+  const goalZ = pitchDepth / 2 - 0.7
+  const goalWidth = 4
+  // Top goal posts
+  addWall(-goalWidth / 2, -goalZ, 0.2, 0.2)
+  addWall(goalWidth / 2, -goalZ, 0.2, 0.2)
+  // Bottom goal posts
+  addWall(-goalWidth / 2, goalZ, 0.2, 0.2)
+  addWall(goalWidth / 2, goalZ, 0.2, 0.2)
 }
