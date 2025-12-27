@@ -714,7 +714,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
       const pos = playerRef.current.position
       body.position.set(pos.x, pos.y, pos.z)
     }
-  })
+  }, 1) // Priority 1: Run after default updates (animations/movement)
 
   // Send player movement to server with player data
   useFrame(() => {
@@ -834,7 +834,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
     if (body) {
       body.position.set(position[0], position[1], position[2])
     }
-  })
+  }, 1) // Priority 1: Ensure body is in sync with visual position
 
   return (
     <RemotePlayer position={position} color={color} rotation={rotation} playerName={playerName} team={team} />
