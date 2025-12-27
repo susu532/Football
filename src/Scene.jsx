@@ -814,6 +814,9 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
 function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
   // Physics body for remote player
   const [body] = useState(() => createPlayerBody(position))
+  const groupRef = useRef()
+  const targetPosition = useRef(new THREE.Vector3(...position))
+  const targetRotation = useRef(rotation)
   
   useEffect(() => {
     const world = getWorld()
@@ -821,15 +824,35 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
     return () => world.removeBody(body)
   }, [body])
 
-  // Sync physics body with remote player position
+  // Update target when new position comes in
+  useEffect(() => {
+    targetPosition.current.set(position[0], position[1], position[2])
+    targetRotation.current = rotation
+  }, [position, rotation])
+
+  // Smoothly interpolate towards target position
   useFrame(() => {
-    if (body) {
-      body.position.set(position[0], position[1], position[2])
+    if (groupRef.current) {
+      // Lerp position for smooth movement
+      groupRef.current.position.lerp(targetPosition.current, 0.15)
+      // Lerp rotation for smooth turning
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotation.current, 0.15)
+      
+      // Sync physics body with visual position
+      if (body) {
+        body.position.set(
+          groupRef.current.position.x,
+          groupRef.current.position.y,
+          groupRef.current.position.z
+        )
+      }
     }
   })
 
   return (
-    <RemotePlayer position={position} color={color} rotation={rotation} playerName={playerName} team={team} />
+    <group ref={groupRef} position={position}>
+      <RemotePlayer position={[0, 0, 0]} color={color} rotation={0} playerName={playerName} team={team} />
+    </group>
   )
 }
 
