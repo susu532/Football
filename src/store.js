@@ -6,6 +6,10 @@ const useStore = create((set) => ({
   coins: 0,
   lives: 3,
   level: 1,
+  // Player customization
+  playerName: '',
+  playerTeam: null, // 'red' or 'blue'
+  hasJoined: false,
   addToCart: (product) =>
     set((state) => ({ cart: [...state.cart, { ...product }] })),
   clearCart: () => set({ cart: [] }),
@@ -18,6 +22,10 @@ const useStore = create((set) => ({
   // advance to the next level
   nextLevel: () => set((s) => ({ level: s.level + 1, coins: 0 })),
   setLevel: (n) => set({ level: n }),
+  // Player customization actions
+  setPlayerName: (name) => set({ playerName: name }),
+  setPlayerTeam: (team) => set({ playerTeam: team }),
+  joinGame: (name, team) => set({ playerName: name, playerTeam: team, hasJoined: true }),
 }))
 
 export default useStore

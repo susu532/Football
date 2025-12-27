@@ -3,7 +3,7 @@ import { useFrame, useThree, useLoader } from '@react-three/fiber'
 import * as THREE from 'three'
 import normalSoft from './assets/normal-soft.jpg'
 
-const Player = forwardRef(function Player({ position = [0, 1, 0], platforms = [], obstacles = [], appearance = 'real' }, ref) {
+const Player = forwardRef(function Player({ position = [0, 1, 0], platforms = [], obstacles = [], appearance = 'real', color = '#c8b79a', children }, ref) {
   const meshRef = useRef()
   const velocity = useRef(new THREE.Vector3())
   const onGround = useRef(false)
@@ -272,12 +272,12 @@ const Player = forwardRef(function Player({ position = [0, 1, 0], platforms = []
           {/* Body: elongated ellipsoid */}
           <mesh position={[0, 0.08, 0]} scale={[0.5, 0.32, 0.28]} castShadow>
             <sphereGeometry args={[1, 32, 32]} />
-            <meshStandardMaterial color="#c8b79a" normalMap={normalMap} roughness={0.7} metalness={0.05} />
+            <meshStandardMaterial color={color} normalMap={normalMap} roughness={0.7} metalness={0.05} />
           </mesh>
           {/* Head: realistic proportion */}
           <mesh position={[0, 0.6, 0.02]} scale={[0.42, 0.42, 0.38]} castShadow>
             <sphereGeometry args={[1, 32, 32]} />
-            <meshStandardMaterial color="#d6c2a1" normalMap={normalMap} roughness={0.6} metalness={0.02} />
+            <meshStandardMaterial color={color} normalMap={normalMap} roughness={0.6} metalness={0.02} />
           </mesh>
           {/* Ears: pointed, inner pink */}
           <mesh position={[-0.18, 0.95, 0]} rotation={[0, 0, -0.2]} scale={[0.9, 0.9, 0.9]} castShadow>
@@ -335,6 +335,7 @@ const Player = forwardRef(function Player({ position = [0, 1, 0], platforms = []
           {/* ...existing chibi geometry (legs, head, eyes, nose, mouth, whiskers, tail) ... */}
         </>
       )}
+      {children}
     </group>
   )
 })

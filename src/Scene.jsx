@@ -9,6 +9,7 @@ import { createWorld, stepWorld, getWorld, createSoccerBallBody } from './physic
 import * as CANNON from 'cannon-es'
 import { useSpring, a } from '@react-spring/three'
 import { io } from 'socket.io-client'
+import TeamSelectPopup from './TeamSelectPopup'
 
 // Small Soccer placeholder - replace with real widget/SDK integration
 export function openSoccerPlaceholder() {
@@ -597,8 +598,8 @@ function SoccerPitch({
   )
 }
 
-// Soccer Goal (improved, with net)
-function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1.2 }) {
+// Soccer Goal (improved, with net and team color support)
+function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1.2, netColor = '#e0e0e0' }) {
   // Net grid
   const netRows = 7
   const netCols = 10
@@ -606,7 +607,6 @@ function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1.2 }
   const netH = height
   const netD = depth
   const netThickness = 0.04
-  const netColor = '#e0e0e0'
   const postsColor = '#fff'
   return (
     <group position={position}>
@@ -697,19 +697,41 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel }) {
-  // Send player movement to server
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0] }) {
+  // Send player movement to server with player data
   useFrame(() => {
     if (!socket || !playerId || !playerRef.current) return
     const pos = playerRef.current.position
     const rot = playerRef.current.rotation ? playerRef.current.rotation.y : 0
-    socket.emit('move', { position: [pos.x, pos.y, pos.z], rotation: rot })
+    socket.emit('move', { 
+      position: [pos.x, pos.y, pos.z], 
+      rotation: rot,
+      name: playerName,
+      team: playerTeam,
+      color: teamColor
+    })
   })
-  // Render local player
-  return hasModel ? (
-    <PlayerModel ref={playerRef} position={[0, 1, 0]} />
-  ) : (
-    <Player ref={playerRef} position={[0, 1, 0]} />
+  // Render local player with team color and name label
+  return (
+    <group>
+      {hasModel ? (
+        <PlayerModel ref={playerRef} position={spawnPosition} color={teamColor}>
+          {playerName && (
+            <Html position={[0, 2.2, 0]} center distanceFactor={8}>
+              <div className={`player-name-label ${playerTeam}`}>{playerName}</div>
+            </Html>
+          )}
+        </PlayerModel>
+      ) : (
+        <Player ref={playerRef} position={spawnPosition} color={teamColor}>
+          {playerName && (
+            <Html position={[0, 2.2, 0]} center distanceFactor={8}>
+              <div className={`player-name-label ${playerTeam}`}>{playerName}</div>
+            </Html>
+          )}
+        </Player>
+      )}
+    </group>
   )
 }
 
@@ -737,18 +759,44 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
   return <SoccerBall ref={meshRef} />
 }
 
-function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0 }) {
-  // Simple capsule for remote players
+function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
+  // Remote player using cat-like geometry for consistency
   return (
     <group position={position} rotation={[0, rotation, 0]}>
-      <mesh castShadow>
-        <capsuleGeometry args={[0.3, 0.8, 8, 16]} />
+      {/* Body: elongated ellipsoid */}
+      <mesh position={[0, 0.08, 0]} scale={[0.5, 0.32, 0.28]} castShadow>
+        <sphereGeometry args={[1, 32, 32]} />
+        <meshStandardMaterial color={color} roughness={0.7} metalness={0.05} />
+      </mesh>
+      {/* Head: realistic proportion */}
+      <mesh position={[0, 0.6, 0.02]} scale={[0.42, 0.42, 0.38]} castShadow>
+        <sphereGeometry args={[1, 32, 32]} />
+        <meshStandardMaterial color={color} roughness={0.6} metalness={0.02} />
+      </mesh>
+      {/* Ears */}
+      <mesh position={[-0.18, 0.95, 0]} rotation={[0, 0, -0.2]} scale={[0.9, 0.9, 0.9]} castShadow>
+        <coneGeometry args={[0.09, 0.22, 20]} />
         <meshStandardMaterial color={color} />
       </mesh>
-      <mesh position={[0, 0.7, 0]}>
-        <sphereGeometry args={[0.28, 16, 16]} />
+      <mesh position={[0.18, 0.95, 0]} rotation={[0, 0, 0.2]} scale={[0.9, 0.9, 0.9]} castShadow>
+        <coneGeometry args={[0.09, 0.22, 20]} />
         <meshStandardMaterial color={color} />
       </mesh>
+      {/* Eyes */}
+      <group position={[-0.12, 0.82, 0.08]}> 
+        <mesh scale={[0.105, 0.06, 0.01]}> <sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
+        <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}> <circleGeometry args={[1, 32]} /><meshStandardMaterial color="#000" /></mesh>
+      </group>
+      <group position={[0.12, 0.82, 0.08]}> 
+        <mesh scale={[0.105, 0.06, 0.01]}> <sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
+        <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}> <circleGeometry args={[1, 32]} /><meshStandardMaterial color="#000" /></mesh>
+      </group>
+      {/* Player name label */}
+      {playerName && (
+        <Html position={[0, 2.2, 0]} center distanceFactor={8}>
+          <div className={`player-name-label ${team}`}>{playerName}</div>
+        </Html>
+      )}
     </group>
   )
 }
@@ -761,6 +809,17 @@ export default function Scene() {
   const [remotePlayers, setRemotePlayers] = useState({})
   const [ballBody] = useState(() => createSoccerBallBody())
   const pitchSize = [24, 0.2, 14]
+  
+  // Get player state from store
+  const hasJoined = useStore((s) => s.hasJoined)
+  const playerName = useStore((s) => s.playerName)
+  const playerTeam = useStore((s) => s.playerTeam)
+  
+  // Team colors
+  const teamColors = {
+    red: '#ff4757',
+    blue: '#3742fa'
+  }
 
   // Connect to socket.io server
   useEffect(() => {
@@ -777,8 +836,8 @@ export default function Scene() {
     s.on('player-joined', (player) => {
       setRemotePlayers((prev) => ({ ...prev, [player.id]: player }))
     })
-    s.on('player-move', ({ id, position, rotation }) => {
-      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation } } : prev)
+    s.on('player-move', ({ id, position, rotation, name, team, color }) => {
+      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color } } : prev)
     })
     s.on('player-left', (id) => {
       setRemotePlayers((prev) => {
@@ -807,6 +866,10 @@ export default function Scene() {
     }
   }, [ballBody])
 
+  if (!hasJoined) {
+    return <TeamSelectPopup />
+  }
+
   return (
     <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
       <color attach="background" args={["#87CEEB"]} />
@@ -817,28 +880,38 @@ export default function Scene() {
       <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
       {/* Soccer pitch */}
       <SoccerPitch size={pitchSize} />
-      {/* Goals */}
-      <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} />
-      <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} />
+      {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
+      <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} netColor={teamColors.blue} />
+      <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} netColor={teamColors.red} />
       {/* Soccer ball with physics (syncs with server) */}
       <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
       {/* Local player with multiplayer sync */}
-      <LocalPlayerWithSync socket={socket} playerId={playerId} playerRef={playerRef} hasModel={hasModel} />
+      <LocalPlayerWithSync 
+        socket={socket} 
+        playerId={playerId} 
+        playerRef={playerRef} 
+        hasModel={hasModel} 
+        playerName={playerName}
+        playerTeam={playerTeam}
+        teamColor={teamColors[playerTeam]}
+        spawnPosition={playerTeam === 'red' ? [0, 1, 5] : [0, 1, -5]}
+      />
       {/* Remote players */}
       {Object.entries(remotePlayers).map(([id, p]) => (
-        id !== playerId && <RemotePlayer key={id} position={p.position} color={p.color} rotation={p.rotation} />
+        id !== playerId && <RemotePlayer key={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} />
       ))}
       {/* Camera controller */}
       <CameraController targetRef={playerRef} />
-      {/* HUD and overlays (keep for now) */}
+      {/* HUD and overlays */}
       <Html fullscreen>
         <div className="hud">
-          <div className="hud-left">Use WASD/arrows to move. Soccer controls coming soon.</div>
+          <div className="hud-left">Use WASD/arrows to move. {playerName && `Playing as: ${playerName}`}</div>
         </div>
       </Html>
     </Canvas>
   )
 }
+
 
 
 // Note: we check for model availability inside the Scene component on mount.

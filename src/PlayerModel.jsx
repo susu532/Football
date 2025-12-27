@@ -3,7 +3,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 import { useGLTF, useAnimations } from '@react-three/drei'
 
-const PlayerModel = forwardRef(function PlayerModel({ position = [0, 1, 0], platforms = [], obstacles = [] }, ref) {
+const PlayerModel = forwardRef(function PlayerModel({ position = [0, 1, 0], platforms = [], obstacles = [], children }, ref) {
   // load GLTF; if missing the hook will throw — catch it above before rendering PlayerModel
   const gltf = useGLTF('/models/player.glb')
   const modelRef = useRef()
@@ -145,7 +145,9 @@ const PlayerModel = forwardRef(function PlayerModel({ position = [0, 1, 0], plat
   })
 
   return (
-    <primitive ref={modelRef} object={gltf.scene} position={position} castShadow />
+    <primitive ref={modelRef} object={gltf.scene} position={position} castShadow>
+      {children}
+    </primitive>
   )
 })
 
