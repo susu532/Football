@@ -997,15 +997,7 @@ export default function Scene() {
           <span style={{ color: 'white' }}>-</span>
           <span style={{ color: '#3742fa' }}>BLUE: {scores.blue}</span>
         </div>
-        <div style={{ 
-          marginTop: '10px', 
-          background: 'rgba(255,255,255,0.85)', 
-          padding: '8px 12px', 
-          borderRadius: '6px',
-          pointerEvents: 'auto'
-        }}>
-          Use WASD/arrows to move. {playerName && `Playing as: ${playerName}`}
-        </div>
+       
       </div>
       
       {/* 3D Canvas */}
