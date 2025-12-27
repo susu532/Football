@@ -19,17 +19,26 @@ export function GoalDetector({ ballBody, socket, playerId, remotePlayers, pitchS
 
     if (isHost) {
       const { x, z } = ballBody.position
-      // Blue Goal (Top, z < -6) -> Red Scores
-      if (z < -pitchSize[2]/2 - 0.5 && Math.abs(x) < 2) {
-         // Reset ball immediately to prevent multiple triggers locally before server reset
+      // Goal positions match Scene.jsx: 
+      // Blue goal at z = -pitchSize[2]/2 + 0.7 = -6.3
+      // Red goal at z = pitchSize[2]/2 - 0.7 = 6.3
+      const blueGoalZ = -pitchSize[2] / 2 + 0.7 // -6.3
+      const redGoalZ = pitchSize[2] / 2 - 0.7   // 6.3
+      const goalWidth = 2 // Half-width of the goal (goal is 4 units wide)
+      
+      // Blue Goal (Top) -> Red Scores when ball crosses the goal line
+      if (z < blueGoalZ && Math.abs(x) < goalWidth) {
+         // Reset ball immediately to prevent multiple triggers
          ballBody.position.set(0, 0.5, 0) 
          ballBody.velocity.set(0, 0, 0)
+         ballBody.angularVelocity.set(0, 0, 0)
          socket.emit('goal', 'red')
       }
-      // Red Goal (Bottom, z > 6) -> Blue Scores
-      else if (z > pitchSize[2]/2 + 0.5 && Math.abs(x) < 2) {
+      // Red Goal (Bottom) -> Blue Scores when ball crosses the goal line
+      else if (z > redGoalZ && Math.abs(x) < goalWidth) {
          ballBody.position.set(0, 0.5, 0)
          ballBody.velocity.set(0, 0, 0)
+         ballBody.angularVelocity.set(0, 0, 0)
          socket.emit('goal', 'blue')
       }
     }
