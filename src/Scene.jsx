@@ -929,9 +929,7 @@ export default function Scene() {
     // That's much cleaner.
   }, []) 
 
-  // Reset ball on 'P' key
-
-  // Reset ball on 'P' key
+  // Reset ball on 'P' key, Reset scores on 'M' key
   useEffect(() => {
     const handleKeyDown = (e) => {
       if (e.key.toLowerCase() === 'p') {
@@ -946,6 +944,13 @@ export default function Scene() {
               velocity: [0, 0, 0]
             })
           }
+        }
+      }
+      // Reset scores on 'M' key
+      if (e.key.toLowerCase() === 'm') {
+        if (socket) {
+          socket.emit('reset-scores')
+          setScores({ red: 0, blue: 0 })
         }
       }
     }
