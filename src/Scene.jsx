@@ -997,16 +997,43 @@ export default function Scene() {
       <CameraController targetRef={playerRef} />
       {/* HUD and overlays */}
       <Html fullscreen>
-        <div className="hud">
-          <div className="hud-score" style={{ 
-            position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', 
-            fontSize: '48px', fontWeight: 'bold', color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-            display: 'flex', gap: '20px', textTransform: 'uppercase'
+        <div style={{ 
+          position: 'fixed', 
+          top: 0, 
+          left: 0, 
+          right: 0, 
+          zIndex: 9999, 
+          pointerEvents: 'none',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          padding: '20px'
+        }}>
+          <div style={{ 
+            fontSize: '48px', 
+            fontWeight: 'bold', 
+            color: 'white', 
+            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+            display: 'flex', 
+            gap: '30px', 
+            textTransform: 'uppercase',
+            background: 'rgba(0,0,0,0.3)',
+            padding: '10px 30px',
+            borderRadius: '12px'
           }}>
-            <span style={{ color: '#ff4757' }}>RED:{scores.red}</span>
-            <span style={{ color: '#3742fa' }}>BLUE:{scores.blue}</span>
+            <span style={{ color: '#ff4757' }}>RED: {scores.red}</span>
+            <span style={{ color: 'white' }}>-</span>
+            <span style={{ color: '#3742fa' }}>BLUE: {scores.blue}</span>
           </div>
-          <div className="hud-left">Use WASD/arrows to move. {playerName && `Playing as: ${playerName}`}</div>
+          <div style={{ 
+            marginTop: '10px', 
+            background: 'rgba(255,255,255,0.85)', 
+            padding: '8px 12px', 
+            borderRadius: '6px',
+            pointerEvents: 'auto'
+          }}>
+            Use WASD/arrows to move. {playerName && `Playing as: ${playerName}`}
+          </div>
         </div>
       </Html>
     </Canvas>
