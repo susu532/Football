@@ -967,81 +967,83 @@ export default function Scene() {
   }
 
   return (
-    <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
-      <PhysicsHandler />
-      <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
-      <color attach="background" args={["#87CEEB"]} />
-      <ambientLight intensity={0.7} color="#FFFFFF" />
-      <directionalLight position={[10, 30, 10]} intensity={2} color="#fff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
-      {/* Stadium lights */}
-      <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
-      <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
-      {/* Soccer pitch */}
-      <SoccerPitch size={pitchSize} />
-      {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
-      <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} netColor={teamColors.blue} />
-      <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} rotation={[0, Math.PI, 0]} netColor={teamColors.red} />
-      {/* Soccer ball with physics (syncs with server) */}
-      <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
-      {/* Local player with multiplayer sync */}
-      <LocalPlayerWithSync 
-        socket={socket} 
-        playerId={playerId} 
-        playerRef={playerRef} 
-        hasModel={hasModel} 
-        playerName={playerName}
-        playerTeam={playerTeam}
-        teamColor={teamColors[playerTeam]}
-        spawnPosition={playerTeam === 'red' ? [0, 1, 5] : [0, 1, -5]}
-      />
-      {/* Remote players */}
-      {Object.entries(remotePlayers).map(([id, p]) => (
-        id !== playerId && <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} />
-      ))}
-      {/* Camera controller */}
-      <CameraController targetRef={playerRef} />
-      {/* HUD and overlays */}
-      <Html fullscreen>
+    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {/* Scoreboard - outside Canvas, fixed on top */}
+      <div style={{ 
+        position: 'absolute', 
+        top: 0, 
+        left: 0, 
+        right: 0, 
+        zIndex: 9999, 
+        pointerEvents: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '20px'
+      }}>
         <div style={{ 
-          position: 'fixed', 
-          top: 0, 
-          left: 0, 
-          right: 0, 
-          zIndex: 9999, 
-          pointerEvents: 'none',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          padding: '20px'
+          fontSize: '48px', 
+          fontWeight: 'bold', 
+          color: 'white', 
+          textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
+          display: 'flex', 
+          gap: '30px', 
+          textTransform: 'uppercase',
+          background: 'rgba(0,0,0,0.5)',
+          padding: '10px 30px',
+          borderRadius: '12px'
         }}>
-          <div style={{ 
-            fontSize: '48px', 
-            fontWeight: 'bold', 
-            color: 'white', 
-            textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-            display: 'flex', 
-            gap: '30px', 
-            textTransform: 'uppercase',
-            background: 'rgba(0,0,0,0.3)',
-            padding: '10px 30px',
-            borderRadius: '12px'
-          }}>
-            <span style={{ color: '#ff4757' }}>RED: {scores.red}</span>
-            <span style={{ color: 'white' }}>-</span>
-            <span style={{ color: '#3742fa' }}>BLUE: {scores.blue}</span>
-          </div>
-          <div style={{ 
-            marginTop: '10px', 
-            background: 'rgba(255,255,255,0.85)', 
-            padding: '8px 12px', 
-            borderRadius: '6px',
-            pointerEvents: 'auto'
-          }}>
-            Use WASD/arrows to move. {playerName && `Playing as: ${playerName}`}
-          </div>
+          <span style={{ color: '#ff4757' }}>RED: {scores.red}</span>
+          <span style={{ color: 'white' }}>-</span>
+          <span style={{ color: '#3742fa' }}>BLUE: {scores.blue}</span>
         </div>
-      </Html>
-    </Canvas>
+        <div style={{ 
+          marginTop: '10px', 
+          background: 'rgba(255,255,255,0.85)', 
+          padding: '8px 12px', 
+          borderRadius: '6px',
+          pointerEvents: 'auto'
+        }}>
+          Use WASD/arrows to move. {playerName && `Playing as: ${playerName}`}
+        </div>
+      </div>
+      
+      {/* 3D Canvas */}
+      <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
+        <PhysicsHandler />
+        <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
+        <color attach="background" args={["#87CEEB"]} />
+        <ambientLight intensity={0.7} color="#FFFFFF" />
+        <directionalLight position={[10, 30, 10]} intensity={2} color="#fff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
+        {/* Stadium lights */}
+        <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
+        <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
+        {/* Soccer pitch */}
+        <SoccerPitch size={pitchSize} />
+        {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
+        <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} netColor={teamColors.blue} />
+        <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} rotation={[0, Math.PI, 0]} netColor={teamColors.red} />
+        {/* Soccer ball with physics (syncs with server) */}
+        <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
+        {/* Local player with multiplayer sync */}
+        <LocalPlayerWithSync 
+          socket={socket} 
+          playerId={playerId} 
+          playerRef={playerRef} 
+          hasModel={hasModel} 
+          playerName={playerName}
+          playerTeam={playerTeam}
+          teamColor={teamColors[playerTeam]}
+          spawnPosition={playerTeam === 'red' ? [0, 1, 5] : [0, 1, -5]}
+        />
+        {/* Remote players */}
+        {Object.entries(remotePlayers).map(([id, p]) => (
+          id !== playerId && <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} />
+        ))}
+        {/* Camera controller */}
+        <CameraController targetRef={playerRef} />
+      </Canvas>
+    </div>
   )
 }
 
