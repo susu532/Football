@@ -13,7 +13,7 @@ import TeamSelectPopup from './TeamSelectPopup'
 import { PhysicsHandler, GoalDetector } from './GameLogic'
 
 // Small Soccer placeholder - replace with real widget/SDK integration
-export function openSoccerPlaceholder() {
+function openSoccerPlaceholder() {
   // In a real integration you'd open Soccer's SDK or widget here.
   // Keep this lightweight for the demo.
   window.alert('Open Soccer (placeholder)')
@@ -1001,11 +1001,10 @@ export default function Scene() {
           <div className="hud-score" style={{ 
             position: 'absolute', top: '20px', left: '50%', transform: 'translateX(-50%)', 
             fontSize: '48px', fontWeight: 'bold', color: 'white', textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-            display: 'flex', gap: '40px'
+            display: 'flex', gap: '20px', textTransform: 'uppercase'
           }}>
-            <span style={{ color: '#ff4757' }}>{scores.red}</span>
-            <span>-</span>
-            <span style={{ color: '#3742fa' }}>{scores.blue}</span>
+            <span style={{ color: '#ff4757' }}>RED:{scores.red}</span>
+            <span style={{ color: '#3742fa' }}>BLUE:{scores.blue}</span>
           </div>
           <div className="hud-left">Use WASD/arrows to move. {playerName && `Playing as: ${playerName}`}</div>
         </div>
