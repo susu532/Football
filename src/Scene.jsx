@@ -599,7 +599,7 @@ function SoccerPitch({
 }
 
 // Soccer Goal (improved, with net and team color support)
-function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1.2, netColor = '#e0e0e0' }) {
+function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], width = 4, height = 2, depth = 1.2, netColor = '#e0e0e0' }) {
   // Net grid
   const netRows = 7
   const netCols = 10
@@ -609,7 +609,7 @@ function SoccerGoal({ position = [0, 0, 0], width = 4, height = 2, depth = 1.2, 
   const netThickness = 0.04
   const postsColor = '#fff'
   return (
-    <group position={position}>
+    <group position={position} rotation={rotation}>
       {/* Posts */}
       <mesh position={[-netW/2, netH/2, 0]}>
         <cylinderGeometry args={[0.08, 0.08, netH, 16]} />
@@ -910,7 +910,7 @@ export default function Scene() {
       <SoccerPitch size={pitchSize} />
       {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
       <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} netColor={teamColors.blue} />
-      <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} netColor={teamColors.red} />
+      <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} rotation={[0, Math.PI, 0]} netColor={teamColors.red} />
       {/* Soccer ball with physics (syncs with server) */}
       <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
       {/* Local player with multiplayer sync */}

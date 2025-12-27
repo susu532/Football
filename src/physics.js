@@ -58,7 +58,7 @@ export function stepWorld(dt = 1 / 60) {
   }
 }
 
-export function createSoccerBallBody(position = [0, 2, 0]) {
+export function createSoccerBallBody(position = [0, 0.5, 0]) {
   const radius = 0.3
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
