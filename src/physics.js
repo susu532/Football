@@ -11,13 +11,13 @@ const playerMaterial = new CANNON.Material('player')
 
 // Contact materials (define interactions)
 const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-  friction: 0.5,
-  restitution: 0.7, // Bounciness
+  friction: 0.8, // High friction to slow it down
+  restitution: 0.5, // Less bouncy
 })
 
 const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
   friction: 0.3,
-  restitution: 0.5, // Player kicks are slightly bouncy
+  restitution: 0.8, // Player kicks are punchier
 })
 
 export function createWorld() {
@@ -58,15 +58,21 @@ export function stepWorld(dt = 1 / 60) {
   }
 }
 
+export function removeBody(body) {
+  if (world && body) {
+    world.removeBody(body)
+  }
+}
+
 export function createSoccerBallBody(position = [0, 0.5, 0]) {
   const radius = 0.3
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
-    mass: 0.45, // Standard soccer ball mass approx 0.45kg
+    mass: 4.0, // Very heavy
     position: new CANNON.Vec3(...position),
     material: ballMaterial,
-    linearDamping: 0.2, // Air resistance
-    angularDamping: 0.2, // Rolling resistance
+    linearDamping: 0.5, // High air resistance
+    angularDamping: 0.5, // High rolling resistance
   })
   body.addShape(shape)
   return body
@@ -89,7 +95,7 @@ export function createPlayerBody(position = [0, 1, 0]) {
 function createWalls(world) {
   const pitchWidth = 24
   const pitchDepth = 14
-  const wallThickness = 1
+  const wallThickness = 5 // Thicker walls to prevent tunneling
   const wallHeight = 2
 
   const wallMaterial = new CANNON.Material('wall')

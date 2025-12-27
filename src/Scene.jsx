@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import Player from './Player'
 import PlayerModel from './PlayerModel'
 import useStore from './store'
-import { createWorld, stepWorld, getWorld, createSoccerBallBody, createPlayerBody } from './physics'
+import { createWorld, stepWorld, getWorld, createSoccerBallBody, createPlayerBody, removeBody } from './physics'
 import * as CANNON from 'cannon-es'
 import { useSpring, a } from '@react-spring/three'
 import { io } from 'socket.io-client'
@@ -819,6 +819,28 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
   )
 }
 
+function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
+  // Physics body for remote player
+  const [body] = useState(() => createPlayerBody(position))
+  
+  useEffect(() => {
+    const world = getWorld()
+    world.addBody(body)
+    return () => world.removeBody(body)
+  }, [body])
+
+  // Sync physics body with remote player position
+  useFrame(() => {
+    if (body) {
+      body.position.set(position[0], position[1], position[2])
+    }
+  })
+
+  return (
+    <RemotePlayer position={position} color={color} rotation={rotation} playerName={playerName} team={team} />
+  )
+}
+
 function PhysicsHandler() {
   useFrame((_, delta) => {
     stepWorld(Math.min(delta, 0.1))
@@ -891,6 +913,47 @@ export default function Scene() {
     }
   }, [ballBody])
 
+  // Manage remote player physics bodies
+  useEffect(() => {
+    const world = getWorld()
+    const bodies = {} // Map id -> body
+
+    // We need to sync bodies with remotePlayers state
+    // But since we can't easily diff inside this effect without refs or complex logic,
+    // we'll use a ref to track created bodies or just iterate.
+    // Actually, a better way is to handle body creation/update in a separate component for each remote player,
+    // or do it here. Let's do it here for simplicity but we need to be careful not to recreate bodies constantly.
+    
+    // Strategy: We'll use a ref to store the bodies map so it persists across renders
+    // But we can't easily use a ref inside this effect if we want to react to remotePlayers changes.
+    // Instead, let's make a RemotePlayerPhysics component that handles its own body!
+    // That's much cleaner.
+  }, []) 
+
+  // Reset ball on 'P' key
+
+  // Reset ball on 'P' key
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key.toLowerCase() === 'p') {
+        if (ballBody) {
+          ballBody.position.set(0, 0.5, 0)
+          ballBody.velocity.set(0, 0, 0)
+          ballBody.angularVelocity.set(0, 0, 0)
+          
+          if (socket) {
+            socket.emit('ball-update', {
+              position: [0, 0.5, 0],
+              velocity: [0, 0, 0]
+            })
+          }
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [ballBody, socket])
+
 
 
   if (!hasJoined) {
@@ -926,7 +989,7 @@ export default function Scene() {
       />
       {/* Remote players */}
       {Object.entries(remotePlayers).map(([id, p]) => (
-        id !== playerId && <RemotePlayer key={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} />
+        id !== playerId && <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} />
       ))}
       {/* Camera controller */}
       <CameraController targetRef={playerRef} />
