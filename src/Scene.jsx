@@ -833,10 +833,10 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   // Smoothly interpolate towards target position
   useFrame(() => {
     if (groupRef.current) {
-      // Lerp position for smooth movement
-      groupRef.current.position.lerp(targetPosition.current, 0.15)
+      // Lerp position for smooth movement (faster factor = snappier)
+      groupRef.current.position.lerp(targetPosition.current, 0.25)
       // Lerp rotation for smooth turning
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotation.current, 0.15)
+      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotation.current, 0.25)
       
       // Sync physics body with visual position
       if (body) {

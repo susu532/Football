@@ -11,22 +11,23 @@ const playerMaterial = new CANNON.Material('player')
 
 // Contact materials (define interactions)
 const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-  friction: 0.8, // High friction to slow it down
-  restitution: 0.5, // Less bouncy
+  friction: 0.4, // Lower friction for smoother rolling
+  restitution: 0.4, // Less bouncy
 })
 
 const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
-  friction: 0.3,
-  restitution: 0.8, // Player kicks are punchier
+  friction: 0.2,
+  restitution: 0.7, // Player kicks are punchier
 })
 
 export function createWorld() {
   if (world) return world
 
   world = new CANNON.World()
-  world.gravity.set(0, -9.82, 0)
-  world.broadphase = new CANNON.NaiveBroadphase()
-  world.solver.iterations = 10
+  world.gravity.set(0, -15, 0) // Stronger gravity for snappier ball
+  world.broadphase = new CANNON.SAPBroadphase(world) // Better broadphase
+  world.solver.iterations = 20 // More iterations for stable collisions
+  world.allowSleep = false // Keep physics active
 
   // Add contact materials
   world.addContactMaterial(ballGroundContact)
@@ -52,9 +53,13 @@ export function getWorld() {
   return world || createWorld()
 }
 
+// Sub-stepping physics for stability
+const fixedTimeStep = 1 / 120 // 120Hz physics
+const maxSubSteps = 5
+
 export function stepWorld(dt = 1 / 60) {
   if (world) {
-    world.step(dt)
+    world.step(fixedTimeStep, dt, maxSubSteps)
   }
 }
 
@@ -68,11 +73,11 @@ export function createSoccerBallBody(position = [0, 0.5, 0]) {
   const radius = 0.3
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
-    mass: 4.0, // Very heavy
+    mass: 0.45, // Realistic soccer ball mass
     position: new CANNON.Vec3(...position),
     material: ballMaterial,
-    linearDamping: 0.5, // High air resistance
-    angularDamping: 0.5, // High rolling resistance
+    linearDamping: 0.2, // Lower for smoother movement
+    angularDamping: 0.2, // Lower for smoother rolling
   })
   body.addShape(shape)
   return body
