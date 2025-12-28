@@ -861,10 +861,13 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   }, [scene, color])
   
   useEffect(() => {
+    // Don't add physics body if position is at default center (uninitialized)
+    if (position[0] === 0 && position[2] === 0) return
+    
     const world = getWorld()
     world.addBody(body)
     return () => world.removeBody(body)
-  }, [body])
+  }, [body, position])
 
   // Update target when new position comes in
   useEffect(() => {
@@ -1239,7 +1242,9 @@ export default function Scene() {
           />
           {/* Remote players */}
           {Object.entries(remotePlayers)
-            .filter(([id]) => id !== playerId) // Strict filtering
+            .filter(([id]) => id !== playerId) // Don't render self
+            .filter(([_, p]) => p.position && p.position[0] !== undefined) // Skip uninitialized
+            .filter(([_, p]) => !(p.position[0] === 0 && p.position[2] === 0)) // Skip center position
             .map(([id, p]) => (
               <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} />
             ))}
