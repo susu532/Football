@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, Suspense } from 'react'
 import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
-import { Html, Sparkles, Stars, useFBX, Loader } from '@react-three/drei'
+import { Html, Sparkles, Stars, useFBX, Loader, useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import Player from './Player'
 import PlayerModel from './PlayerModel'
