@@ -5,7 +5,7 @@ import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 
 // Single player model path
-const PLAYER_MODEL_PATH = '/models/player/final.fbx'
+const PLAYER_MODEL_PATH = '/models/character.fbx'
 
 const CharacterSkin = forwardRef(function CharacterSkin({ 
   position = [0, 0, 0], 
@@ -31,6 +31,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
         // Ensure material is unique
         if (child.material) {
           child.material = child.material.clone()
+          // Apply team color to the model
+          child.material.color = new THREE.Color(teamColor)
           // Fix visibility issues
           child.material.transparent = false
           child.material.opacity = 1.0
@@ -42,7 +44,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       }
     })
     return cloned
-  }, [fbx])
+  }, [fbx, teamColor])
   
   // Expose position via ref
   useEffect(() => {
@@ -169,8 +171,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           Math.cos(groupRef.current.rotation.y)
         ).normalize()
         
-        // Power kick force (much stronger than regular collision)
-        const kickPower = 25
+        // Power kick force (reduced for balanced gameplay)
+        const kickPower = 8
         
         // Apply impulse to ball
         ballBody.applyImpulse(

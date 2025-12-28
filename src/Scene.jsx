@@ -834,7 +834,7 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
 }
 
 // Single player model path for all players
-const PLAYER_MODEL_PATH = '/models/player/final.fbx'
+const PLAYER_MODEL_PATH = '/models/character.fbx'
 
 function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
   // Physics body for remote player
@@ -851,12 +851,14 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
     cloned.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material = child.material.clone()
+        // Apply team color to the model
+        child.material.color = new THREE.Color(color)
         child.castShadow = true
         child.receiveShadow = true
       }
     })
     return cloned
-  }, [fbx])
+  }, [fbx, color])
   
   useEffect(() => {
     const world = getWorld()
