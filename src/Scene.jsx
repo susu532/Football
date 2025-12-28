@@ -1,9 +1,10 @@
-import React, { useRef, useEffect, useState } from 'react'
+import React, { useRef, useEffect, useState, Suspense } from 'react'
 import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
-import { Html, Sparkles, Stars } from '@react-three/drei'
+import { Html, Sparkles, Stars, useFBX, Loader } from '@react-three/drei'
 import * as THREE from 'three'
 import Player from './Player'
 import PlayerModel from './PlayerModel'
+import CharacterSkin from './CharacterSkin'
 import useStore from './store'
 import { createWorld, stepWorld, getWorld, createSoccerBallBody, createPlayerBody, removeBody } from './physics'
 import * as CANNON from 'cannon-es'
@@ -599,103 +600,65 @@ function SoccerPitch({
   )
 }
 
-// Soccer Goal (improved, with net and team color support)
-function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], width = 4, height = 2, depth = 1.2, netColor = '#e0e0e0' }) {
-  // Net grid
-  const netRows = 7
-  const netCols = 10
-  const netW = width
-  const netH = height
-  const netD = depth
-  const netThickness = 0.04
-  const postsColor = '#fff'
+// Soccer Goal (using FBX model)
+function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColor = '#e0e0e0' }) {
+  const fbx = useFBX('/models/goal.fbx')
+  
+  // Clone the model to avoid sharing state
+  const clonedGoal = React.useMemo(() => {
+    const cloned = fbx.clone()
+    cloned.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+        // If the model has a net part, we could try to color it
+        if (child.name.toLowerCase().includes('net')) {
+          child.material = child.material.clone()
+          child.material.color.set(netColor)
+          child.material.transparent = true
+          child.material.opacity = 0.7
+        }
+      }
+    })
+    return cloned
+  }, [fbx, netColor])
+
   return (
-    <group position={position} rotation={rotation}>
-      {/* Posts */}
-      <mesh position={[-netW/2, netH/2, 0]}>
-        <cylinderGeometry args={[0.08, 0.08, netH, 16]} />
-        <meshStandardMaterial color={postsColor} />
-      </mesh>
-      <mesh position={[netW/2, netH/2, 0]}>
-        <cylinderGeometry args={[0.08, 0.08, netH, 16]} />
-        <meshStandardMaterial color={postsColor} />
-      </mesh>
-      {/* Crossbar */}
-      <mesh position={[0, netH, 0]} rotation={[0, 0, Math.PI/2]}>
-        <cylinderGeometry args={[0.08, 0.08, netW, 16]} />
-        <meshStandardMaterial color={postsColor} />
-      </mesh>
-      {/* Back bar */}
-      <mesh position={[0, 0.08, -netD]} rotation={[0, 0, Math.PI/2]}>
-        <cylinderGeometry args={[0.06, 0.06, netW, 12]} />
-        <meshStandardMaterial color={postsColor} />
-      </mesh>
-      {/* Side bars (top to back) */}
-      <mesh position={[-netW/2, netH, -netD/2]} rotation={[0, Math.PI/2, 0]}>
-        <cylinderGeometry args={[0.06, 0.06, netD, 12]} />
-        <meshStandardMaterial color={postsColor} />
-      </mesh>
-      <mesh position={[netW/2, netH, -netD/2]} rotation={[0, Math.PI/2, 0]}>
-        <cylinderGeometry args={[0.06, 0.06, netD, 12]} />
-        <meshStandardMaterial color={postsColor} />
-      </mesh>
-      {/* Net (vertical and horizontal lines) */}
-      {Array.from({ length: netCols + 1 }).map((_, i) => (
-        <mesh key={'net-v-' + i} position={[-netW/2 + (i * netW / netCols), netH/2, -netD/2]} rotation={[0, 0, 0]}>
-          <cylinderGeometry args={[netThickness, netThickness, netH, 8]} />
-          <meshStandardMaterial color={netColor} />
-        </mesh>
-      ))}
-      {Array.from({ length: netRows + 1 }).map((_, j) => (
-        <mesh key={'net-h-' + j} position={[0, (j * netH / netRows), -netD/2]} rotation={[0, 0, Math.PI/2]}>
-          <cylinderGeometry args={[netThickness, netThickness, netW, 8]} />
-          <meshStandardMaterial color={netColor} />
-        </mesh>
-      ))}
-      {/* Net depth lines */}
-      {Array.from({ length: netCols + 1 }).map((_, i) => (
-        <mesh key={'net-d-' + i} position={[-netW/2 + (i * netW / netCols), 0.08, -netD/2]} rotation={[Math.PI/2, 0, 0]}>
-          <cylinderGeometry args={[netThickness, netThickness, netD, 8]} />
-          <meshStandardMaterial color={netColor} />
-        </mesh>
-      ))}
-      {Array.from({ length: netCols + 1 }).map((_, i) => (
-        <mesh key={'net-d-top-' + i} position={[-netW/2 + (i * netW / netCols), netH, -netD/2]} rotation={[Math.PI/2, 0, 0]}>
-          <cylinderGeometry args={[netThickness, netThickness, netD, 8]} />
-          <meshStandardMaterial color={netColor} />
-        </mesh>
-      ))}
-    </group>
+    <primitive 
+      object={clonedGoal} 
+      position={position} 
+      rotation={rotation} 
+      scale={0.01} // FBX models often need scaling
+    />
   )
 }
 
-// Soccer Ball (classic black and white pattern)
+// Soccer Ball (using FBX model)
 const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0], radius = 0.3 }, ref) {
-  // Use a mesh with a texture for the classic look
-  // For now, use a procedural pattern with black pentagons
-  // (for full realism, a texture can be loaded later)
+  const fbx = useFBX('/models/soccer_ball.fbx')
+  
+  const clonedBall = React.useMemo(() => {
+    const cloned = fbx.clone()
+    cloned.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    return cloned
+  }, [fbx])
+
   return (
-    <mesh ref={ref} position={position} castShadow receiveShadow>
-      <sphereGeometry args={[radius, 32, 32]} />
-      {/* White base */}
-      <meshStandardMaterial color="#fff" />
-      {/* Black pentagons (approximate, not perfect) */}
-      {Array.from({ length: 12 }).map((_, i) => {
-        // Distribute pentagons roughly on sphere
-        const phi = Math.acos(-1 + (2 * i) / 12)
-        const theta = Math.PI * (1 + Math.sqrt(5)) * i
-        const x = Math.cos(theta) * Math.sin(phi) * radius
-        const y = Math.cos(phi) * radius
-        const z = Math.sin(theta) * Math.sin(phi) * radius
-        return (
-          <mesh key={i} position={[x, y, z]}><circleGeometry args={[radius * 0.18, 8]} /><meshStandardMaterial color="#222" /></mesh>
-        )
-      })}
-    </mesh>
+    <primitive 
+      ref={ref}
+      object={clonedBall} 
+      position={position} 
+      scale={0.006} // Scale to match physics radius (0.3)
+    />
   )
 })
 
-function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0] }) {
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', playerSkin = 'character-male-a', teamColor = '#888', spawnPosition = [0, 1, 0] }) {
   // Physics body for the player (to push the ball)
   const [body] = useState(() => createPlayerBody(spawnPosition))
   
@@ -724,25 +687,20 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
       rotation: rot,
       name: playerName,
       team: playerTeam,
+      skin: playerSkin,
       color: teamColor
     })
   })
-  // Render local player with team color and name label
+  // Render local player with CharacterSkin (new GLB models)
   return (
     <group>
-      {hasModel ? (
-        <PlayerModel ref={playerRef} position={spawnPosition} color={teamColor}>{playerName && (
-            <Html position={[0, 2.2, 0]} center distanceFactor={8}>
-              <div className={`player-name-label ${playerTeam}`}>{playerName}</div>
-            </Html>
-          )}</PlayerModel>
-      ) : (
-        <Player ref={playerRef} position={spawnPosition} color={teamColor}>{playerName && (
-            <Html position={[0, 2.2, 0]} center distanceFactor={8}>
-              <div className={`player-name-label ${playerTeam}`}>{playerName}</div>
-            </Html>
-          )}</Player>
-      )}
+      <CharacterSkin ref={playerRef} skinId={playerSkin} position={spawnPosition} teamColor={teamColor}>
+        {playerName && (
+          <Html position={[0, 2.2, 0]} center distanceFactor={8}>
+            <div className={`player-name-label ${playerTeam}`}>{playerName}</div>
+          </Html>
+        )}
+      </CharacterSkin>
     </group>
   )
 }
@@ -872,12 +830,13 @@ export default function Scene() {
   const [celebration, setCelebration] = useState(null) // { team: 'red' | 'blue' }
   const chatRef = useRef(null)
   const prevScoresRef = useRef({ red: 0, blue: 0 })
-  const pitchSize = [24, 0.2, 14]
+  const pitchSize = [30, 0.2, 20]
   
   // Get player state from store
   const hasJoined = useStore((s) => s.hasJoined)
   const playerName = useStore((s) => s.playerName)
   const playerTeam = useStore((s) => s.playerTeam)
+  const playerSkin = useStore((s) => s.playerSkin)
   
   // Team colors
   const teamColors = {
@@ -1133,39 +1092,43 @@ export default function Scene() {
       `}</style>
       {/* 3D Canvas */}
       <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
-        <PhysicsHandler />
-        <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
-        <color attach="background" args={["#87CEEB"]} />
-        <ambientLight intensity={0.7} color="#FFFFFF" />
-        <directionalLight position={[10, 30, 10]} intensity={2} color="#fff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
-        {/* Stadium lights */}
-        <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
-        <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
-        {/* Soccer pitch */}
-        <SoccerPitch size={pitchSize} />
-        {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
-        <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} netColor={teamColors.blue} />
-        <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} rotation={[0, Math.PI, 0]} netColor={teamColors.red} />
-        {/* Soccer ball with physics (syncs with server) */}
-        <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
-        {/* Local player with multiplayer sync */}
-        <LocalPlayerWithSync 
-          socket={socket} 
-          playerId={playerId} 
-          playerRef={playerRef} 
-          hasModel={hasModel} 
-          playerName={playerName}
-          playerTeam={playerTeam}
-          teamColor={teamColors[playerTeam]}
-          spawnPosition={playerTeam === 'red' ? [0, 1, 5] : [0, 1, -5]}
-        />
-        {/* Remote players */}
-        {Object.entries(remotePlayers).map(([id, p]) => (
-          id !== playerId && <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} />
-        ))}
-        {/* Camera controller */}
-        <CameraController targetRef={playerRef} />
+        <Suspense fallback={null}>
+          <PhysicsHandler />
+          <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
+          <color attach="background" args={["#87CEEB"]} />
+          <ambientLight intensity={0.7} color="#FFFFFF" />
+          <directionalLight position={[10, 30, 10]} intensity={2} color="#fff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
+          {/* Stadium lights */}
+          <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
+          <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
+          {/* Soccer pitch */}
+          <SoccerPitch size={pitchSize} />
+          {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
+          <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} netColor={teamColors.blue} />
+          <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} rotation={[0, Math.PI, 0]} netColor={teamColors.red} />
+          {/* Soccer ball with physics (syncs with server) */}
+          <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
+          {/* Local player with multiplayer sync */}
+          <LocalPlayerWithSync 
+            socket={socket} 
+            playerId={playerId} 
+            playerRef={playerRef} 
+            hasModel={hasModel} 
+            playerName={playerName}
+            playerTeam={playerTeam}
+            playerSkin={playerSkin}
+            teamColor={teamColors[playerTeam]}
+            spawnPosition={playerTeam === 'red' ? [0, 1, 5] : [0, 1, -5]}
+          />
+          {/* Remote players */}
+          {Object.entries(remotePlayers).map(([id, p]) => (
+            id !== playerId && <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} skin={p.skin} />
+          ))}
+          {/* Camera controller */}
+          <CameraController targetRef={playerRef} />
+        </Suspense>
       </Canvas>
+      <Loader />
       
       {/* Chat Box - Bottom Right */}
       <div style={{

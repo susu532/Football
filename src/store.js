@@ -9,6 +9,7 @@ const useStore = create((set) => ({
   // Player customization
   playerName: '',
   playerTeam: null, // 'red' or 'blue'
+  playerSkin: 'character-male-a', // default skin
   hasJoined: false,
   addToCart: (product) =>
     set((state) => ({ cart: [...state.cart, { ...product }] })),
@@ -25,7 +26,13 @@ const useStore = create((set) => ({
   // Player customization actions
   setPlayerName: (name) => set({ playerName: name }),
   setPlayerTeam: (team) => set({ playerTeam: team }),
-  joinGame: (name, team) => set({ playerName: name, playerTeam: team, hasJoined: true }),
+  setPlayerSkin: (skin) => set({ playerSkin: skin }),
+  joinGame: (name, team, skin) => set({ 
+    playerName: name, 
+    playerTeam: team, 
+    playerSkin: skin || 'character-male-a',
+    hasJoined: true 
+  }),
 }))
 
 export default useStore

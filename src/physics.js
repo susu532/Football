@@ -85,7 +85,7 @@ export function createSoccerBallBody(position = [0, 0.5, 0]) {
 
 // Helper to create a player body (kinematic)
 export function createPlayerBody(position = [0, 1, 0]) {
-  const radius = 0.5
+  const radius = 0.4
   const shape = new CANNON.Sphere(radius) // Simple sphere for player collision
   const body = new CANNON.Body({
     mass: 0, // Kinematic bodies have infinite mass effectively, but we set type to KINEMATIC
@@ -98,8 +98,8 @@ export function createPlayerBody(position = [0, 1, 0]) {
 }
 
 function createWalls(world) {
-  const pitchWidth = 24
-  const pitchDepth = 14
+  const pitchWidth = 30
+  const pitchDepth = 20
   const wallThickness = 5 // Thicker walls to prevent tunneling
   const wallHeight = 2
 
