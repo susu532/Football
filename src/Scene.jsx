@@ -563,7 +563,7 @@ function SoccerPitch({
       {/* Grass field */}
       <mesh position={[0, 0, 0]} receiveShadow>
         <boxGeometry args={size} />
-        <meshStandardMaterial color="#3a9d23" />
+        <meshStandardMaterial color="#3a9d23" roughness={1} />
       </mesh>
       {/* White lines */}
       <mesh position={[0, 0.01, 0]} receiveShadow>
@@ -1188,6 +1188,7 @@ export default function Scene() {
           <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
           <color attach="background" args={["#87CEEB"]} />
           <ambientLight intensity={0.7} color="#FFFFFF" />
+
           <directionalLight 
             position={[10, 30, 10]} 
             intensity={2} 
@@ -1195,10 +1196,11 @@ export default function Scene() {
             castShadow 
             shadow-mapSize-width={2048} 
             shadow-mapSize-height={2048}
-            shadow-camera-left={-30}
-            shadow-camera-right={30}
-            shadow-camera-top={30}
-            shadow-camera-bottom={-30}
+            shadow-camera-left={-50}
+            shadow-camera-right={50}
+            shadow-camera-top={50}
+            shadow-camera-bottom={-50}
+            shadow-bias={-0.0005}
           />
           {/* Stadium lights */}
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />

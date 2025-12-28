@@ -253,6 +253,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     groupRef.current.position.z = newZ
   })
   
+  console.log('CharacterSkin rendering:', skinId, position)
+
   return (
     <group ref={groupRef} position={position}>
       <primitive object={clonedScene} scale={1.5} position={[0, 0, 0]} />
