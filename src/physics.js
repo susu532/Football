@@ -11,20 +11,20 @@ const playerMaterial = new CANNON.Material('player')
 
 // Contact materials (define interactions)
 const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-  friction: 0.4,
-  restitution: 0.6, // Bouncy ball
+  friction: 0.5,
+  restitution: 0.3, // Reduced bounciness for realistic ball
 })
 
 const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
-  friction: 0.1,
-  restitution: 3, // Strong kick response - ball bounces off player powerfully
+  friction: 0.3,
+  restitution: 0.5, // Moderate bounce off players
 })
 
 export function createWorld() {
   if (world) return world
 
   world = new CANNON.World()
-  world.gravity.set(0, -12, 0) // Lighter gravity for floatier ball
+  world.gravity.set(0, -9.81, 0) // Realistic gravity
   world.broadphase = new CANNON.SAPBroadphase(world)
   world.solver.iterations = 15
   world.allowSleep = false
@@ -71,14 +71,14 @@ export function removeBody(body) {
 }
 
 export function createSoccerBallBody(position = [0, 2.0, 0]) {
-  const radius = 0.35 // Slightly larger ball
+  const radius = 0.35 // Standard ball radius
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
-    mass: 0.08, // Very light ball - easy to kick
+    mass: 0.45, // Realistic soccer ball weight (~450g)
     position: new CANNON.Vec3(...position),
     material: ballMaterial,
-    linearDamping: 0.05, // Very low damping for responsive movement
-    angularDamping: 0.05,
+    linearDamping: 0.2, // Natural air resistance/friction
+    angularDamping: 0.3, // Spin slows down naturally
   })
   body.addShape(shape)
   return body
