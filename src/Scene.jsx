@@ -833,8 +833,8 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
   )
 }
 
-// Single player model path for all players
-const PLAYER_MODEL_PATH = '/models/character.fbx'
+// Single player model path for all players (GLB embeds textures)
+const PLAYER_MODEL_PATH = '/models/player.glb'
 
 function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
   // Physics body for remote player
@@ -843,11 +843,11 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   const targetPosition = useRef(new THREE.Vector3(...position))
   const targetRotation = useRef(rotation)
   
-  // Load FBX model for remote player
-  const fbx = useFBX(PLAYER_MODEL_PATH)
+  // Load GLB model for remote player
+  const { scene } = useGLTF(PLAYER_MODEL_PATH)
   
   const clonedScene = React.useMemo(() => {
-    const cloned = fbx.clone()
+    const cloned = scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh && child.material) {
         child.material = child.material.clone()
@@ -858,7 +858,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
       }
     })
     return cloned
-  }, [fbx, color])
+  }, [scene, color])
   
   useEffect(() => {
     const world = getWorld()

@@ -1,11 +1,11 @@
 import React, { forwardRef, useRef, useEffect } from 'react'
-import { useFBX } from '@react-three/drei'
+import { useGLTF } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 
-// Single player model path
-const PLAYER_MODEL_PATH = '/models/character.fbx'
+// Single player model path (GLB embeds textures)
+const PLAYER_MODEL_PATH = '/models/player.glb'
 
 const CharacterSkin = forwardRef(function CharacterSkin({ 
   position = [0, 0, 0], 
@@ -20,12 +20,12 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   // Get camera for relative movement
   const { camera } = useThree()
   
-  // Load the FBX model
-  const fbx = useFBX(PLAYER_MODEL_PATH)
+  // Load the GLB model
+  const { scene } = useGLTF(PLAYER_MODEL_PATH)
   
   // Clone the scene to avoid sharing state between instances
   const clonedScene = React.useMemo(() => {
-    const cloned = fbx.clone()
+    const cloned = scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
         // Ensure material is unique
@@ -44,7 +44,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       }
     })
     return cloned
-  }, [fbx, teamColor])
+  }, [scene, teamColor])
   
   // Expose position via ref
   useEffect(() => {
@@ -172,7 +172,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
         ).normalize()
         
         // Power kick force (reduced for balanced gameplay)
-        const kickPower = 8
+        const kickPower = 2
         
         // Apply impulse to ball
         ballBody.applyImpulse(
