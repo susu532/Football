@@ -128,9 +128,10 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     const nextZ = groupRef.current.position.z + velocity.current.z * delta
     
     Object.values(remotePlayers).forEach(p => {
-      // Skip invalid players or players at origin (uninitialized)
+      // Skip invalid players or players near center (uninitialized)
       if (!p.position) return
-      if (p.position[0] === 0 && p.position[1] === 0 && p.position[2] === 0) return
+      // Skip players near center (within 1 unit of origin on X/Z plane)
+      if (Math.abs(p.position[0]) < 1 && Math.abs(p.position[2]) < 1) return
       
       const dx = nextX - p.position[0]
       const dz = nextZ - p.position[2]
