@@ -1227,9 +1227,11 @@ export default function Scene() {
             remotePlayers={remotePlayers}
           />
           {/* Remote players */}
-          {Object.entries(remotePlayers).map(([id, p]) => (
-            id !== playerId && <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} skin={p.skin} />
-          ))}
+          {Object.entries(remotePlayers)
+            .filter(([id]) => id !== playerId) // Strict filtering
+            .map(([id, p]) => (
+              <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} skin={p.skin} />
+            ))}
           {/* Camera controller */}
           <CameraController targetRef={playerRef} />
         </Suspense>

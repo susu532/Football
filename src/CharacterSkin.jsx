@@ -37,8 +37,15 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     const cloned = scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
-        // DEBUG: Force red material to check visibility
-        child.material = new THREE.MeshBasicMaterial({ color: 'red', wireframe: true })
+        // Ensure material is unique
+        if (child.material) {
+          child.material = child.material.clone()
+          // Fix visibility issues
+          child.material.transparent = false
+          child.material.opacity = 1.0
+          child.material.side = THREE.DoubleSide
+          child.material.needsUpdate = true
+        }
         child.castShadow = true
         child.receiveShadow = true
       }
@@ -56,13 +63,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       }
     }
   }, [ref])
-
-  // Debug: Log scene graph
-  useEffect(() => {
-    console.log('Model loaded:', skinId, clonedScene)
-  }, [clonedScene, skinId])
-
-
   
   // Handle keyboard input and movement
   const keys = useRef({})
@@ -261,17 +261,12 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     groupRef.current.position.z = newZ
   })
   
-  console.log('CharacterSkin rendering:', skinId, position)
-
   return (
     <group ref={groupRef} position={position}>
       <primitive object={clonedScene} scale={1.5} position={[0, 0, 0]} />
-      <primitive object={new THREE.BoxHelper(clonedScene, 0xffff00)} />
       {children}
     </group>
   )
 })
 
 export default CharacterSkin
-
-
