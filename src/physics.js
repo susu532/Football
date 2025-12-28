@@ -103,7 +103,7 @@ function createWalls(world) {
   const pitchWidth = 30
   const pitchDepth = 20
   const wallThickness = 2
-  const wallHeight = 3
+  const wallHeight = 5
 
   const wallMaterial = new CANNON.Material('wall')
   const ballWallContact = new CANNON.ContactMaterial(ballMaterial, wallMaterial, {
@@ -126,29 +126,127 @@ function createWalls(world) {
   // Goals are at X = ±11, so we need gaps on LEFT and RIGHT walls
   const goalWidth = 6 // Goal opening size
   
-  // TOP wall (full width, no gap) at z = -10
-  addWall(0, -pitchDepth / 2 - wallThickness / 2, pitchWidth + wallThickness * 2, wallThickness)
+  // Chamfered Corners (Diagonal Walls)
+  const chamferSize = 4
+  const diagLen = Math.sqrt(chamferSize*chamferSize + chamferSize*chamferSize)
   
-  // BOTTOM wall (full width, no gap) at z = +10
-  addWall(0, pitchDepth / 2 + wallThickness / 2, pitchWidth + wallThickness * 2, wallThickness)
+  // TOP wall (shortened) at z = -10
+  // Original width 30. New width 30 - 2*chamferSize = 22.
+  // Center x=0.
+  addWall(0, -pitchDepth / 2 - wallThickness / 2, pitchWidth - 2 * chamferSize, wallThickness)
   
-  // LEFT wall (split for goal gap) at x = -15
+  // BOTTOM wall (shortened) at z = +10
+  addWall(0, pitchDepth / 2 + wallThickness / 2, pitchWidth - 2 * chamferSize, wallThickness)
+  
+  // LEFT wall (shortened) at x = -15
+  // Original depth 20. New depth 20 - 2*chamferSize = 12.
+  // But it has a goal gap of 6 in the middle.
+  // So we have two segments: Top and Bottom.
+  // Total length 12. Gap 6. Remaining 6. Split 3 and 3.
+  // Top segment: from z = -6 to z = -3. Center z = -4.5.
+  // Bottom segment: from z = 3 to z = 6. Center z = 4.5.
+  
   const leftX = -pitchWidth / 2 - wallThickness / 2
-  const sideWallLength = (pitchDepth - goalWidth) / 2
-  const sideWallOffset = goalWidth / 2 + sideWallLength / 2
-  
-  addWall(leftX, -sideWallOffset, wallThickness, sideWallLength) // Left Top
-  addWall(leftX, sideWallOffset, wallThickness, sideWallLength)  // Left Bottom
-  
-  // RIGHT wall (split for goal gap) at x = +15
   const rightX = pitchWidth / 2 + wallThickness / 2
   
-  addWall(rightX, -sideWallOffset, wallThickness, sideWallLength) // Right Top
-  addWall(rightX, sideWallOffset, wallThickness, sideWallLength)  // Right Bottom
+  // Left Side Walls
+  addWall(leftX, -4.5, wallThickness, 3) // Left Top
+  addWall(leftX, 4.5, wallThickness, 3)  // Left Bottom
+  
+  // Right Side Walls
+  addWall(rightX, -4.5, wallThickness, 3) // Right Top
+  addWall(rightX, 4.5, wallThickness, 3)  // Right Bottom
+  
+  // Diagonal Walls
+  // Top-Left: Connects (-15, -6) to (-11, -10)
+  // Center: (-13, -8)
+  const diagWall = new CANNON.Box(new CANNON.Vec3(wallThickness / 2, wallHeight / 2, diagLen / 2))
+  
+  const addDiagWall = (x, z, angle) => {
+    const body = new CANNON.Body({
+      mass: 0,
+      position: new CANNON.Vec3(x, wallHeight / 2, z),
+      material: wallMaterial
+    })
+    body.addShape(diagWall)
+    body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), angle)
+    world.addBody(body)
+  }
+  
+  addDiagWall(-13, -8, -Math.PI / 4) // Top-Left
+  addDiagWall(13, -8, Math.PI / 4)   // Top-Right
+  addDiagWall(13, 8, -Math.PI / 4)   // Bottom-Right
+  addDiagWall(-13, 8, Math.PI / 4)   // Bottom-Left
   
   // Goal back walls (behind the goals at x = ±13)
   const goalBackX = 13
   addWall(-goalBackX - wallThickness, 0, wallThickness, goalWidth + 2) // Left goal back
   addWall(goalBackX + wallThickness, 0, wallThickness, goalWidth + 2)  // Right goal back
+
+  // Crossbar Material (Extra Bouncy)
+  const crossbarMaterial = new CANNON.Material('crossbar')
+  const ballCrossbarContact = new CANNON.ContactMaterial(ballMaterial, crossbarMaterial, {
+    friction: 0.1,
+    restitution: 0.5, // Less bouncy
+  })
+  world.addContactMaterial(ballCrossbarContact)
+
+  // Crossbars (at x = ±11, height ~2.3)
+  const crossbarHeight = 2.3 // Slightly lower to ensure hit
+  const crossbarThickness = 0.3 // Thicker
+  
+  // Left Goal Crossbar
+  const leftCrossbarShape = new CANNON.Box(new CANNON.Vec3(crossbarThickness, crossbarThickness, goalWidth / 2))
+  const leftCrossbar = new CANNON.Body({
+    mass: 0,
+    position: new CANNON.Vec3(-11, crossbarHeight, 0),
+    material: crossbarMaterial
+  })
+  leftCrossbar.addShape(leftCrossbarShape)
+  world.addBody(leftCrossbar)
+
+  // Right Goal Crossbar
+  const rightCrossbarShape = new CANNON.Box(new CANNON.Vec3(crossbarThickness, crossbarThickness, goalWidth / 2))
+  const rightCrossbar = new CANNON.Body({
+    mass: 0,
+    position: new CANNON.Vec3(11, crossbarHeight, 0),
+    material: crossbarMaterial
+  })
+  rightCrossbar.addShape(rightCrossbarShape)
+  world.addBody(rightCrossbar)
+
+  // Goal Net Physics (Sides and Roof)
+  const netDepth = 2 // Distance from goal line to back of net
+  const netSideThickness = 0.1
+  
+  // Helper to add net wall
+  const addNetWall = (x, y, z, w, h, d) => {
+    const shape = new CANNON.Box(new CANNON.Vec3(w / 2, h / 2, d / 2))
+    const body = new CANNON.Body({
+      mass: 0,
+      position: new CANNON.Vec3(x, y, z),
+      material: wallMaterial
+    })
+    body.addShape(shape)
+    world.addBody(body)
+  }
+
+  // Right Goal Net (x > 0)
+  // Sides
+  addNetWall(12, wallHeight / 2, -3 - netSideThickness, netDepth, wallHeight, netSideThickness * 2) // Top side
+  addNetWall(12, wallHeight / 2, 3 + netSideThickness, netDepth, wallHeight, netSideThickness * 2)  // Bottom side
+  // Roof
+  addNetWall(12, 2.4, 0, netDepth, netSideThickness * 2, goalWidth)
+  // Back
+  addNetWall(13 + netSideThickness, wallHeight / 2, 0, netSideThickness * 2, wallHeight, goalWidth)
+
+  // Left Goal Net (x < 0)
+  // Sides
+  addNetWall(-12, wallHeight / 2, -3 - netSideThickness, netDepth, wallHeight, netSideThickness * 2) // Top side
+  addNetWall(-12, wallHeight / 2, 3 + netSideThickness, netDepth, wallHeight, netSideThickness * 2)  // Bottom side
+  // Roof
+  addNetWall(-12, 2.4, 0, netDepth, netSideThickness * 2, goalWidth)
+  // Back
+  addNetWall(-13 - netSideThickness, wallHeight / 2, 0, netSideThickness * 2, wallHeight, goalWidth)
 }
 

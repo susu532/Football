@@ -20,9 +20,9 @@ export function GoalDetector({ ballBody, socket, playerId, remotePlayers, pitchS
     if (isHost) {
       const { x, z } = ballBody.position
       // Goal positions are now on LEFT/RIGHT sides (X axis) at x = ±11
-      const blueGoalX = -11  // Left side
-      const redGoalX = 11    // Right side
-      const goalHeight = 3   // Half-height of goal opening
+      const blueGoalX = -11.2  // Left side (deeper in net)
+      const redGoalX = 11.2    // Right side (deeper in net)
+      const goalHeight = 2.2   // Narrower detection width
       
       // Blue Goal (Left) -> Red Scores when ball crosses
       if (x < blueGoalX && Math.abs(z) < goalHeight) {

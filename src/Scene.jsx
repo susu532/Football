@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, Suspense } from 'react'
 import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
-import { Html, Sparkles, Stars, useFBX, Loader, useGLTF } from '@react-three/drei'
+import { Html, Sparkles, Stars, useFBX, Loader, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
 import Player from './Player'
 import PlayerModel from './PlayerModel'
@@ -549,10 +549,12 @@ function PinkHeart({ position = [0, 0.2, 0], scale = 1, color = "#f06292" }) {
   )
 }
 
+
+
 // Soccer Pitch (Stadium Look)
 function SoccerPitch({
   size = [30, 0.2, 20],
-  wallHeight = 2.5,
+  wallHeight = 5.0, // Doubled height
   wallThickness = 0.4,
 }) {
   // Pitch
@@ -573,29 +575,71 @@ function SoccerPitch({
         <ringGeometry args={[2.5, 2.7, 32]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      {/* Walls */}
-      {/* Left */}
-      <mesh position={[-size[0]/2 - wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[wallThickness, wallHeight, size[2]+wallThickness*2]} />
-        <meshStandardMaterial color="#888" />
+      {/* Corner Arcs */}
+      {/* Top-Left */}
+      <mesh position={[-size[0]/2 + 1, 0.02, -size[2]/2 + 1]} rotation={[-Math.PI/2, 0, 0]}>
+        <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      {/* Right */}
-      <mesh position={[size[0]/2 + wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
-        <boxGeometry args={[wallThickness, wallHeight, size[2]+wallThickness*2]} />
-        <meshStandardMaterial color="#888" />
+      {/* Top-Right */}
+      <mesh position={[size[0]/2 - 1, 0.02, -size[2]/2 + 1]} rotation={[-Math.PI/2, 0, Math.PI/2]}>
+        <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      {/* Top */}
-      <mesh position={[0, wallHeight/2, -size[2]/2 - wallThickness/2]} castShadow receiveShadow>
-        <boxGeometry args={[size[0]+wallThickness*2, wallHeight, wallThickness]} />
-        <meshStandardMaterial color="#888" />
+      {/* Bottom-Right */}
+      <mesh position={[size[0]/2 - 1, 0.02, size[2]/2 - 1]} rotation={[-Math.PI/2, 0, Math.PI]}>
+        <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      {/* Bottom */}
-      <mesh position={[0, wallHeight/2, size[2]/2 + wallThickness/2]} castShadow receiveShadow>
-        <boxGeometry args={[size[0]+wallThickness*2, wallHeight, wallThickness]} />
-        <meshStandardMaterial color="#888" />
+      {/* Bottom-Left */}
+      <mesh position={[-size[0]/2 + 1, 0.02, size[2]/2 - 1]} rotation={[-Math.PI/2, 0, -Math.PI/2]}>
+        <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      {/* Stadium stands (simple) */}
-      {/* Removed the top black platform */}
+
+      {/* Walls with Rounded Corners (Chamfered) */}
+      {/* Top Wall (Length 22) */}
+      <RoundedBox args={[22, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, -size[2]/2 - wallThickness/2]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      {/* Bottom Wall (Length 22) */}
+      <RoundedBox args={[22, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, size[2]/2 + wallThickness/2]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      
+      {/* Left Side Walls (Length 3 each) */}
+      <RoundedBox args={[wallThickness, wallHeight, 3]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, -4.5]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      <RoundedBox args={[wallThickness, wallHeight, 3]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, 4.5]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      
+      {/* Right Side Walls (Length 3 each) */}
+      <RoundedBox args={[wallThickness, wallHeight, 3]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, -4.5]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      <RoundedBox args={[wallThickness, wallHeight, 3]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 4.5]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      
+      {/* Diagonal Walls (Length 5.66) */}
+      {/* Top-Left */}
+      <RoundedBox args={[wallThickness, wallHeight, 5.66]} radius={0.1} smoothness={4} position={[-13, wallHeight/2, -8]} rotation={[0, -Math.PI/4, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      {/* Top-Right */}
+      <RoundedBox args={[wallThickness, wallHeight, 5.66]} radius={0.1} smoothness={4} position={[13, wallHeight/2, -8]} rotation={[0, Math.PI/4, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      {/* Bottom-Right */}
+      <RoundedBox args={[wallThickness, wallHeight, 5.66]} radius={0.1} smoothness={4} position={[13, wallHeight/2, 8]} rotation={[0, -Math.PI/4, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
+      {/* Bottom-Left */}
+      <RoundedBox args={[wallThickness, wallHeight, 5.66]} radius={0.1} smoothness={4} position={[-13, wallHeight/2, 8]} rotation={[0, Math.PI/4, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#444" roughness={0.4} />
+      </RoundedBox>
     </group>
   )
 }
@@ -658,7 +702,7 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', playerSkin = 'character-male-a', teamColor = '#888', spawnPosition = [0, 1, 0] }) {
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', playerSkin = 'character-male-a', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {} }) {
   // Physics body for the player (to push the ball)
   const [body] = useState(() => createPlayerBody(spawnPosition))
   
@@ -691,16 +735,28 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
       color: teamColor
     })
   })
+
+  // Create a separate ref for the name label that follows the player
+  const labelRef = useRef()
+  
+  useFrame(() => {
+    if (labelRef.current && playerRef.current) {
+      labelRef.current.position.copy(playerRef.current.position)
+    }
+  })
+
   // Render local player with CharacterSkin (new GLB models)
   return (
     <group>
-      <CharacterSkin ref={playerRef} skinId={playerSkin} position={spawnPosition} teamColor={teamColor}>
-        {playerName && (
+      <CharacterSkin ref={playerRef} skinId={playerSkin} position={spawnPosition} teamColor={teamColor} remotePlayers={remotePlayers} />
+      {/* Name label follows player position */}
+      {playerName && (
+        <group ref={labelRef}>
           <Html position={[0, 2.2, 0]} center distanceFactor={8}>
             <div className={`player-name-label ${playerTeam}`}>{playerName}</div>
           </Html>
-        )}
-      </CharacterSkin>
+        </group>
+      )}
     </group>
   )
 }
@@ -1132,7 +1188,18 @@ export default function Scene() {
           <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
           <color attach="background" args={["#87CEEB"]} />
           <ambientLight intensity={0.7} color="#FFFFFF" />
-          <directionalLight position={[10, 30, 10]} intensity={2} color="#fff" castShadow shadow-mapSize-width={2048} shadow-mapSize-height={2048} />
+          <directionalLight 
+            position={[10, 30, 10]} 
+            intensity={2} 
+            color="#fff" 
+            castShadow 
+            shadow-mapSize-width={2048} 
+            shadow-mapSize-height={2048}
+            shadow-camera-left={-30}
+            shadow-camera-right={30}
+            shadow-camera-top={30}
+            shadow-camera-bottom={-30}
+          />
           {/* Stadium lights */}
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
           <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
@@ -1155,6 +1222,7 @@ export default function Scene() {
             playerSkin={playerSkin}
             teamColor={teamColors[playerTeam]}
             spawnPosition={playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]}
+            remotePlayers={remotePlayers}
           />
           {/* Remote players */}
           {Object.entries(remotePlayers).map(([id, p]) => (
