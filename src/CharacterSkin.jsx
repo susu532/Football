@@ -4,8 +4,8 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 
-// Single player model path (GLB embeds textures)
-const PLAYER_MODEL_PATH = '/models/player.glb'
+// Single player model path (cat model for all players)
+const PLAYER_MODEL_PATH = '/models/cat.glb'
 
 const CharacterSkin = forwardRef(function CharacterSkin({ 
   position = [0, 0, 0], 

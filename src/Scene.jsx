@@ -833,8 +833,8 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
   )
 }
 
-// Single player model path for all players (GLB embeds textures)
-const PLAYER_MODEL_PATH = '/models/player.glb'
+// Single player model path for all players (cat model)
+const PLAYER_MODEL_PATH = '/models/cat.glb'
 
 function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
   // Physics body for remote player
