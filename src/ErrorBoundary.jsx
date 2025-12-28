@@ -11,19 +11,39 @@ export default class ErrorBoundary extends React.Component {
   }
 
   componentDidCatch(error, info) {
-    // You could log to an external service here
     console.error('ErrorBoundary caught', error, info)
+  }
+
+  handleRetry = () => {
+    this.setState({ error: null })
+  }
+
+  handleRefresh = () => {
+    window.location.reload()
   }
 
   render() {
     if (this.state.error) {
       return (
-        <div style={{ padding: 20, fontFamily: 'Segoe UI, Arial' }}>
-          <h2 style={{ color: '#b00020' }}>Application error</h2>
-          <pre style={{ whiteSpace: 'pre-wrap' }}>{String(this.state.error.stack || this.state.error)}</pre>
+        <div style={{ padding: 20, fontFamily: 'Segoe UI, Arial', textAlign: 'center' }}>
+          <h2 style={{ color: '#b00020' }}>Something went wrong</h2>
+          <p>This often happens during hot-reload. Try refreshing the page.</p>
+          <button 
+            onClick={this.handleRefresh}
+            style={{ padding: '10px 20px', fontSize: 16, cursor: 'pointer', marginRight: 10 }}
+          >
+            Refresh Page
+          </button>
+          <button 
+            onClick={this.handleRetry}
+            style={{ padding: '10px 20px', fontSize: 16, cursor: 'pointer' }}
+          >
+            Retry
+          </button>
         </div>
       )
     }
     return this.props.children
   }
 }
+

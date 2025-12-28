@@ -551,7 +551,7 @@ function PinkHeart({ position = [0, 0.2, 0], scale = 1, color = "#f06292" }) {
 
 // Soccer Pitch (Stadium Look)
 function SoccerPitch({
-  size = [24, 0.2, 14],
+  size = [30, 0.2, 20],
   wallHeight = 2.5,
   wallThickness = 0.4,
 }) {
@@ -634,7 +634,7 @@ function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColor = '#e
 }
 
 // Soccer Ball (using FBX model)
-const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0], radius = 0.3 }, ref) {
+const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0], radius = 0.35 }, ref) {
   const fbx = useFBX('/models/soccer_ball.fbx')
   
   const clonedBall = React.useMemo(() => {
@@ -653,7 +653,7 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
       ref={ref}
       object={clonedBall} 
       position={position} 
-      scale={0.006} // Scale to match physics radius (0.3)
+      scale={0.007} // Scale to match physics radius (0.35)
     />
   )
 })
@@ -769,12 +769,28 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
   )
 }
 
-function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
+function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '', skin = 'character-male-a' }) {
   // Physics body for remote player
   const [body] = useState(() => createPlayerBody(position))
   const groupRef = useRef()
   const targetPosition = useRef(new THREE.Vector3(...position))
   const targetRotation = useRef(rotation)
+  
+  // Load GLB model for remote player
+  const modelPath = `/models/characters/${skin}.glb`
+  const { scene } = useGLTF(modelPath)
+  
+  const clonedScene = React.useMemo(() => {
+    const cloned = scene.clone()
+    cloned.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material = child.material.clone()
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    return cloned
+  }, [scene])
   
   useEffect(() => {
     const world = getWorld()
@@ -809,7 +825,12 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
 
   return (
     <group ref={groupRef} position={position}>
-      <RemotePlayer position={[0, 0, 0]} color={color} rotation={0} playerName={playerName} team={team} />
+      <primitive object={clonedScene} scale={1.5} position={[0, 0, 0]} />
+      {playerName && (
+        <Html position={[0, 2.2, 0]} center distanceFactor={8}>
+          <div className={`player-name-label ${team}`}>{playerName}</div>
+        </Html>
+      )}
     </group>
   )
 }
@@ -881,9 +902,23 @@ export default function Scene() {
       if (newScores.red > prevScoresRef.current.red) {
         setCelebration({ team: 'red' })
         setTimeout(() => setCelebration(null), 3000) // Hide after 3 seconds
+        // Respawn players after 2 seconds
+        setTimeout(() => {
+          if (playerRef.current) {
+            const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
+            playerRef.current.position.set(...spawn)
+          }
+        }, 2000)
       } else if (newScores.blue > prevScoresRef.current.blue) {
         setCelebration({ team: 'blue' })
         setTimeout(() => setCelebration(null), 3000)
+        // Respawn players after 2 seconds
+        setTimeout(() => {
+          if (playerRef.current) {
+            const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
+            playerRef.current.position.set(...spawn)
+          }
+        }, 2000)
       }
       prevScoresRef.current = { ...newScores }
       setScores(newScores)
@@ -1104,8 +1139,9 @@ export default function Scene() {
           {/* Soccer pitch */}
           <SoccerPitch size={pitchSize} />
           {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
-          <SoccerGoal position={[0, 0.1, -pitchSize[2]/2+0.7]} netColor={teamColors.blue} />
-          <SoccerGoal position={[0, 0.1, pitchSize[2]/2-0.7]} rotation={[0, Math.PI, 0]} netColor={teamColors.red} />
+          {/* Goals positioned just behind pitch edges, rotated 90° facing each other */}
+          <SoccerGoal position={[11, 0.1, 0]} rotation={[0,-Math.PI / 1, 0]} netColor={teamColors.blue} />
+          <SoccerGoal position={[-11, 0.1, 0]} rotation={[0,Math.PI / 0.5, 0]} netColor={teamColors.red} />
           {/* Soccer ball with physics (syncs with server) */}
           <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
           {/* Local player with multiplayer sync */}
@@ -1118,7 +1154,7 @@ export default function Scene() {
             playerTeam={playerTeam}
             playerSkin={playerSkin}
             teamColor={teamColors[playerTeam]}
-            spawnPosition={playerTeam === 'red' ? [0, 1, 5] : [0, 1, -5]}
+            spawnPosition={playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]}
           />
           {/* Remote players */}
           {Object.entries(remotePlayers).map(([id, p]) => (
