@@ -736,8 +736,15 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
   })
 
   // Send player movement to server with player data
-  useFrame(() => {
+  const lastUpdate = useRef(0)
+  useFrame((state) => {
     if (!socket || !playerId || !playerRef.current) return
+    
+    // Throttle updates to ~30 times per second (every 33ms)
+    const now = state.clock.getElapsedTime()
+    if (now - lastUpdate.current < 0.033) return
+    lastUpdate.current = now
+
     const pos = playerRef.current.position
     const rot = playerRef.current.rotation ? playerRef.current.rotation.y : 0
     // Read invisible state from userData (set by CharacterSkin)
@@ -916,12 +923,18 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   }, [position, rotation])
 
   // Smoothly interpolate towards target position
-  useFrame(() => {
+  useFrame((_, delta) => {
     if (groupRef.current) {
-      // Lerp position for smooth movement (faster factor = snappier)
-      groupRef.current.position.lerp(targetPosition.current, 0.25)
-      // Lerp rotation for smooth turning
-      groupRef.current.rotation.y = THREE.MathUtils.lerp(groupRef.current.rotation.y, targetRotation.current, 0.25)
+      // Use damp for time-based smoothing (independent of frame rate)
+      // Lambda 15 gives a good balance of smoothness and responsiveness
+      const lambda = 15
+      
+      groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetPosition.current.x, lambda, delta)
+      groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetPosition.current.y, lambda, delta)
+      groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetPosition.current.z, lambda, delta)
+      
+      // Smooth rotation
+      groupRef.current.rotation.y = THREE.MathUtils.damp(groupRef.current.rotation.y, targetRotation.current, lambda, delta)
       
       // Sync physics body with visual position
       if (body) {
