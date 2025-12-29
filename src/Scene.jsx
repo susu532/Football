@@ -566,10 +566,7 @@ function SoccerPitch({
         <meshStandardMaterial color="#3a9d23" roughness={1} />
       </mesh>
       {/* White lines */}
-      <mesh position={[0, 0.01, 0]} receiveShadow>
-        <planeGeometry args={[size[0] * 0.98, size[2] * 0.98]} />
-        <meshStandardMaterial color="#ffffff" transparent opacity={0.08} />
-      </mesh>
+      
       {/* Center circle */}
       <mesh position={[0, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <ringGeometry args={[2.5, 2.7, 32]} />
