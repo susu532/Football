@@ -2,8 +2,6 @@ import React, { useRef, useEffect, useState, Suspense } from 'react'
 import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
 import { Html, Sparkles, Stars, Loader, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
-import Player from './Player'
-import PlayerModel from './PlayerModel'
 import CharacterSkin from './CharacterSkin'
 import useStore from './store'
 import { createWorld, stepWorld, getWorld, createSoccerBallBody, createPlayerBody, removeBody } from './physics'
@@ -1341,77 +1339,4 @@ export default function Scene() {
 
 // Note: we check for model availability inside the Scene component on mount.
 
-function Coins({ playerRef, positions = [] }) {
-  const collectCoin = useStore((s) => s.collectCoin)
-  const coinsRef = useRef([])
-  const [collected, setCollected] = useState(Array(positions.length).fill(false))
-  const [showSparkles, setShowSparkles] = useState(Array(positions.length).fill(false))
 
-  useFrame(() => {
-    // stepWorld() - Moved to Scene component
-    const playerPos = playerRef.current ? playerRef.current.position : null
-    if (!playerPos) return
-    positions.forEach((pos, i) => {
-      const cr = coinsRef.current[i]
-      if (!cr) return
-      cr.rotation.y += 0.1
-      if (!collected[i] && playerPos.distanceTo(cr.position) < 1) {
-        collectCoin()
-        setCollected((prev) => {
-          const arr = [...prev]; arr[i] = true; return arr;
-        })
-        setShowSparkles((prev) => {
-          const arr = [...prev]; arr[i] = true; return arr;
-        })
-        setTimeout(() => {
-          setShowSparkles((prev) => {
-            const arr = [...prev]; arr[i] = false; return arr;
-          })
-        }, 1000)
-      }
-    })
-  })
-
-  return (
-    <group>
-      {positions.map((p, i) => {
-        const { scale, rotation } = useSpring({
-          scale: collected[i] ? 0 : 1,
-          rotation: [0, 0, 0],
-          config: { tension: 300, friction: 20 },
-        })
-        return (
-          <group key={i} position={p}>
-            <a.mesh
-          ref={(el) => (coinsRef.current[i] = el)}
-          rotation={[0, 0, 0]}
-          castShadow
-              scale-x={scale}
-              scale-y={scale}
-              scale-z={scale}
-            >
-              <torusGeometry args={[0.25, 0.08, 18, 32]} />
-              <meshPhysicalMaterial 
-                color="#ffd7fa" 
-                metalness={0.8} 
-                roughness={0.2} 
-                clearcoat={0.6} 
-                iridescence={0.4}
-                emissive="#ffa"
-                emissiveIntensity={0.3}
-              />
-              {/* Heart pattern */}
-              <mesh position={[0, 0, 0.13]} scale={[0.18, 0.18, 0.01]}>
-                <sphereGeometry args={[1, 8, 8]} />
-                <meshStandardMaterial color="#f06292" />
-        </mesh>
-            </a.mesh>
-            {showSparkles[i] && (
-              <Sparkles count={15} scale={1.5} size={1.5} speed={0.6} color="#ffd700" />
-            )}
-          </group>
-        )
-      })}
-    </group>
-  )
-}
