@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, Suspense } from 'react'
 import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
-import { Html, Sparkles, Stars, useFBX, Loader, useGLTF, RoundedBox } from '@react-three/drei'
+import { Html, Sparkles, Stars, Loader, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
 import Player from './Player'
 import PlayerModel from './PlayerModel'
@@ -631,13 +631,13 @@ function SoccerPitch({
   )
 }
 
-// Soccer Goal (using FBX model)
+// Soccer Goal (using GLB model)
 function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColor = '#e0e0e0' }) {
-  const fbx = useFBX('/models/goal.fbx')
+  const { scene } = useGLTF('/models/soccer_goal.glb')
   
   // Clone the model to avoid sharing state
   const clonedGoal = React.useMemo(() => {
-    const cloned = fbx.clone()
+    const cloned = scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true
@@ -652,14 +652,14 @@ function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColor = '#e
       }
     })
     return cloned
-  }, [fbx, netColor])
+  }, [scene, netColor])
 
   return (
     <primitive 
       object={clonedGoal} 
       position={position} 
       rotation={rotation} 
-      scale={0.01} // FBX models often need scaling
+      scale={0.01} // GLB models may need scaling
     />
   )
 }
@@ -683,12 +683,12 @@ function MysteryShack() {
   return <primitive object={scene} position={[0, -10, 0]} scale={4} />
 }
 
-// Soccer Ball (using FBX model)
-const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0], radius = 0.35 }, ref) {
-  const fbx = useFBX('/models/soccer_ball.fbx')
+// Soccer Ball (using GLB model)
+const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0], radius = 0.22 }, ref) {
+  const { scene } = useGLTF('/models/soccer_ball.glb')
   
   const clonedBall = React.useMemo(() => {
-    const cloned = fbx.clone()
+    const cloned = scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
         child.castShadow = true
@@ -696,14 +696,14 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
       }
     })
     return cloned
-  }, [fbx])
+  }, [scene])
 
   return (
     <primitive 
       ref={ref}
       object={clonedBall} 
       position={position} 
-      scale={0.007} // Scale to match physics radius (0.35)
+      scale={5} // Scale to match physics diameter (0.44)
     />
   )
 })
