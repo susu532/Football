@@ -173,7 +173,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           // Apply impulse in direction of PLAYER MODEL FACING
           // User request: "make it follow the direction of the model"
           
-          const dribblePower = 0.6 // Reduced for tighter control (moves less further)
+          const dribblePower = 0.35 // Further reduced for very tight control
           const rotation = groupRef.current.rotation.y
           
           // Calculate forward vector from rotation
