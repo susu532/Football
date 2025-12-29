@@ -32,5 +32,4 @@ yarn-error.log*
 *.sln
 *.sw?
 
-# Assets (Source files, use public/ for served assets)
 assets
