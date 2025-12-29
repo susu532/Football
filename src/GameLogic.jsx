@@ -18,21 +18,22 @@ export function GoalDetector({ ballBody, socket, playerId, remotePlayers, pitchS
     const isHost = allIds[0] === playerId
 
     if (isHost) {
-      const { x, z } = ballBody.position
+      const { x, y, z } = ballBody.position
       // Goal positions are now on LEFT/RIGHT sides (X axis) at x = ±11
       const blueGoalX = -11.2  // Left side (deeper in net)
       const redGoalX = 11.2    // Right side (deeper in net)
-      const goalHeight = 2.2   // Narrower detection width
+      const goalWidth = 2.2   // Narrower detection width (Z axis)
+      const goalHeightLimit = 4 // Crossbar height limit
       
       // Blue Goal (Left) -> Red Scores when ball crosses
-      if (x < blueGoalX && Math.abs(z) < goalHeight) {
+      if (x < blueGoalX && Math.abs(z) < goalWidth && y < goalHeightLimit) {
          ballBody.position.set(0, 2.0, 0) 
          ballBody.velocity.set(0, 0, 0)
          ballBody.angularVelocity.set(0, 0, 0)
          socket.emit('goal', 'red')
       }
       // Red Goal (Right) -> Blue Scores when ball crosses
-      else if (x > redGoalX && Math.abs(z) < goalHeight) {
+      else if (x > redGoalX && Math.abs(z) < goalWidth && y < goalHeightLimit) {
          ballBody.position.set(0, 2.0, 0)
          ballBody.velocity.set(0, 0, 0)
          ballBody.angularVelocity.set(0, 0, 0)
