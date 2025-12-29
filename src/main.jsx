@@ -38,6 +38,11 @@ window.addEventListener('error', (e) => {
 })
 
 window.addEventListener('unhandledrejection', (e) => {
+  // Ignore common browser extension errors
+  if (e.reason && e.reason.message && e.reason.message.includes('message channel closed')) {
+    console.warn('Ignored browser extension error:', e.reason)
+    return
+  }
   console.error('unhandledrejection', e.reason)
   showError(e.reason)
 })
