@@ -234,43 +234,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
     newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
     
-    // Diagonal Wall Checks (Chamfered Corners)
-    // Top-Left: x + z > -21
-    if (newX + newZ < -20.5) {
-      // Project back to line x + z = -20.5
-      // Closest point on line x+z=C from (x0, z0) is ((x0-z0+C)/2, (z0-x0+C)/2)
-      const C = -20.5
-      const x0 = newX, z0 = newZ
-      newX = (x0 - z0 + C) / 2
-      newZ = (z0 - x0 + C) / 2
-    }
-    // Top-Right: x - z < 21
-    if (newX - newZ > 20.5) {
-      // Line x - z = 20.5
-      const C = 20.5
-      const x0 = newX, z0 = newZ
-      newX = (x0 + z0 + C) / 2
-      newZ = (x0 + z0 - C) / 2 // Wait, z = x - C
-      // Formula for x-z=C: x = (x0+z0+C)/2, z = (x0+z0-C)/2
-      newX = (x0 + z0 + C) / 2
-      newZ = (x0 + z0 - C) / 2
-    }
-    // Bottom-Right: x + z < 21
-    if (newX + newZ > 20.5) {
-      // Line x + z = 20.5
-      const C = 20.5
-      const x0 = newX, z0 = newZ
-      newX = (x0 - z0 + C) / 2
-      newZ = (z0 - x0 + C) / 2
-    }
-    // Bottom-Left: z - x < 21
-    if (newZ - newX > 20.5) {
-      // Line z - x = 20.5 => x - z = -20.5
-      const C = -20.5
-      const x0 = newX, z0 = newZ
-      newX = (x0 + z0 + C) / 2
-      newZ = (x0 + z0 - C) / 2
-    }
+    // Diagonal Wall Checks REMOVED - Arena is now rectangular
     
     // Goal Net Collision (prevent walking through net sides)
     // Right Goal (x > 11)
@@ -322,4 +286,3 @@ const CharacterSkin = forwardRef(function CharacterSkin({
 })
 
 export default CharacterSkin
-

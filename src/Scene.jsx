@@ -625,7 +625,7 @@ function SoccerPitch({
         <planeGeometry args={[size[0] + 2, size[2] + 2]} />
         <meshBasicMaterial color="#88ccff" transparent opacity={0.1} side={THREE.DoubleSide} depthWrite={false} />
         {/* Grid pattern for the roof to make it slightly visible */}
-        <gridHelper args={[Math.max(size[0], size[2]) + 2, 20, 0xffffff, 0xffffff]} rotation={[-Math.PI/2, 0, 0]} position={[0, 0, 0.01]} />
+        
       </mesh>
     </group>
   )
@@ -662,6 +662,25 @@ function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColor = '#e
       scale={0.01} // FBX models often need scaling
     />
   )
+}
+
+// Mystery Shack Environment
+function MysteryShack() {
+  const gltf = useGLTF('/models/gravity_falls.glb')
+  
+  // Clone to avoid issues if used multiple times (though here it's once)
+  const scene = React.useMemo(() => {
+    const cloned = gltf.scene.clone()
+    cloned.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    return cloned
+  }, [gltf.scene])
+
+  return <primitive object={scene} position={[0, -10, 0]} scale={4} />
 }
 
 // Soccer Ball (using FBX model)
@@ -1206,6 +1225,8 @@ export default function Scene() {
           {/* Stadium lights */}
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
           <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
+          {/* Mystery Shack Environment */}
+          <MysteryShack />
           {/* Soccer pitch */}
           <SoccerPitch size={pitchSize} />
           {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
