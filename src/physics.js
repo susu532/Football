@@ -14,17 +14,18 @@ const postMaterial = new CANNON.Material('post') // Goal posts and crossbar
 // Contact materials (S-tier realistic interactions)
 
 // Ball vs Ground - Natural grass-like rolling
+// Ball vs Ground - Natural grass-like rolling
 const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-  friction: 0.6,           // Reduced friction to prevent erratic spin/grip
-  restitution: 0.4,        // Lower bounce for more control
+  friction: 0.5,           // Balanced for grass (allows roll but stops eventually)
+  restitution: 0.6,        // Bouncier grass (real soccer balls bounce well)
   contactEquationStiffness: 1e8,
   contactEquationRelaxation: 3,
 })
 
 // Ball vs Player - Controlled dribbling feel
 const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
-  friction: 0.4,           // Lower friction for smoother dribbling
-  restitution: 0.35,        // Reduced bounce off player
+  friction: 0.3,           // Lower friction for smoother dribbling
+  restitution: 0.5,        // Moderate bounce off player
   contactEquationStiffness: 1e7,
   contactEquationRelaxation: 3,
 })
@@ -32,7 +33,7 @@ const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMateria
 // Ball vs Wall - Realistic rebound off boards
 const ballWallContact = new CANNON.ContactMaterial(ballMaterial, wallMaterial, {
   friction: 0.2,           // Smooth wall surface
-  restitution: 0.4,        // Moderate bounce off walls
+  restitution: 0.6,        // Bouncier walls for playability
   contactEquationStiffness: 1e8,
   contactEquationRelaxation: 3,
 })
@@ -40,7 +41,7 @@ const ballWallContact = new CANNON.ContactMaterial(ballMaterial, wallMaterial, {
 // Ball vs Post/Crossbar - That satisfying PING sound physics
 const ballPostContact = new CANNON.ContactMaterial(ballMaterial, postMaterial, {
   friction: 0.1,           // Metal is slippery
-  restitution: 0.5,        // Reduced bounce to prevent flying off map
+  restitution: 0.8,        // High bounce (metal)
   contactEquationStiffness: 1e9, // Hard metal contact
   contactEquationRelaxation: 2,
 })
@@ -116,8 +117,8 @@ export function createSoccerBallBody(position = [0, 0.5, 0]) {
     mass: 0.45,                    // Slightly heavier for stability
     position: new CANNON.Vec3(...position),
     material: ballMaterial,
-    linearDamping: 0.9,            // Balanced damping
-    angularDamping: 0.9,           // Higher damping to reduce spin
+    linearDamping: 0.7,            // Reduced from 0.9: Allows ball to roll/fly further
+    angularDamping: 0.8,           // Reduced from 0.9: Allows ball to keep spinning
     fixedRotation: false,          // Ball can spin
   })
   
