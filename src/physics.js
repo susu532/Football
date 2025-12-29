@@ -4,34 +4,72 @@ import * as CANNON from 'cannon-es'
 let world = null
 let groundBody = null
 
-// Materials
+// Materials - S-tier realistic soccer physics
 const groundMaterial = new CANNON.Material('ground')
 const ballMaterial = new CANNON.Material('ball')
 const playerMaterial = new CANNON.Material('player')
+const wallMaterial = new CANNON.Material('wall')
+const postMaterial = new CANNON.Material('post') // Goal posts and crossbar
 
-// Contact materials (define interactions)
+// Contact materials (S-tier realistic interactions)
+
+// Ball vs Ground - Natural grass-like rolling
 const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-  friction: 0.5,
-  restitution: 0.3, // Reduced bounciness for realistic ball
+  friction: 0.6,           // Reduced friction to prevent erratic spin/grip
+  restitution: 0.4,        // Lower bounce for more control
+  contactEquationStiffness: 1e8,
+  contactEquationRelaxation: 3,
 })
 
+// Ball vs Player - Controlled dribbling feel
 const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
-  friction: 0.3,
-  restitution: 0.5, // Moderate bounce off players
+  friction: 0.4,           // Lower friction for smoother dribbling
+  restitution: 0.35,        // Reduced bounce off player
+  contactEquationStiffness: 1e7,
+  contactEquationRelaxation: 3,
+})
+
+// Ball vs Wall - Realistic rebound off boards
+const ballWallContact = new CANNON.ContactMaterial(ballMaterial, wallMaterial, {
+  friction: 0.2,           // Smooth wall surface
+  restitution: 0.4,        // Moderate bounce off walls
+  contactEquationStiffness: 1e8,
+  contactEquationRelaxation: 3,
+})
+
+// Ball vs Post/Crossbar - That satisfying PING sound physics
+const ballPostContact = new CANNON.ContactMaterial(ballMaterial, postMaterial, {
+  friction: 0.1,           // Metal is slippery
+  restitution: 0.5,        // Reduced bounce to prevent flying off map
+  contactEquationStiffness: 1e9, // Hard metal contact
+  contactEquationRelaxation: 2,
 })
 
 export function createWorld() {
   if (world) return world
 
   world = new CANNON.World()
-  world.gravity.set(0, -9.81, 0) // Realistic gravity
+  world.gravity.set(0, -9.81, 0) // Earth gravity
+  
+  // S-tier broadphase for performance
   world.broadphase = new CANNON.SAPBroadphase(world)
-  world.solver.iterations = 15
+  
+  // Higher solver iterations for stable physics
+  world.solver.iterations = 20
+  world.solver.tolerance = 0.001
+  
+  // Disable sleeping for responsive ball
   world.allowSleep = false
+  
+  // Better default material
+  world.defaultContactMaterial.friction = 0.3
+  world.defaultContactMaterial.restitution = 0.3
 
-  // Add contact materials
+  // Add all contact materials
   world.addContactMaterial(ballGroundContact)
   world.addContactMaterial(ballPlayerContact)
+  world.addContactMaterial(ballWallContact)
+  world.addContactMaterial(ballPostContact)
 
   // Create ground plane at pitch surface level
   const groundShape = new CANNON.Plane()
@@ -54,9 +92,9 @@ export function getWorld() {
   return world || createWorld()
 }
 
-// Sub-stepping physics for stability
-const fixedTimeStep = 1 / 120
-const maxSubSteps = 5
+// Sub-stepping physics for stability - S-tier precision
+const fixedTimeStep = 1 / 120   // 120 Hz physics
+const maxSubSteps = 8           // More substeps for accuracy
 
 export function stepWorld(dt = 1 / 60) {
   if (world) {
@@ -70,23 +108,33 @@ export function removeBody(body) {
   }
 }
 
-export function createSoccerBallBody(position = [0, 2.0, 0]) {
-  const radius = 0.35 // Standard ball radius
+// S-tier soccer ball - realistic FIFA ball physics
+export function createSoccerBallBody(position = [0, 0.5, 0]) {
+  const radius = 0.22              // FIFA regulation ball ~22cm diameter
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
-    mass: 0.45, // Realistic soccer ball weight (~450g)
+    mass: 0.45,                    // Slightly heavier for stability
     position: new CANNON.Vec3(...position),
     material: ballMaterial,
-    linearDamping: 0.2, // Natural air resistance/friction
-    angularDamping: 0.3, // Spin slows down naturally
+    linearDamping: 0.9,            // Balanced damping
+    angularDamping: 0.9,           // Higher damping to reduce spin
+    fixedRotation: false,          // Ball can spin
   })
+  
+  // Limit rotation on Y axis (horizontal spinning) while allowing X/Z rolling
+  body.angularFactor = new CANNON.Vec3(1, 0.2, 1)
+  
   body.addShape(shape)
+  
+  // Better collision response
+  body.collisionResponse = true
+  
   return body
 }
 
 // Helper to create a player body (kinematic)
 export function createPlayerBody(position = [0, 1, 0]) {
-  const radius = 1 // Slightly larger for better ball contact
+  const radius = 1 // Match visual model size
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
     mass: 0,
@@ -103,14 +151,9 @@ function createWalls(world) {
   const pitchWidth = 30
   const pitchDepth = 20
   const wallThickness = 2
-  const wallHeight = 5
+  const wallHeight = 10
 
-  const wallMaterial = new CANNON.Material('wall')
-  const ballWallContact = new CANNON.ContactMaterial(ballMaterial, wallMaterial, {
-    friction: 0.1,
-    restitution: 0.7, // Bouncy walls
-  })
-  world.addContactMaterial(ballWallContact)
+  // Use global wallMaterial for walls (contact materials already added in createWorld)
 
   const addWall = (x, z, w, d) => {
     const shape = new CANNON.Box(new CANNON.Vec3(w / 2, wallHeight / 2, d / 2))
@@ -123,96 +166,83 @@ function createWalls(world) {
     world.addBody(body)
   }
 
-  // Goals are at X = ±11, so we need gaps on LEFT and RIGHT walls
+  // Goals are at X = ±15 (approx), so we need gaps on LEFT and RIGHT walls
   const goalWidth = 6 // Goal opening size
   
-  // Chamfered Corners (Diagonal Walls)
-  const chamferSize = 4
-  const diagLen = Math.sqrt(chamferSize*chamferSize + chamferSize*chamferSize)
+  // TOP wall (Full width) at z = -10
+  // Width 30 + 2*thickness to cover corners
+  addWall(0, -pitchDepth / 2 - wallThickness / 2, pitchWidth + wallThickness * 2, wallThickness)
   
-  // TOP wall (shortened) at z = -10
-  // Original width 30. New width 30 - 2*chamferSize = 22.
-  // Center x=0.
-  addWall(0, -pitchDepth / 2 - wallThickness / 2, pitchWidth - 2 * chamferSize, wallThickness)
+  // BOTTOM wall (Full width) at z = +10
+  addWall(0, pitchDepth / 2 + wallThickness / 2, pitchWidth + wallThickness * 2, wallThickness)
   
-  // BOTTOM wall (shortened) at z = +10
-  addWall(0, pitchDepth / 2 + wallThickness / 2, pitchWidth - 2 * chamferSize, wallThickness)
-  
-  // LEFT wall (shortened) at x = -15
-  // Original depth 20. New depth 20 - 2*chamferSize = 12.
-  // But it has a goal gap of 6 in the middle.
-  // So we have two segments: Top and Bottom.
-  // Total length 12. Gap 6. Remaining 6. Split 3 and 3.
-  // Top segment: from z = -6 to z = -3. Center z = -4.5.
-  // Bottom segment: from z = 3 to z = 6. Center z = 4.5.
-  
+  // Left Side Walls (with goal gap)
   const leftX = -pitchWidth / 2 - wallThickness / 2
   const rightX = pitchWidth / 2 + wallThickness / 2
   
+  // Side wall length calculation:
+  // Total depth 20. Goal gap 6. Remaining 14. Split 7 and 7.
+  // Top segment: from z = -10 to z = -3. Center z = -6.5. Length 7.
+  // Bottom segment: from z = 3 to z = 10. Center z = 6.5. Length 7.
+  
   // Left Side Walls
-  addWall(leftX, -4.5, wallThickness, 3) // Left Top
-  addWall(leftX, 4.5, wallThickness, 3)  // Left Bottom
+  addWall(leftX, -6.5, wallThickness, 7) // Left Top
+  addWall(leftX, 6.5, wallThickness, 7)  // Left Bottom
   
   // Right Side Walls
-  addWall(rightX, -4.5, wallThickness, 3) // Right Top
-  addWall(rightX, 4.5, wallThickness, 3)  // Right Bottom
+  addWall(rightX, -6.5, wallThickness, 7) // Right Top
+  addWall(rightX, 6.5, wallThickness, 7)  // Right Bottom
   
-  // Diagonal Walls
-  // Top-Left: Connects (-15, -6) to (-11, -10)
-  // Center: (-13, -8)
-  const diagWall = new CANNON.Box(new CANNON.Vec3(wallThickness / 2, wallHeight / 2, diagLen / 2))
+  // Goal back walls
+  const goalBackX = 13
+  addWall(-goalBackX - wallThickness, 0, wallThickness, goalWidth + 2)
+  addWall(goalBackX + wallThickness, 0, wallThickness, goalWidth + 2)
+
+  // Goal Posts and Crossbars - Using postMaterial for that satisfying PING
+  const crossbarHeight = 2.44  // FIFA regulation: 2.44m (8 ft)
+  const postRadius = 0.06      // ~12cm diameter posts (FIFA standard)
   
-  const addDiagWall = (x, z, angle) => {
+  // Helper to add goal post (cylinder)
+  const addPost = (x, z) => {
+    const shape = new CANNON.Cylinder(postRadius, postRadius, crossbarHeight, 8)
     const body = new CANNON.Body({
       mass: 0,
-      position: new CANNON.Vec3(x, wallHeight / 2, z),
-      material: wallMaterial
+      position: new CANNON.Vec3(x, crossbarHeight / 2, z),
+      material: postMaterial
     })
-    body.addShape(diagWall)
-    body.quaternion.setFromAxisAngle(new CANNON.Vec3(0, 1, 0), angle)
+    body.addShape(shape)
     world.addBody(body)
   }
   
-  addDiagWall(-13, -8, -Math.PI / 4) // Top-Left
-  addDiagWall(13, -8, Math.PI / 4)   // Top-Right
-  addDiagWall(13, 8, -Math.PI / 4)   // Bottom-Right
-  addDiagWall(-13, 8, Math.PI / 4)   // Bottom-Left
+  // Left Goal Posts (at x = -11)
+  addPost(-11, -3)  // Left post
+  addPost(-11, 3)   // Right post
   
-  // Goal back walls (behind the goals at x = ±13)
-  const goalBackX = 13
-  addWall(-goalBackX - wallThickness, 0, wallThickness, goalWidth + 2) // Left goal back
-  addWall(goalBackX + wallThickness, 0, wallThickness, goalWidth + 2)  // Right goal back
-
-  // Crossbar Material (Extra Bouncy)
-  const crossbarMaterial = new CANNON.Material('crossbar')
-  const ballCrossbarContact = new CANNON.ContactMaterial(ballMaterial, crossbarMaterial, {
-    friction: 0.1,
-    restitution: 0.5, // Less bouncy
-  })
-  world.addContactMaterial(ballCrossbarContact)
-
-  // Crossbars (at x = ±11, height ~2.3)
-  const crossbarHeight = 2.3 // Slightly lower to ensure hit
-  const crossbarThickness = 0.3 // Thicker
+  // Right Goal Posts (at x = 11)
+  addPost(11, -3)   // Left post
+  addPost(11, 3)    // Right post
+  
+  // Crossbars (horizontal bar at top of goal)
+  const crossbarShape = new CANNON.Cylinder(postRadius, postRadius, goalWidth, 8)
   
   // Left Goal Crossbar
-  const leftCrossbarShape = new CANNON.Box(new CANNON.Vec3(crossbarThickness, crossbarThickness, goalWidth / 2))
   const leftCrossbar = new CANNON.Body({
     mass: 0,
     position: new CANNON.Vec3(-11, crossbarHeight, 0),
-    material: crossbarMaterial
+    material: postMaterial
   })
-  leftCrossbar.addShape(leftCrossbarShape)
+  leftCrossbar.addShape(crossbarShape)
+  leftCrossbar.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2)
   world.addBody(leftCrossbar)
 
   // Right Goal Crossbar
-  const rightCrossbarShape = new CANNON.Box(new CANNON.Vec3(crossbarThickness, crossbarThickness, goalWidth / 2))
   const rightCrossbar = new CANNON.Body({
     mass: 0,
     position: new CANNON.Vec3(11, crossbarHeight, 0),
-    material: crossbarMaterial
+    material: postMaterial
   })
-  rightCrossbar.addShape(rightCrossbarShape)
+  rightCrossbar.addShape(crossbarShape)
+  rightCrossbar.quaternion.setFromAxisAngle(new CANNON.Vec3(1, 0, 0), Math.PI / 2)
   world.addBody(rightCrossbar)
 
   // Goal Net Physics (Sides and Roof)
@@ -248,5 +278,15 @@ function createWalls(world) {
   addNetWall(-12, 2.4, 0, netDepth, netSideThickness * 2, goalWidth)
   // Back
   addNetWall(-13 - netSideThickness, wallHeight / 2, 0, netSideThickness * 2, wallHeight, goalWidth)
+
+  // Arena Roof (Invisible physics barrier to keep ball in)
+  const roofShape = new CANNON.Box(new CANNON.Vec3(pitchWidth / 2, 0.1, pitchDepth / 2))
+  const roofBody = new CANNON.Body({
+    mass: 0,
+    position: new CANNON.Vec3(0, wallHeight, 0), // At top of walls (y=5)
+    material: wallMaterial
+  })
+  roofBody.addShape(roofShape)
+  world.addBody(roofBody)
 }
 

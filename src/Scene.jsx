@@ -554,7 +554,7 @@ function PinkHeart({ position = [0, 0.2, 0], scale = 1, color = "#f06292" }) {
 // Soccer Pitch (Stadium Look)
 function SoccerPitch({
   size = [30, 0.2, 20],
-  wallHeight = 5.0, // Doubled height
+  wallHeight = 10, // Doubled height
   wallThickness = 0.4,
 }) {
   // Pitch
@@ -594,49 +594,39 @@ function SoccerPitch({
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
 
-      {/* Walls with Rounded Corners (Chamfered) */}
-      {/* Top Wall (Length 22) */}
-      <RoundedBox args={[22, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, -size[2]/2 - wallThickness/2]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
+      {/* Walls with Rounded Corners (Chamfered) - Semi-Invisible Glass Look */}
+      {/* Top Wall (Full Width) */}
+      <RoundedBox args={[size[0] + wallThickness*2, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, -size[2]/2 - wallThickness/2]} castShadow receiveShadow>
+        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
-      {/* Bottom Wall (Length 22) */}
-      <RoundedBox args={[22, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, size[2]/2 + wallThickness/2]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
-      </RoundedBox>
-      
-      {/* Left Side Walls (Length 3 each) */}
-      <RoundedBox args={[wallThickness, wallHeight, 3]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, -4.5]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
-      </RoundedBox>
-      <RoundedBox args={[wallThickness, wallHeight, 3]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, 4.5]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
+      {/* Bottom Wall (Full Width) */}
+      <RoundedBox args={[size[0] + wallThickness*2, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, size[2]/2 + wallThickness/2]} castShadow receiveShadow>
+        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
       
-      {/* Right Side Walls (Length 3 each) */}
-      <RoundedBox args={[wallThickness, wallHeight, 3]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, -4.5]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
+      {/* Left Side Walls (Length 7 each) */}
+      <RoundedBox args={[wallThickness, wallHeight, 7]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, -6.5]} castShadow receiveShadow>
+        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
-      <RoundedBox args={[wallThickness, wallHeight, 3]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 4.5]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
+      <RoundedBox args={[wallThickness, wallHeight, 7]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, 6.5]} castShadow receiveShadow>
+        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
       
-      {/* Diagonal Walls (Length 5.66) */}
-      {/* Top-Left */}
-      <RoundedBox args={[wallThickness, wallHeight, 5.66]} radius={0.1} smoothness={4} position={[-13, wallHeight/2, -8]} rotation={[0, -Math.PI/4, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
+      {/* Right Side Walls (Length 7 each) */}
+      <RoundedBox args={[wallThickness, wallHeight, 7]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, -6.5]} castShadow receiveShadow>
+        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
-      {/* Top-Right */}
-      <RoundedBox args={[wallThickness, wallHeight, 5.66]} radius={0.1} smoothness={4} position={[13, wallHeight/2, -8]} rotation={[0, Math.PI/4, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
+      <RoundedBox args={[wallThickness, wallHeight, 7]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 6.5]} castShadow receiveShadow>
+        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
-      {/* Bottom-Right */}
-      <RoundedBox args={[wallThickness, wallHeight, 5.66]} radius={0.1} smoothness={4} position={[13, wallHeight/2, 8]} rotation={[0, -Math.PI/4, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
-      </RoundedBox>
-      {/* Bottom-Left */}
-      <RoundedBox args={[wallThickness, wallHeight, 5.66]} radius={0.1} smoothness={4} position={[-13, wallHeight/2, 8]} rotation={[0, Math.PI/4, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#444" roughness={0.4} />
-      </RoundedBox>
+      
+      {/* Semi-Invisible Roof */}
+      <mesh position={[0, wallHeight, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
+        <planeGeometry args={[size[0] + 2, size[2] + 2]} />
+        <meshBasicMaterial color="#88ccff" transparent opacity={0.1} side={THREE.DoubleSide} depthWrite={false} />
+        {/* Grid pattern for the roof to make it slightly visible */}
+        <gridHelper args={[Math.max(size[0], size[2]) + 2, 20, 0xffffff, 0xffffff]} rotation={[-Math.PI/2, 0, 0]} position={[0, 0, 0.01]} />
+      </mesh>
     </group>
   )
 }
