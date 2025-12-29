@@ -117,8 +117,8 @@ export function createSoccerBallBody(position = [0, 0.5, 0]) {
     mass: 0.45,                    // Slightly heavier for stability
     position: new CANNON.Vec3(...position),
     material: ballMaterial,
-    linearDamping: 0.7,            // Reduced from 0.9: Allows ball to roll/fly further
-    angularDamping: 0.8,           // Reduced from 0.9: Allows ball to keep spinning
+    linearDamping: 0.8,            // Increased for control (was 0.7)
+    angularDamping: 0.95,          // Increased to reduce spin (was 0.8)
     fixedRotation: false,          // Ball can spin
   })
   
