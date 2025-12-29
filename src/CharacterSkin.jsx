@@ -13,9 +13,19 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   remotePlayers = {},
   ballBody = null,
   onKick = null,
+  powerUps = [],
+  onCollectPowerUp = null,
   children 
 }, ref) {
   const groupRef = useRef()
+  
+  // Power-up effects state
+  const effects = useRef({
+    speed: 1,
+    jump: 1,
+    kick: 1,
+    invisible: false
+  })
   
   // Get camera for relative movement
   const { camera } = useThree()
@@ -34,7 +44,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           // Apply team color to the model
           child.material.color = new THREE.Color(teamColor)
           // Fix visibility issues
-          child.material.transparent = false
+          child.material.transparent = true // Enable transparency for invisibility effect
           child.material.opacity = 1.0
           child.material.side = THREE.DoubleSide
           child.material.needsUpdate = true
@@ -46,6 +56,23 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     return cloned
   }, [scene, teamColor])
   
+  // Update opacity based on invisibility effect
+  useFrame(() => {
+    if (groupRef.current) {
+      // Sync internal effect state to userData for network transmission
+      groupRef.current.userData.invisible = effects.current.invisible
+      
+      const targetOpacity = effects.current.invisible ? 0.2 : 1.0
+      groupRef.current.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.opacity = THREE.MathUtils.lerp(child.material.opacity, targetOpacity, 0.1)
+          // Ensure transparency is enabled if opacity < 1
+          child.material.transparent = true
+        }
+      })
+    }
+  })
+
   // Expose position via ref
   useEffect(() => {
     if (ref) {
@@ -83,11 +110,41 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   useFrame((_, delta) => {
     if (!groupRef.current) return
     
-    const speed = 8
+    // Apply power-up multipliers
+    const speed = 8 * effects.current.speed
     const gravity = 20
-    const jumpForce = 8
+    const jumpForce = 8 * effects.current.jump
     const groundY = 0.1
     const playerRadius = 0.5
+    
+    // Power-up Collision Detection
+    if (onCollectPowerUp) {
+      powerUps.forEach(p => {
+        const dx = groupRef.current.position.x - p.position[0]
+        const dz = groupRef.current.position.z - p.position[2]
+        const dist = Math.sqrt(dx*dx + dz*dz)
+        
+        // Check X and Z distance (ignore height/elevation)
+        if (dist < 1.5) { // Increased radius for easier collection
+          onCollectPowerUp(p.id)
+          
+          // Apply Effect
+          if (p.type === 'speed') {
+            effects.current.speed = 2.0 // Double speed
+            setTimeout(() => effects.current.speed = 1, 15000)
+          } else if (p.type === 'jump') {
+            effects.current.jump = 2.0 // Double jump power
+            setTimeout(() => effects.current.jump = 1, 15000)
+          } else if (p.type === 'kick') {
+            effects.current.kick = 2.0 // Double kick power
+            setTimeout(() => effects.current.kick = 1, 15000)
+          } else if (p.type === 'invisible') {
+            effects.current.invisible = true
+            setTimeout(() => effects.current.invisible = false, 15000)
+          }
+        }
+      })
+    }
     
     // Get input direction
     let inputX = 0, inputZ = 0
@@ -235,7 +292,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           kickDir.normalize()
           
           // 4. Power calculation
-          const basePower = 12
+          const basePower = 12 * effects.current.kick // Apply kick power-up
           const randomVar = 0.95 + Math.random() * 0.1 // 0.95 - 1.05 variation (less random)
           const kickPower = basePower * randomVar
           

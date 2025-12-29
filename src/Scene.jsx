@@ -10,6 +10,7 @@ import { useSpring, a } from '@react-spring/three'
 import { io } from 'socket.io-client'
 import TeamSelectPopup from './TeamSelectPopup'
 import { PhysicsHandler, GoalDetector } from './GameLogic'
+import { PowerUp, POWER_UP_TYPES } from './PowerUp'
 
 // Small Soccer placeholder - replace with real widget/SDK integration
 function openSoccerPlaceholder() {
@@ -706,7 +707,7 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null }) {
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null }) {
   // Callback when player kicks the ball - send update to server
   const handleKick = () => {
     if (socket && ballBody) {
@@ -739,12 +740,16 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     if (!socket || !playerId || !playerRef.current) return
     const pos = playerRef.current.position
     const rot = playerRef.current.rotation ? playerRef.current.rotation.y : 0
+    // Read invisible state from userData (set by CharacterSkin)
+    const invisible = playerRef.current.userData?.invisible || false
+    
     socket.emit('move', { 
       position: [pos.x, pos.y, pos.z], 
       rotation: rot,
       name: playerName,
       team: playerTeam,
-      color: teamColor
+      color: teamColor,
+      invisible // Send invisible state
     })
   })
 
@@ -760,7 +765,16 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
   // Render local player with CharacterSkin (new GLB models)
   return (
     <group>
-      <CharacterSkin ref={playerRef} position={spawnPosition} teamColor={teamColor} remotePlayers={remotePlayers} ballBody={ballBody} onKick={handleKick} />
+      <CharacterSkin 
+        ref={playerRef} 
+        position={spawnPosition} 
+        teamColor={teamColor} 
+        remotePlayers={remotePlayers} 
+        ballBody={ballBody} 
+        onKick={handleKick}
+        powerUps={powerUps}
+        onCollectPowerUp={onCollectPowerUp}
+      />
       {/* Name label follows player position */}
       {playerName && (
         <group ref={labelRef}>
@@ -840,7 +854,7 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
 // Single player model path for all players (cat model)
 const PLAYER_MODEL_PATH = '/models/cat.glb'
 
-function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
+function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '', invisible = false }) {
   // Physics body for remote player
   const [body] = useState(() => createPlayerBody(position))
   const groupRef = useRef()
@@ -859,10 +873,31 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
         child.material.color = new THREE.Color(color)
         child.castShadow = true
         child.receiveShadow = true
+        // Enable transparency for invisibility
+        child.material.transparent = true
+        child.material.opacity = 1.0
       }
     })
     return cloned
   }, [scene, color])
+  
+  // Handle invisibility updates
+  useFrame(() => {
+    if (groupRef.current) {
+      const targetOpacity = invisible ? 0.0 : 1.0 // Fully invisible to opponents (or very faint)
+      // Let's make it 0.05 so they can barely see a shimmer, or 0.0 for true invisibility
+      // User said "invisible to opponents", usually implies fully invisible or very hard to see.
+      // Let's go with 0.0 (fully invisible) or 0.1 (ghost). 
+      // "Invisible to opponents" -> 0.0 is best, but maybe 0.1 for gameplay balance?
+      // Let's use 0.0 for "invisible".
+      
+      groupRef.current.traverse((child) => {
+        if (child.isMesh && child.material) {
+          child.material.opacity = THREE.MathUtils.lerp(child.material.opacity, invisible ? 0.0 : 1.0, 0.1)
+        }
+      })
+    }
+  })
   
   useEffect(() => {
     // Don't add physics body if position is at default center (uninitialized)
@@ -901,7 +936,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   return (
     <group ref={groupRef} position={position}>
       <primitive object={clonedScene} scale={0.01} position={[0, 0, 0]} />
-      {playerName && (
+      {playerName && !invisible && ( // Hide name label if invisible
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>
           <div className={`player-name-label ${team}`}>{playerName}</div>
         </Html>
@@ -913,7 +948,13 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
 
 
 export default function Scene() {
+  // Get player state from store - MUST BE AT TOP
+  const hasJoined = useStore((s) => s.hasJoined)
+  const playerName = useStore((s) => s.playerName)
+  const playerTeam = useStore((s) => s.playerTeam)
+
   const playerRef = useRef()
+  const targetRef = useRef() // Camera target
   const [hasModel, setHasModel] = useState(false)
   const [socket, setSocket] = useState(null)
   const [playerId, setPlayerId] = useState(null)
@@ -924,14 +965,52 @@ export default function Scene() {
   const [chatInput, setChatInput] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [celebration, setCelebration] = useState(null) // { team: 'red' | 'blue' }
+  const [activePowerUps, setActivePowerUps] = useState([])
   const chatRef = useRef(null)
   const prevScoresRef = useRef({ red: 0, blue: 0 })
   const pitchSize = [30, 0.2, 20]
   
-  // Get player state from store
-  const hasJoined = useStore((s) => s.hasJoined)
-  const playerName = useStore((s) => s.playerName)
-  const playerTeam = useStore((s) => s.playerTeam)
+  // Power-up Spawning Logic
+  useEffect(() => {
+    if (!hasJoined) return
+
+    const spawnPowerUp = () => {
+      // Pick one random type
+      const types = Object.values(POWER_UP_TYPES)
+      const randomType = types[Math.floor(Math.random() * types.length)]
+      
+      const newPowerUp = {
+        id: Math.random().toString(36).substr(2, 9),
+        type: randomType.id,
+        // Random position within pitch bounds (x: -14 to 14, z: -9 to 9)
+        position: [
+          (Math.random() - 0.5) * 28,
+          0.2, // Player elevation
+          (Math.random() - 0.5) * 18
+        ]
+      }
+      
+      // Set active power-up (ensure only one exists)
+      setActivePowerUps([newPowerUp])
+      
+      // Remove after 5 seconds if not collected
+      setTimeout(() => {
+        setActivePowerUps(prev => prev.filter(p => p.id !== newPowerUp.id))
+      }, 5000)
+    }
+
+    // Initial spawn
+    spawnPowerUp()
+
+    // Spawn every 20 seconds
+    const interval = setInterval(spawnPowerUp, 20000)
+
+    return () => clearInterval(interval)
+  }, [hasJoined])
+
+  const handleCollectPowerUp = (id) => {
+    setActivePowerUps(prev => prev.filter(p => p.id !== id))
+  }
   
   // Team colors
   const teamColors = {
@@ -1218,6 +1297,8 @@ export default function Scene() {
             spawnPosition={playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]}
             remotePlayers={remotePlayers}
             ballBody={ballBody}
+            powerUps={activePowerUps}
+            onCollectPowerUp={handleCollectPowerUp}
           />
           {/* Remote players */}
           {Object.entries(remotePlayers)
@@ -1225,10 +1306,28 @@ export default function Scene() {
             .filter(([_, p]) => p.position && p.position[0] !== undefined) // Skip uninitialized
             .filter(([_, p]) => !(p.position[0] === 0 && p.position[2] === 0)) // Skip center position
             .map(([id, p]) => (
-              <RemotePlayerWithPhysics key={id} id={id} position={p.position} color={p.color || '#888'} rotation={p.rotation} playerName={p.name} team={p.team} />
+              <RemotePlayerWithPhysics 
+                key={id} 
+                id={id} 
+                position={p.position} 
+                color={p.color || '#888'} 
+                rotation={p.rotation} 
+                playerName={p.name} 
+                team={p.team} 
+                invisible={p.invisible} // Pass invisible state
+              />
             ))}
           {/* Camera controller */}
           <CameraController targetRef={playerRef} />
+
+          {/* Render PowerUps */}
+          {activePowerUps.map(p => (
+            <PowerUp 
+              key={p.id} 
+              position={p.position} 
+              type={Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === p.type)} 
+            />
+          ))}
         </Suspense>
       </Canvas>
       <Loader />
