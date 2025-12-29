@@ -25,19 +25,30 @@ export function GoalDetector({ ballBody, socket, playerId, remotePlayers, pitchS
       const goalWidth = 2.2   // Narrower detection width (Z axis)
       const goalHeightLimit = 4 // Crossbar height limit
       
-      // Blue Goal (Left) -> Red Scores when ball crosses
+      // Blue Goal (Left) -> Blue Scores when ball crosses (Wait, if ball enters Left Goal, it means Red attacked there? No.)
+      // Standard Soccer: Teams switch sides.
+      // Let's assume:
+      // Red Team starts on Left (-6), defends Left Goal (-11).
+      // Blue Team starts on Right (6), defends Right Goal (11).
+      // If ball enters Left Goal (-11), it means Blue scored (or Red own goal).
+      // If ball enters Right Goal (11), it means Red scored (or Blue own goal).
+      
+      // Previous logic: x < blueGoalX (-11) -> 'red' scored. (Correct if Red is attacking Left)
+      // User says "score adding to wrong team".
+      // So if ball goes into Left Goal (-11), it should be BLUE score.
+      
       if (x < blueGoalX && Math.abs(z) < goalWidth && y < goalHeightLimit) {
          ballBody.position.set(0, 2.0, 0) 
          ballBody.velocity.set(0, 0, 0)
          ballBody.angularVelocity.set(0, 0, 0)
-         socket.emit('goal', 'red')
+         socket.emit('goal', 'blue') // Swapped to blue
       }
-      // Red Goal (Right) -> Blue Scores when ball crosses
+      // Red Goal (Right) -> Red Scores when ball crosses
       else if (x > redGoalX && Math.abs(z) < goalWidth && y < goalHeightLimit) {
          ballBody.position.set(0, 2.0, 0)
          ballBody.velocity.set(0, 0, 0)
          ballBody.angularVelocity.set(0, 0, 0)
-         socket.emit('goal', 'blue')
+         socket.emit('goal', 'red') // Swapped to red
       }
     }
   })
