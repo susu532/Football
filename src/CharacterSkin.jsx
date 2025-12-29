@@ -236,41 +236,38 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     
     // Diagonal Wall Checks REMOVED - Arena is now rectangular
     
-    // Goal Net Collision (prevent walking through net sides)
-    // Right Goal (x > 11)
-    if (newX > 11 - wallMargin) {
-      // Check if hitting side walls of net (z = ±3)
-      // If inside the x-range of the net [11, 13]
-      if (newX < 13 + wallMargin) {
-        // Top side wall (z = -3)
-        if (Math.abs(newZ - (-3)) < wallMargin) {
-           if (newZ < -3) newZ = -3 - wallMargin
-           else newZ = -3 + wallMargin
-        }
-        // Bottom side wall (z = 3)
-        if (Math.abs(newZ - 3) < wallMargin) {
-           if (newZ > 3) newZ = 3 + wallMargin
-           else newZ = 3 - wallMargin
-        }
+    // Obstacle Collision (Walls)
+    const obstacles = [
+      // Goal Side Walls (User requested)
+      { x: 13, z: -2.4, w: 4, d: 0.2 },
+      { x: 13, z: 2.4, w: 4, d: 0.2 },
+      { x: -13, z: -2.4, w: 4, d: 0.2 },
+      { x: -13, z: 2.4, w: 4, d: 0.2 },
+      
+     
+    ]
+
+    obstacles.forEach(wall => {
+      const halfW = wall.w / 2 + wallMargin
+      const halfD = wall.d / 2 + wallMargin
+      
+      if (newX > wall.x - halfW && newX < wall.x + halfW &&
+          newZ > wall.z - halfD && newZ < wall.z + halfD) {
+          
+          // Resolve collision - push to nearest edge
+          const dx1 = Math.abs(newX - (wall.x - halfW))
+          const dx2 = Math.abs(newX - (wall.x + halfW))
+          const dz1 = Math.abs(newZ - (wall.z - halfD))
+          const dz2 = Math.abs(newZ - (wall.z + halfD))
+          
+          const min = Math.min(dx1, dx2, dz1, dz2)
+          
+          if (min === dx1) newX = wall.x - halfW
+          else if (min === dx2) newX = wall.x + halfW
+          else if (min === dz1) newZ = wall.z - halfD
+          else if (min === dz2) newZ = wall.z + halfD
       }
-    }
-    
-    // Left Goal (x < -11)
-    if (newX < -11 + wallMargin) {
-      // Check if hitting side walls of net (z = ±3)
-      if (newX > -13 - wallMargin) {
-        // Top side wall (z = -3)
-        if (Math.abs(newZ - (-3)) < wallMargin) {
-           if (newZ < -3) newZ = -3 - wallMargin
-           else newZ = -3 + wallMargin
-        }
-        // Bottom side wall (z = 3)
-        if (Math.abs(newZ - 3) < wallMargin) {
-           if (newZ > 3) newZ = 3 + wallMargin
-           else newZ = 3 - wallMargin
-        }
-      }
-    }
+    })
     
     groupRef.current.position.x = newX
     groupRef.current.position.y = newY
