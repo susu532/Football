@@ -115,9 +115,18 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     
     if (moveDir.length() > 0) {
       moveDir.normalize()
-      const angle = Math.atan2(moveDir.x, moveDir.z)
-      groupRef.current.rotation.y = angle
     }
+
+    // Always rotate player to face camera direction (Strafe Mode)
+    const targetAngle = Math.atan2(cameraForward.x, cameraForward.z)
+    const currentRot = groupRef.current.rotation.y
+    let rotDiff = targetAngle - currentRot
+    // Normalize angle difference
+    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
+    
+    // Smoothly rotate
+    groupRef.current.rotation.y += rotDiff * Math.min(1, 20 * delta)
     
     // Apply horizontal velocity with lerp for smooth movement
     velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, moveDir.x * speed, 0.15)
