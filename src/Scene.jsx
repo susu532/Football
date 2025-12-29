@@ -707,7 +707,7 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null }) {
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null }) {
   // Callback when player kicks the ball - send update to server
   const handleKick = () => {
     if (socket && ballBody) {
@@ -774,6 +774,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
         onKick={handleKick}
         powerUps={powerUps}
         onCollectPowerUp={onCollectPowerUp}
+        onPowerUpActive={onPowerUpActive}
       />
       {/* Name label follows player position */}
       {playerName && (
@@ -966,6 +967,7 @@ export default function Scene() {
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [celebration, setCelebration] = useState(null) // { team: 'red' | 'blue' }
   const [activePowerUps, setActivePowerUps] = useState([])
+  const [activeEffect, setActiveEffect] = useState(null) // { type: 'speed'|'kick'|'jump'|'invisible', label: '⚡' }
   const chatRef = useRef(null)
   const prevScoresRef = useRef({ red: 0, blue: 0 })
   const pitchSize = [30, 0.2, 20]
@@ -1010,6 +1012,15 @@ export default function Scene() {
 
   const handleCollectPowerUp = (id) => {
     setActivePowerUps(prev => prev.filter(p => p.id !== id))
+  }
+
+  const handlePowerUpActive = (type) => {
+    const powerUpType = Object.values(POWER_UP_TYPES).find(t => t.id === type)
+    if (powerUpType) {
+      setActiveEffect(powerUpType)
+      // Clear after 15 seconds
+      setTimeout(() => setActiveEffect(null), 15000)
+    }
   }
   
   // Team colors
@@ -1167,6 +1178,30 @@ export default function Scene() {
        
       </div>
 
+      {/* Active Power-Up Indicator */}
+      {activeEffect && (
+        <div style={{
+          position: 'absolute',
+          top: '20px',
+          right: '20px',
+          zIndex: 10,
+          background: 'rgba(0,0,0,0.7)',
+          padding: '15px',
+          borderRadius: '50%',
+          width: '80px',
+          height: '80px',
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          fontSize: '48px',
+          border: `4px solid ${activeEffect.color}`,
+          boxShadow: `0 0 20px ${activeEffect.color}`,
+          animation: 'pulse 1s infinite alternate'
+        }}>
+          {activeEffect.label}
+        </div>
+      )}
+
       {/* Goal Celebration Overlay */}
       {celebration && (
         <div style={{
@@ -1299,6 +1334,7 @@ export default function Scene() {
             ballBody={ballBody}
             powerUps={activePowerUps}
             onCollectPowerUp={handleCollectPowerUp}
+            onPowerUpActive={handlePowerUpActive}
           />
           {/* Remote players */}
           {Object.entries(remotePlayers)

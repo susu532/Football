@@ -15,6 +15,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   onKick = null,
   powerUps = [],
   onCollectPowerUp = null,
+  onPowerUpActive = null,
   children 
 }, ref) {
   const groupRef = useRef()
@@ -127,6 +128,11 @@ const CharacterSkin = forwardRef(function CharacterSkin({
         // Check X and Z distance (ignore height/elevation)
         if (dist < 1.5) { // Increased radius for easier collection
           onCollectPowerUp(p.id)
+          
+          // Trigger UI indicator
+          if (onPowerUpActive) {
+            onPowerUpActive(p.type)
+          }
           
           // Apply Effect
           if (p.type === 'speed') {
