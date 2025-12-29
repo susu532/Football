@@ -199,7 +199,7 @@ function createWalls(world) {
   addWall(goalBackX + wallThickness, 0, wallThickness, goalWidth + 2)
 
   // Goal Posts and Crossbars - Using postMaterial for that satisfying PING
-  const crossbarHeight = 2.44  // FIFA regulation: 2.44m (8 ft)
+  const crossbarHeight = 4  // FIFA regulation: 2.44m (8 ft)
   const postRadius = 0.06      // ~12cm diameter posts (FIFA standard)
   
   // Helper to add goal post (cylinder)
@@ -215,12 +215,12 @@ function createWalls(world) {
   }
   
   // Left Goal Posts (at x = -11)
-  addPost(-11, -3)  // Left post
-  addPost(-11, 3)   // Right post
+  addPost(-10.8, -2.5)  // Left post
+  addPost(-10.8, 2.5)   // Right post
   
   // Right Goal Posts (at x = 11)
-  addPost(11, -3)   // Left post
-  addPost(11, 3)    // Right post
+  addPost(10.8, -2.5)   // Left post
+  addPost(10.8, 2.5)    // Right post
   
   // Crossbars (horizontal bar at top of goal)
   const crossbarShape = new CANNON.Cylinder(postRadius, postRadius, goalWidth, 8)
@@ -228,7 +228,7 @@ function createWalls(world) {
   // Left Goal Crossbar
   const leftCrossbar = new CANNON.Body({
     mass: 0,
-    position: new CANNON.Vec3(-11, crossbarHeight, 0),
+    position: new CANNON.Vec3(-10.8, crossbarHeight, 0),
     material: postMaterial
   })
   leftCrossbar.addShape(crossbarShape)
@@ -238,7 +238,7 @@ function createWalls(world) {
   // Right Goal Crossbar
   const rightCrossbar = new CANNON.Body({
     mass: 0,
-    position: new CANNON.Vec3(11, crossbarHeight, 0),
+    position: new CANNON.Vec3(10.8, crossbarHeight, 0),
     material: postMaterial
   })
   rightCrossbar.addShape(crossbarShape)
@@ -266,7 +266,7 @@ function createWalls(world) {
   addNetWall(12, wallHeight / 2, -3 - netSideThickness, netDepth, wallHeight, netSideThickness * 2) // Top side
   addNetWall(12, wallHeight / 2, 3 + netSideThickness, netDepth, wallHeight, netSideThickness * 2)  // Bottom side
   // Roof
-  addNetWall(12, 2.4, 0, netDepth, netSideThickness * 2, goalWidth)
+  addNetWall(11.8, 4, 0, netDepth, netSideThickness * 2, goalWidth)
   // Back
   addNetWall(13 + netSideThickness, wallHeight / 2, 0, netSideThickness * 2, wallHeight, goalWidth)
 
@@ -275,7 +275,7 @@ function createWalls(world) {
   addNetWall(-12, wallHeight / 2, -3 - netSideThickness, netDepth, wallHeight, netSideThickness * 2) // Top side
   addNetWall(-12, wallHeight / 2, 3 + netSideThickness, netDepth, wallHeight, netSideThickness * 2)  // Bottom side
   // Roof
-  addNetWall(-12, 2.4, 0, netDepth, netSideThickness * 2, goalWidth)
+  addNetWall(-11.8, 4, 0, netDepth, netSideThickness * 2, goalWidth)
   // Back
   addNetWall(-13 - netSideThickness, wallHeight / 2, 0, netSideThickness * 2, wallHeight, goalWidth)
 
