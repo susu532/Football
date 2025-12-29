@@ -174,48 +174,59 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       const dz = ballPos.z - playerPos.z
       const distance = Math.sqrt(dx * dx + dz * dz)
       
-      // Only kick if close enough (within 1.8 units for precision)
-      const kickRange = 1.8
+      // Only kick if close enough (within 2.0 units)
+      const kickRange = 2.0
       if (distance < kickRange) {
-        // Smart kick direction: kick toward ball direction, with player's facing as fallback
-        let kickDir
-        if (distance > 0.3) {
-          // If ball is not directly under player, kick toward ball's direction
-          kickDir = new THREE.Vector3(dx, 0, dz).normalize()
-        } else {
-          // Ball is very close - use player's facing direction
-          kickDir = new THREE.Vector3(
-            Math.sin(groupRef.current.rotation.y),
-            0,
-            Math.cos(groupRef.current.rotation.y)
+        // 1. Check if player is roughly facing the ball (dot product)
+        const playerForward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), groupRef.current.rotation.y)
+        const toBall = new THREE.Vector3(dx, 0, dz).normalize()
+        const dot = playerForward.dot(toBall)
+        
+        // Allow kick if facing within ~90 degrees (dot > 0)
+        if (dot > 0) {
+          // 2. Aiming: Use camera direction for precision aiming
+          const aimDir = new THREE.Vector3()
+          camera.getWorldDirection(aimDir)
+          aimDir.y = 0
+          aimDir.normalize()
+          
+          // Blend camera aim with direction to ball for natural feel
+          // If ball is to the side, we still want to kick it forward-ish but respecting physics
+          const kickDir = new THREE.Vector3().copy(aimDir).lerp(toBall, 0.3).normalize()
+          
+          // 3. Vertical Lift (Chip shot vs Power shot)
+          // Kick slightly up
+          kickDir.y = 0.4
+          kickDir.normalize()
+          
+          // 4. Power calculation
+          const basePower = 12
+          const randomVar = 0.9 + Math.random() * 0.2 // 0.9 - 1.1 variation
+          const kickPower = basePower * randomVar
+          
+          // 5. Apply Impulse
+          // Apply at a point slightly offset from center to create spin
+          // Hitting bottom-center creates backspin (lift)
+          const impulsePoint = new CANNON.Vec3(
+            ballPos.x, 
+            ballPos.y - 0.1, // Hit slightly below center
+            ballPos.z
           )
-        }
-        
-        // Add upward component based on distance (closer = higher lob)
-        const lobHeight = 0.3 + (1 - distance / kickRange) * 0.3
-        kickDir.y = lobHeight
-        kickDir.normalize()
-        
-        // Power kick force (balanced for gameplay)
-        const kickPower = 10
-        
-        // Apply impulse to ball
-        ballBody.applyImpulse(
-          new CANNON.Vec3(
+          
+          const impulse = new CANNON.Vec3(
             kickDir.x * kickPower,
             kickDir.y * kickPower,
             kickDir.z * kickPower
-          ),
-          ballBody.position
-        )
-        
-        // Trigger callback if provided (for network sync)
-        if (onKick) {
-          onKick()
+          )
+          
+          ballBody.applyImpulse(impulse, impulsePoint)
+          
+          // Trigger callback
+          if (onKick) onKick()
+          
+          // Cooldown
+          keys.current['f'] = false
         }
-        
-        // Prevent repeated kicks by clearing the key (cooldown)
-        keys.current['f'] = false
       }
     }
     
