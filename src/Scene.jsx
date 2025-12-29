@@ -1046,34 +1046,7 @@ export default function Scene() {
     // That's much cleaner.
   }, []) 
 
-  // Reset ball on 'P' key, Reset scores on 'M' key
-  useEffect(() => {
-    const handleKeyDown = (e) => {
-      if (e.key.toLowerCase() === 'p') {
-        if (ballBody) {
-          ballBody.position.set(0, 0.5, 0)
-          ballBody.velocity.set(0, 0, 0)
-          ballBody.angularVelocity.set(0, 0, 0)
-          
-          if (socket) {
-            socket.emit('ball-update', {
-              position: [0, 0.5, 0],
-              velocity: [0, 0, 0]
-            })
-          }
-        }
-      }
-      // Reset scores on 'M' key
-      if (e.key.toLowerCase() === 'm') {
-        if (socket) {
-          socket.emit('reset-scores')
-          setScores({ red: 0, blue: 0 })
-        }
-      }
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [ballBody, socket])
+
 
 
 

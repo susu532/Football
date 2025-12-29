@@ -188,7 +188,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
         kickDir.normalize()
         
         // Power kick force (balanced for gameplay)
-        const kickPower = 8
+        const kickPower = 10
         
         // Apply impulse to ball
         ballBody.applyImpulse(
