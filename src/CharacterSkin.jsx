@@ -160,30 +160,42 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       const playerPos = groupRef.current.position
       const ballPos = ballBody.position
       
-      // Calculate distance to ball
+      // Calculate distance to ball (on ground plane)
       const dx = ballPos.x - playerPos.x
       const dz = ballPos.z - playerPos.z
       const distance = Math.sqrt(dx * dx + dz * dz)
       
-      // Only kick if close enough (within 2.5 units)
-      const kickRange = 2.5
+      // Only kick if close enough (within 1.8 units for precision)
+      const kickRange = 1.8
       if (distance < kickRange) {
-        // Get kick direction - use player's facing direction with upward angle
-        const playerForward = new THREE.Vector3(
-          Math.sin(groupRef.current.rotation.y),
-          0.4, // Add upward component for lob effect
-          Math.cos(groupRef.current.rotation.y)
-        ).normalize()
+        // Smart kick direction: kick toward ball direction, with player's facing as fallback
+        let kickDir
+        if (distance > 0.3) {
+          // If ball is not directly under player, kick toward ball's direction
+          kickDir = new THREE.Vector3(dx, 0, dz).normalize()
+        } else {
+          // Ball is very close - use player's facing direction
+          kickDir = new THREE.Vector3(
+            Math.sin(groupRef.current.rotation.y),
+            0,
+            Math.cos(groupRef.current.rotation.y)
+          )
+        }
         
-        // Power kick force (reduced for balanced gameplay)
-        const kickPower = 2
+        // Add upward component based on distance (closer = higher lob)
+        const lobHeight = 0.3 + (1 - distance / kickRange) * 0.3
+        kickDir.y = lobHeight
+        kickDir.normalize()
+        
+        // Power kick force (balanced for gameplay)
+        const kickPower = 8
         
         // Apply impulse to ball
         ballBody.applyImpulse(
           new CANNON.Vec3(
-            playerForward.x * kickPower,
-            playerForward.y * kickPower,
-            playerForward.z * kickPower
+            kickDir.x * kickPower,
+            kickDir.y * kickPower,
+            kickDir.z * kickPower
           ),
           ballBody.position
         )
@@ -193,7 +205,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           onKick()
         }
         
-        // Prevent repeated kicks by clearing the key
+        // Prevent repeated kicks by clearing the key (cooldown)
         keys.current['f'] = false
       }
     }
