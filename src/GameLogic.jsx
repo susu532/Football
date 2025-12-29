@@ -40,6 +40,22 @@ export function GoalDetector({ ballBody, socket, playerId, remotePlayers, pitchS
       }
     }
   })
-  return null
+  
+  // Visual Debug Boxes for Goal Detection
+  return (
+    <group>
+      {/* Blue Goal Detection Zone (Left) */}
+      <mesh position={[-12.5, 1.5, 0]}>
+        <boxGeometry args={[0.2, 4, 4.6]} />
+        <meshBasicMaterial  transparent opacity={0} />
+      </mesh>
+      
+      {/* Red Goal Detection Zone (Right) */}
+      <mesh position={[12.5, 1.5, 0]}>
+        <boxGeometry args={[0.2, 4, 4.6]} />
+        <meshBasicMaterial  transparent opacity={0} />
+      </mesh>
+    </group>
+  )
 }
 
