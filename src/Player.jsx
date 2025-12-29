@@ -1,7 +1,7 @@
 import React, { forwardRef, useRef, useImperativeHandle, useEffect } from 'react'
 import { useFrame, useThree, useLoader } from '@react-three/fiber'
 import * as THREE from 'three'
-import normalSoft from './assets/normal-soft.jpg'
+
 
 const Player = forwardRef(function Player({ position = [0, 1, 0], platforms = [], obstacles = [], appearance = 'real', color = '#c8b79a', children }, ref) {
   const meshRef = useRef()
