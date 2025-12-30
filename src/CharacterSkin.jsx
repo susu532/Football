@@ -156,7 +156,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           // Apply Effect
           if (p.type === 'speed') {
             effects.current.speed = 2.0 // Double speed
-            setTimeout(() => effects.current.speed = 1, 15000)
+            setTimeout(() => effects.current.speed = 0.2, 15000)
           } else if (p.type === 'jump') {
             effects.current.jump = 2.0 // Double jump power
             setTimeout(() => effects.current.jump = 1, 15000)
@@ -364,7 +364,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     // Bounds checking
     const pitchWidth = 30
     const pitchDepth = 20
-    const wallMargin = 0.5 // Player radius
+    const wallMargin = 0.3 // Player radius
     
     // Main pitch limits (x=±15, z=±10)
     newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
