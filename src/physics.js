@@ -292,12 +292,12 @@ function createWalls(world) {
 
   // Custom Walls requested by user
   // position={[13, 2, -2.8]}, args={[4, 13, 0.2]}
-  addNetWall(13, 2, -2.4, 4, 4, 0.2)
+  addNetWall(13, 2, -2.4, 4, 13, 0.2)
   // position={[-13, 2, -2.4]}, args={[4, 13, 0.2]}
-  addNetWall(-13, 2, -2.4, 4, 4, 0.2)
+  addNetWall(-13, 2, -2.4, 4, 13, 0.2)
   // position={[13, 2, 2.8]}, args={[4, 13, 0.2]}
-  addNetWall(13, 2, 2.4, 4, 4, 0.2)
+  addNetWall(13, 2, 2.4, 4, 13, 0.2)
   // position={[-13, 2, 2.8]}, args={[4, 13, 0.2]}
-  addNetWall(-13, 2, 2.4, 4, 4, 0.2)
+  addNetWall(-13, 2, 2.4, 4, 13, 0.2)
 }
 
