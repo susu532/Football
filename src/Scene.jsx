@@ -580,7 +580,7 @@ function SoccerPitch({
       {/* White lines */}
       
       {/* Center circle */}
-      <mesh position={[0, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[0, 0.101, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <ringGeometry args={[2.5, 2.7, 32]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
@@ -693,6 +693,45 @@ function MysteryShack() {
   }, [gltf.scene])
 
   return <primitive object={scene} position={[0, -10, 0]} scale={4} />
+}
+
+// Ocean Floor Environment
+function OceanFloor() {
+  const gltf = useGLTF('/models/oceanfloor.glb')
+  const scene = React.useMemo(() => {
+    const cloned = gltf.scene.clone()
+    cloned.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+        // Enhance materials for deep ocean look
+        if (child.material) {
+          child.material = child.material.clone()
+          child.material.emissive = new THREE.Color('#004433')
+          child.material.emissiveIntensity = 0.5
+          child.material.roughness = 0.8
+        }
+      }
+    })
+    return cloned
+  }, [gltf.scene])
+  return <primitive object={scene} position={[0,26, 0]} scale={100} />
+}
+
+// City at Night Environment
+function CityAtNight() {
+  const gltf = useGLTF('/models/city_at_night.glb')
+  const scene = React.useMemo(() => {
+    const cloned = gltf.scene.clone()
+    cloned.traverse((child) => {
+      if (child.isMesh) {
+        child.castShadow = true
+        child.receiveShadow = true
+      }
+    })
+    return cloned
+  }, [gltf.scene])
+  return <primitive object={scene} position={[30, -26.5, -35]} scale={1} />
 }
 
 // Soccer Ball (using GLB model)
@@ -1372,7 +1411,17 @@ export default function Scene() {
         <Suspense fallback={null}>
           <PhysicsHandler />
           <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
-          <color attach="background" args={["#87CEEB"]} />
+          
+          {/* Dynamic Background & Atmosphere */}
+          {roomId === 'room1' && <color attach="background" args={["#87CEEB"]} />}
+          {roomId === 'room2' && (
+            <>
+              <color attach="background" args={["#001e0f"]} />
+              <fog attach="fog" args={['#001e0f', 5, 40]} />
+            </>
+          )}
+          {roomId === 'room3' && <color attach="background" args={["#050510"]} />}
+          
           <ambientLight intensity={0.7} color="#FFFFFF" />
 
           <directionalLight 
@@ -1391,8 +1440,12 @@ export default function Scene() {
           {/* Stadium lights */}
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
           <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
-          {/* Mystery Shack Environment */}
-          <MysteryShack />
+          
+          {/* Environment based on Room */}
+          {roomId === 'room1' && <MysteryShack />}
+          {roomId === 'room2' && <OceanFloor />}
+          {roomId === 'room3' && <CityAtNight />}
+          
           {/* Soccer pitch */}
           <SoccerPitch size={pitchSize} />
           {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
