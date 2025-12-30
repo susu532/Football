@@ -111,7 +111,7 @@ export function removeBody(body) {
 
 // S-tier soccer ball - realistic FIFA ball physics
 export function createSoccerBallBody(position = [0, 0.5, 0]) {
-  const radius = 0.22              // FIFA regulation ball ~22cm diameter
+  const radius = 0.20              // FIFA regulation ball ~22cm diameter
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
     mass: 0.45,                    // Slightly heavier for stability
@@ -135,7 +135,7 @@ export function createSoccerBallBody(position = [0, 0.5, 0]) {
 
 // Helper to create a player body (kinematic)
 export function createPlayerBody(position = [0, 1, 0]) {
-  const radius = 1 // Match visual model size
+  const radius = 0.9 // Match visual model size
   const shape = new CANNON.Sphere(radius)
   const body = new CANNON.Body({
     mass: 0,
