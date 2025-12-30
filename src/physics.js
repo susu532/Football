@@ -25,7 +25,7 @@ const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMateria
 // Ball vs Player - Controlled dribbling feel
 const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
   friction: 1.0,           // Higher friction for grip (was 0.3)
-  restitution: -1.0,        // Low bounce to keep ball close (was 0.5)
+  restitution: 0.0,        // Low bounce to keep ball close (was 0.5)
   contactEquationStiffness: 1e7,
   contactEquationRelaxation: 3,
 })
@@ -50,7 +50,7 @@ export function createWorld() {
   if (world) return world
 
   world = new CANNON.World()
-  world.gravity.set(0, -9.81, 0) // Earth gravity
+  world.gravity.set(0, -9.81, 0) // Increased gravity for "heavier" ball feel (was -9.81)
   
   // S-tier broadphase for performance
   world.broadphase = new CANNON.SAPBroadphase(world)
