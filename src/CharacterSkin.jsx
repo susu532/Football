@@ -26,7 +26,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     speed: 0.8,
     jump: 1,
     kick: 1,
-    invisible: false
+    invisible: false,
+    giant: false
   })
   
   // Get camera for relative movement
@@ -133,6 +134,11 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     
     // Update invisible state in userData for sync
     groupRef.current.userData.invisible = effects.current.invisible
+    groupRef.current.userData.giant = effects.current.giant
+    
+    // Apply Giant Scaling
+    const targetScale = effects.current.giant ? 10.0 : 1.0
+    groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
     
     // Update local visual opacity
     const targetOpacity = effects.current.invisible ? 0.2 : 1.0
@@ -178,6 +184,9 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           } else if (p.type === 'invisible') {
             effects.current.invisible = true
             setTimeout(() => effects.current.invisible = false, 15000)
+          } else if (p.type === 'giant') {
+            effects.current.giant = true
+            setTimeout(() => effects.current.giant = false, 15000)
           }
         }
       })

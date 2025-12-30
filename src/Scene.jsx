@@ -760,8 +760,18 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
 
     const pos = playerRef.current.position
     const rot = playerRef.current.rotation ? playerRef.current.rotation.y : 0
-    // Read invisible state from userData (set by CharacterSkin)
+    // Read invisible and giant state from userData (set by CharacterSkin)
     const invisible = playerRef.current.userData?.invisible || false
+    const giant = playerRef.current.userData?.giant || false
+    
+    // Update physics body radius dynamically
+    if (body && body.shapes.length > 0) {
+      const targetRadius = giant ? 4.0 : 0.9 // 10x radius if giant
+      if (body.shapes[0].radius !== targetRadius) {
+        body.shapes[0].radius = targetRadius
+        body.updateBoundingRadius()
+      }
+    }
     
     socket.emit('move', { 
       position: [pos.x, pos.y, pos.z], 
@@ -769,7 +779,8 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
       name: playerName,
       team: playerTeam,
       color: teamColor,
-      invisible // Send invisible state
+      invisible, // Send invisible state
+      giant // Send giant state
     })
   })
 
@@ -876,13 +887,24 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
 // Single player model path for all players (cat model)
 const PLAYER_MODEL_PATH = '/models/cat.glb'
 
-function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '', invisible = false }) {
+function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '', invisible = false, giant = false }) {
   // Physics body for remote player
   const [body] = useState(() => createPlayerBody(position))
   const groupRef = useRef()
   const targetPosition = useRef(new THREE.Vector3(...position))
   const targetRotation = useRef(rotation)
   
+  // Update physics body radius for remote players
+  useEffect(() => {
+    if (body && body.shapes.length > 0) {
+      const targetRadius = giant ? 9.0 : 0.9
+      if (body.shapes[0].radius !== targetRadius) {
+        body.shapes[0].radius = targetRadius
+        body.updateBoundingRadius()
+      }
+    }
+  }, [body, giant])
+
   // Load GLB model for remote player
   const { scene } = useGLTF(PLAYER_MODEL_PATH)
   
@@ -903,19 +925,19 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
     return cloned
   }, [scene, color])
   
-  // Handle invisibility updates
+  // Handle invisibility and giant updates
   useFrame(() => {
     if (groupRef.current) {
-      const targetOpacity = invisible ? 0.0 : 1.0 // Fully invisible to opponents (or very faint)
-      // Let's make it 0.05 so they can barely see a shimmer, or 0.0 for true invisibility
-      // User said "invisible to opponents", usually implies fully invisible or very hard to see.
-      // Let's go with 0.0 (fully invisible) or 0.1 (ghost). 
-      // "Invisible to opponents" -> 0.0 is best, but maybe 0.1 for gameplay balance?
-      // Let's use 0.0 for "invisible".
+      // Giant Scaling
+      const targetScale = giant ? 10.0 : 1.0
+      groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
+      
+      // Invisibility
+      const targetOpacity = invisible ? 0.0 : 1.0 
       
       groupRef.current.traverse((child) => {
         if (child.isMesh && child.material) {
-          child.material.opacity = THREE.MathUtils.lerp(child.material.opacity, invisible ? 0.0 : 1.0, 0.1)
+          child.material.opacity = THREE.MathUtils.lerp(child.material.opacity, targetOpacity, 0.1)
         }
       })
     }
@@ -1073,8 +1095,8 @@ export default function Scene() {
     s.on('player-joined', (player) => {
       setRemotePlayers((prev) => ({ ...prev, [player.id]: player }))
     })
-    s.on('player-move', ({ id, position, rotation, name, team, color, invisible }) => {
-      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color, invisible } } : prev)
+    s.on('player-move', ({ id, position, rotation, name, team, color, invisible, giant }) => {
+      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color, invisible, giant } } : prev)
     })
     s.on('player-left', (id) => {
       setRemotePlayers((prev) => {
@@ -1380,6 +1402,7 @@ export default function Scene() {
                 playerName={p.name} 
                 team={p.team} 
                 invisible={p.invisible} // Pass invisible state
+                giant={p.giant} // Pass giant state
               />
             ))}
           {/* Camera controller */}
