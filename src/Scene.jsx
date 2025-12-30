@@ -578,7 +578,55 @@ function SoccerPitch({
         <meshStandardMaterial color="#3a9d23" roughness={1} />
       </mesh>
       {/* White lines */}
+      {/* Center Line */}
+      <mesh position={[0, 0.102, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <planeGeometry args={[0.1, 20]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
+      </mesh>
       
+      {/* Field Border Lines */}
+      {/* Top Line */}
+      <mesh position={[0, 0.102, -10]} rotation={[-Math.PI/2, 0, 0]}>
+        <planeGeometry args={[30, 0.1]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
+      </mesh>
+      {/* Bottom Line */}
+      <mesh position={[0, 0.102, 10]} rotation={[-Math.PI/2, 0, 0]}>
+        <planeGeometry args={[30, 0.1]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
+      </mesh>
+      {/* Left Line */}
+      <mesh position={[-15, 0.102, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <planeGeometry args={[0.1, 20]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
+      </mesh>
+      {/* Right Line */}
+      <mesh position={[15, 0.102, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <planeGeometry args={[0.1, 20]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.5} />
+      </mesh>
+
+      {/* Penalty Boxes */}
+      {/* Left Box */}
+      <mesh position={[-13, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <planeGeometry args={[4, 10]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.2} />
+      </mesh>
+      <mesh position={[-11, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <ringGeometry args={[0, 0.1, 4, 1, 0, Math.PI*2]} /> {/* Dot */}
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+      
+      {/* Right Box */}
+      <mesh position={[13, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <planeGeometry args={[4, 10]} />
+        <meshStandardMaterial color="#fff" transparent opacity={0.2} />
+      </mesh>
+      <mesh position={[11, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+        <ringGeometry args={[0, 0.1, 4, 1, 0, Math.PI*2]} /> {/* Dot */}
+        <meshStandardMaterial color="#fff" />
+      </mesh>
+
       {/* Center circle */}
       <mesh position={[0, 0.101, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <ringGeometry args={[2.5, 2.7, 32]} />
@@ -617,20 +665,18 @@ function SoccerPitch({
       </RoundedBox>
       
       {/* Left Side Walls (Length 7 each) */}
-      <RoundedBox args={[wallThickness, wallHeight, 7]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, -6.5]} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
-      </RoundedBox>
-      <RoundedBox args={[wallThickness, wallHeight, 7]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, 6.5]} castShadow receiveShadow>
+      
+      <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
         <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
       
+      
       {/* Right Side Walls (Length 7 each) */}
-      <RoundedBox args={[wallThickness, wallHeight, 7]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, -6.5]} castShadow receiveShadow>
+     
+      <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
         <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
-      <RoundedBox args={[wallThickness, wallHeight, 7]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 6.5]} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
-      </RoundedBox>
+      
       
       {/* Semi-Invisible Roof */}
       <mesh position={[0, wallHeight, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
