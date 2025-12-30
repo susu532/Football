@@ -1073,8 +1073,8 @@ export default function Scene() {
     s.on('player-joined', (player) => {
       setRemotePlayers((prev) => ({ ...prev, [player.id]: player }))
     })
-    s.on('player-move', ({ id, position, rotation, name, team, color }) => {
-      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color } } : prev)
+    s.on('player-move', ({ id, position, rotation, name, team, color, invisible }) => {
+      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color, invisible } } : prev)
     })
     s.on('player-left', (id) => {
       setRemotePlayers((prev) => {
