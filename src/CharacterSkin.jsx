@@ -23,7 +23,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   
   // Power-up effects state
   const effects = useRef({
-    speed: 1,
+    speed: 0.8,
     jump: 1,
     kick: 1,
     invisible: false
@@ -156,7 +156,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           // Apply Effect
           if (p.type === 'speed') {
             effects.current.speed = 2.0 // Double speed
-            setTimeout(() => effects.current.speed = 0.2, 15000)
+            setTimeout(() => effects.current.speed = 1, 15000)
           } else if (p.type === 'jump') {
             effects.current.jump = 2.0 // Double jump power
             setTimeout(() => effects.current.jump = 1, 15000)
