@@ -24,8 +24,8 @@ const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMateria
 
 // Ball vs Player - Controlled dribbling feel
 const ballPlayerContact = new CANNON.ContactMaterial(ballMaterial, playerMaterial, {
-  friction: 0.5,           // Higher friction for grip (was 0.3)
-  restitution: 0.1,        // Low bounce to keep ball close (was 0.5)
+  friction: 1.0,           // Higher friction for grip (was 0.3)
+  restitution: 0.0,        // Low bounce to keep ball close (was 0.5)
   contactEquationStiffness: 1e7,
   contactEquationRelaxation: 3,
 })
