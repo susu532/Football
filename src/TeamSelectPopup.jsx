@@ -47,14 +47,21 @@ export default function TeamSelectPopup() {
           
           <div className="team-select-section">
             <h2>Choose Your Room</h2>
-            <div className="room-buttons" style={{ display: 'flex', gap: '10px', justifyContent: 'center' }}>
-              {['room1', 'room2', 'room3'].map(room => (
+            <div className="room-buttons" style={{ 
+               
+              gridTemplateColumns: 'repeat(3, 1fr)', 
+              gap: '10px', 
+              maxHeight: '150px', 
+              overflowY: 'auto',
+              paddingRight: '5px'
+            }}>
+              {Array.from({ length: 13 }, (_, i) => `room${i + 1}`).map(room => (
                 <button
                   key={room}
                   className={`room-btn ${selectedRoom === room ? 'selected' : ''}`}
                   onClick={() => setSelectedRoom(room)}
                   style={{
-                    padding: '8px 16px',
+                    padding: '8px',
                     borderRadius: '8px',
                     border: '2px solid rgba(255,255,255,0.2)',
                     background: selectedRoom === room ? '#4caf50' : 'rgba(0,0,0,0.3)',
@@ -62,7 +69,10 @@ export default function TeamSelectPopup() {
                     cursor: 'pointer',
                     fontWeight: 'bold',
                     textTransform: 'uppercase',
-                    fontSize: '12px'
+                    fontSize: '11px',
+                    whiteSpace: 'nowrap',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis'
                   }}
                 >
                   {room.replace('room', 'Room ')}

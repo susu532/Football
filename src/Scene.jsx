@@ -613,7 +613,7 @@ function SoccerPitch({
         <meshStandardMaterial color="#fff" transparent opacity={0.2} />
       </mesh>
       <mesh position={[-11, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
-        <ringGeometry args={[0, 0.1, 4, 1, 0, Math.PI*2]} /> {/* Dot */}
+        <ringGeometry args={[0, 0.1, 4, 1, 0, Math.PI*2]} />
         <meshStandardMaterial color="#fff" />
       </mesh>
       
@@ -623,7 +623,7 @@ function SoccerPitch({
         <meshStandardMaterial color="#fff" transparent opacity={0.2} />
       </mesh>
       <mesh position={[11, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
-        <ringGeometry args={[0, 0.1, 4, 1, 0, Math.PI*2]} /> {/* Dot */}
+        <ringGeometry args={[0, 0.1, 4, 1, 0, Math.PI*2]} />
         <meshStandardMaterial color="#fff" />
       </mesh>
 
@@ -664,26 +664,20 @@ function SoccerPitch({
         <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
       
-      {/* Left Side Walls (Length 7 each) */}
-      
+      {/* Left Side Walls (Length 20) */}
       <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
         <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
       
-      
-      {/* Right Side Walls (Length 7 each) */}
-     
+      {/* Right Side Walls (Length 20) */}
       <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
         <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
       </RoundedBox>
-      
       
       {/* Semi-Invisible Roof */}
       <mesh position={[0, wallHeight, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
         <planeGeometry args={[size[0] + 2, size[2] + 2]} />
         <meshBasicMaterial color="#88ccff" transparent opacity={0.1} side={THREE.DoubleSide} depthWrite={false} />
-        {/* Grid pattern for the roof to make it slightly visible */}
-        
       </mesh>
     </group>
   )
@@ -778,6 +772,66 @@ function CityAtNight() {
     return cloned
   }, [gltf.scene])
   return <primitive object={scene} position={[30, -26.5, -35]} scale={1} />
+}
+
+// Room 4: Cloud Station
+function CloudStation() {
+  const gltf = useGLTF('/maps/cloud_station.glb')
+  return <primitive object={gltf.scene} position={[-20, -20, 0]} scale={20} />
+}
+
+// Room 5: Creek Falls
+function CreekFalls() {
+  const gltf = useGLTF('/maps/creek_falls_world_maps.glb')
+  return <primitive object={gltf.scene} position={[10, 0, -35]} scale={2} />
+}
+
+// Room 6: Soccer Stadium
+function SoccerStadiumMap() {
+  const gltf = useGLTF('/maps_two/soccer_stadium.glb')
+  return <primitive object={gltf.scene} position={[0, -7.5, 0]} scale={0.2} />
+}
+
+// Room 7: Gravity Falls 2
+function GravityFallsMap() {
+  const gltf = useGLTF('/maps/gravity_falls.glb')
+  return <primitive object={gltf.scene} position={[10, 0, -26]} scale={4} />
+}
+
+// Room 8: Minecraft World
+function MinecraftMap() {
+  const gltf = useGLTF('/maps_two/minecraft_world.glb')
+  return <primitive object={gltf.scene} position={[0, -10.5, 0]} scale={80} />
+}
+
+// Room 9: Moon
+function MoonMap() {
+  const gltf = useGLTF('/maps/moon_-_mare_moscoviense.glb')
+  return <primitive object={gltf.scene} position={[0, 33, 0]} scale={0.5} />
+}
+
+// Room 10: Tropical Island
+function TropicalIslandMap() {
+  const gltf = useGLTF('/maps_two/tropical_island.glb')
+  return <primitive object={gltf.scene} position={[0, -2.6, 0]} scale={50} />
+}
+
+// Room 11: Ship in Clouds
+function ShipInClouds() {
+  const gltf = useGLTF('/maps/ship_in_clouds.glb')
+  return <primitive object={gltf.scene} position={[0, -10, 100]} scale={100} />
+}
+
+// Room 12: Desert
+function DesertMap() {
+  const gltf = useGLTF('/maps/stylized_desert_skybox_2.glb')
+  return <primitive object={gltf.scene} position={[0, 0, 0]} scale={50} />
+}
+
+// Room 13: Mario World
+function MarioMap() {
+  const gltf = useGLTF('/maps_two/world_1-1.glb')
+  return <primitive object={gltf.scene} position={[0, 1.4, 0]} scale={50} />
 }
 
 // Soccer Ball (using GLB model)
@@ -1457,8 +1511,6 @@ export default function Scene() {
         <Suspense fallback={null}>
           <PhysicsHandler />
           <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
-          
-          {/* Dynamic Background & Atmosphere */}
           {roomId === 'room1' && <color attach="background" args={["#87CEEB"]} />}
           {roomId === 'room2' && (
             <>
@@ -1467,9 +1519,17 @@ export default function Scene() {
             </>
           )}
           {roomId === 'room3' && <color attach="background" args={["#050510"]} />}
-          
+          {roomId === 'room4' && <color attach="background" args={["#87CEEB"]} />}
+          {roomId === 'room5' && <color attach="background" args={["#87CEEB"]} />}
+          {roomId === 'room6' && <color attach="background" args={["#87CEEB"]} />}
+          {roomId === 'room7' && <color attach="background" args={["#87CEEB"]} />}
+          {roomId === 'room8' && <color attach="background" args={["#87CEEB"]} />}
+          {roomId === 'room9' && <color attach="background" args={["#000000"]} />}
+          {roomId === 'room10' && <color attach="background" args={["#00BFFF"]} />}
+          {roomId === 'room11' && <color attach="background" args={["#87CEEB"]} />}
+          {roomId === 'room12' && <color attach="background" args={["#87CEEB"]} />}
+          {roomId === 'room13' && <color attach="background" args={["#87CEEB"]} />}
           <ambientLight intensity={0.7} color="#FFFFFF" />
-
           <directionalLight 
             position={[10, 30, 10]} 
             intensity={2} 
@@ -1483,24 +1543,25 @@ export default function Scene() {
             shadow-camera-bottom={-50}
             shadow-bias={-0.0005}
           />
-          {/* Stadium lights */}
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
           <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
-          
-          {/* Environment based on Room */}
           {roomId === 'room1' && <MysteryShack />}
           {roomId === 'room2' && <OceanFloor />}
           {roomId === 'room3' && <CityAtNight />}
-          
-          {/* Soccer pitch */}
+          {roomId === 'room4' && <CloudStation />}
+          {roomId === 'room5' && <CreekFalls />}
+          {roomId === 'room6' && <SoccerStadiumMap />}
+          {roomId === 'room7' && <GravityFallsMap />}
+          {roomId === 'room8' && <MinecraftMap />}
+          {roomId === 'room9' && <MoonMap />}
+          {roomId === 'room10' && <TropicalIslandMap />}
+          {roomId === 'room11' && <ShipInClouds />}
+          {roomId === 'room12' && <DesertMap />}
+          {roomId === 'room13' && <MarioMap />}
           <SoccerPitch size={pitchSize} />
-          {/* Goals with team colors - Blue team defends top goal, Red team defends bottom goal */}
-          {/* Goals positioned just behind pitch edges, rotated 90° facing each other */}
-          <SoccerGoal position={[11, 0.1, 0]} rotation={[0,-Math.PI / 1, 0]} netColor={teamColors.blue} />
-          <SoccerGoal position={[-11, 0.1, 0]} rotation={[0,Math.PI / 0.5, 0]} netColor={teamColors.red} />
-          {/* Soccer ball with physics (syncs with server) */}
+          <SoccerGoal position={[11, 0.1, 0]} rotation={[0, -Math.PI / 2, 0]} netColor={teamColors.blue} />
+          <SoccerGoal position={[-11, 0.1, 0]} rotation={[0, Math.PI / 2, 0]} netColor={teamColors.red} />
           <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
-          {/* Local player with multiplayer sync */}
           <LocalPlayerWithSync 
             socket={socket} 
             playerId={playerId} 
@@ -1517,11 +1578,10 @@ export default function Scene() {
             onPowerUpActive={handlePowerUpActive}
             isFreeLook={isFreeLook}
           />
-          {/* Remote players */}
           {Object.entries(remotePlayers)
-            .filter(([id]) => id !== playerId) // Don't render self
-            .filter(([_, p]) => p.position && p.position[0] !== undefined) // Skip uninitialized
-            .filter(([_, p]) => !(p.position[0] === 0 && p.position[2] === 0)) // Skip center position
+            .filter(([id]) => id !== playerId)
+            .filter(([_, p]) => p.position && p.position[0] !== undefined)
+            .filter(([_, p]) => !(p.position[0] === 0 && p.position[2] === 0))
             .map(([id, p]) => (
               <RemotePlayerWithPhysics 
                 key={id} 
@@ -1531,14 +1591,11 @@ export default function Scene() {
                 rotation={p.rotation} 
                 playerName={p.name} 
                 team={p.team} 
-                invisible={p.invisible} // Pass invisible state
-                giant={p.giant} // Pass giant state
+                invisible={p.invisible}
+                giant={p.giant}
               />
             ))}
-          {/* Camera controller */}
           <CameraController targetRef={playerRef} isFreeLook={isFreeLook} />
-
-          {/* Render PowerUps */}
           {activePowerUps.map(p => (
             <PowerUp 
               key={p.id} 
