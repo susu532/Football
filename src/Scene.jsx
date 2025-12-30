@@ -766,7 +766,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     
     // Update physics body radius dynamically
     if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 4.0 : 0.9 // 10x radius if giant
+      const targetRadius = giant ? 2.0 : 0.9 // 10x radius if giant
       if (body.shapes[0].radius !== targetRadius) {
         body.shapes[0].radius = targetRadius
         body.updateBoundingRadius()
