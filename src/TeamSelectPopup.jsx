@@ -43,7 +43,33 @@ export default function TeamSelectPopup() {
       <div className="team-select-popup" style={{ maxWidth: '900px', display: 'flex', overflow: 'hidden', padding: 0 }}>
         {/* Left Column - Form */}
         <div style={{ flex: 1, padding: '30px', display: 'flex', flexDirection: 'column', gap: '20px' , alignItems: 'center', justifyContent: 'center'}}>
-          <h1 className="team-select-title" style={{ margin: 0 }}>⚽ Join the Match!</h1>
+          <div style={{ textAlign: 'center', marginBottom: '10px' }}>
+            <img 
+              src="/logo.png" 
+              alt="Omni-Pitch Soccer Logo" 
+              style={{ 
+                width: '120px', 
+                height: '120px', 
+                borderRadius: '50%', 
+                boxShadow: '0 0 20px rgba(0, 255, 255, 0.5)',
+                border: '3px solid rgba(255, 255, 255, 0.2)',
+                marginBottom: '15px'
+              }} 
+            />
+            <h1 style={{ 
+              margin: 0, 
+              fontSize: '2.5rem', 
+              fontWeight: '900',
+              background: 'linear-gradient(45deg, #00ffff, #ff00ff, #ffcc00)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              textTransform: 'uppercase',
+              letterSpacing: '2px',
+              textShadow: '0 0 10px rgba(0, 255, 255, 0.3)'
+            }}>
+              Omni-Pitch Soccer
+            </h1>
+          </div>
           
           <div className="team-select-section">
             <h2>Choose Your Room</h2>

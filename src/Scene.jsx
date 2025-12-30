@@ -1559,8 +1559,8 @@ export default function Scene() {
           {roomId === 'room12' && <DesertMap />}
           {roomId === 'room13' && <MarioMap />}
           <SoccerPitch size={pitchSize} />
-          <SoccerGoal position={[11, 0.1, 0]} rotation={[0, -Math.PI / 2, 0]} netColor={teamColors.blue} />
-          <SoccerGoal position={[-11, 0.1, 0]} rotation={[0, Math.PI / 2, 0]} netColor={teamColors.red} />
+          <SoccerGoal position={[11, 0.1, 0]} rotation={[0, -Math.PI / 1, 0]} netColor={teamColors.blue} />
+          <SoccerGoal position={[-11, 0.1, 0]} rotation={[0, Math.PI / 0.5, 0]} netColor={teamColors.red} />
           <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
           <LocalPlayerWithSync 
             socket={socket} 
