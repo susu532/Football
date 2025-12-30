@@ -91,11 +91,30 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   const velocity = useRef(new THREE.Vector3())
   const verticalVelocity = useRef(0)
   const isOnGround = useRef(true)
+  const jumpCount = useRef(0) // Track number of jumps
   
   useEffect(() => {
     const handleKeyDown = (e) => {
+      if (e.repeat) return // Ignore auto-repeat
+      
       keys.current[e.key.toLowerCase()] = true
       keys.current[e.code.toLowerCase()] = true
+      
+      // Jump Logic (Space)
+      if (e.code === 'Space') {
+        const baseJumpForce = 8 * effects.current.jump
+        
+        if (isOnGround.current) {
+          // First Jump
+          verticalVelocity.current = baseJumpForce
+          isOnGround.current = false
+          jumpCount.current = 1
+        } else if (jumpCount.current < 2) {
+          // Double Jump (0.5x force)
+          verticalVelocity.current = baseJumpForce * 0.8
+          jumpCount.current = 2
+        }
+      }
     }
     const handleKeyUp = (e) => {
       keys.current[e.key.toLowerCase()] = false
@@ -112,12 +131,9 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   useFrame((_, delta) => {
     if (!groupRef.current) return
     
-
-    
     // Apply power-up multipliers
     const speed = 8 * effects.current.speed
     const gravity = 20
-    const jumpForce = 8 * effects.current.jump
     const groundY = 0.1
     const playerRadius = 0.5
     
@@ -261,12 +277,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       }
     }
 
-    
-    // Jump with space
-    if ((keys.current[' '] || keys.current['space']) && isOnGround.current) {
-      verticalVelocity.current = jumpForce
-      isOnGround.current = false
-    }
+    // Jump logic moved to handleKeyDown
     
     // Power Kick with F key
     if (keys.current['f'] && ballBody) {
@@ -347,6 +358,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       newY = groundY
       verticalVelocity.current = 0
       isOnGround.current = true
+      jumpCount.current = 0 // Reset jump count on landing
     }
     
     // Bounds checking
