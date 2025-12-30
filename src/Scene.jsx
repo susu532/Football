@@ -1113,19 +1113,21 @@ export default function Scene() {
     })
     s.on('score-update', (newScores) => {
       // Check if a goal was scored
-      if (newScores.red > prevScoresRef.current.red) {
-        setCelebration({ team: 'red' })
-        setTimeout(() => setCelebration(null), 3000) // Hide after 3 seconds
-        // Respawn players after 2 seconds
+      if (newScores.red > prevScoresRef.current.red || newScores.blue > prevScoresRef.current.blue) {
+        setCelebration({ team: newScores.red > prevScoresRef.current.red ? 'red' : 'blue' })
+        
+        // Play goal sound
+        const audio = new Audio('/winner-game-sound-404167.mp3')
+        audio.volume = 0.5
+        audio.play().catch(e => console.error("Audio play failed:", e))
+        
+        // Stop sound after 2 seconds
         setTimeout(() => {
-          if (playerRef.current) {
-            const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-            playerRef.current.position.set(...spawn)
-          }
+          audio.pause()
+          audio.currentTime = 0
         }, 2000)
-      } else if (newScores.blue > prevScoresRef.current.blue) {
-        setCelebration({ team: 'blue' })
-        setTimeout(() => setCelebration(null), 3000)
+
+        setTimeout(() => setCelebration(null), 3000) // Hide after 3 seconds
         // Respawn players after 2 seconds
         setTimeout(() => {
           if (playerRef.current) {
