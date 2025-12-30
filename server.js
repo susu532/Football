@@ -63,19 +63,25 @@ io.on('connection', (socket) => {
   socket.on('move', (data) => {
     const roomId = socket.roomId;
     if (roomId && rooms[roomId] && rooms[roomId].players[socket.id]) {
-      const p = rooms[roomId].players[socket.id];
+      // Update state
       p.position = data.position;
       p.rotation = data.rotation;
-      p.name = data.name;
-      p.team = data.team;
-      p.skin = data.skin;
-      p.color = data.color;
-      p.invisible = data.invisible;
-      p.giant = data.giant;
+      
+      // Only update static props if provided (initial sync or change)
+      if (data.name) p.name = data.name;
+      if (data.team) p.team = data.team;
+      if (data.model) p.model = data.model;
+      if (data.color) p.color = data.color;
+      if (data.invisible !== undefined) p.invisible = data.invisible;
+      if (data.giant !== undefined) p.giant = data.giant;
 
+      // Broadcast lightweight update
       socket.volatile.to(roomId).emit('player-move', { 
         id: socket.id, 
-        ...data
+        position: data.position,
+        rotation: data.rotation,
+        invisible: data.invisible,
+        giant: data.giant
       });
     }
   });

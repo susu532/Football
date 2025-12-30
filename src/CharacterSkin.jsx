@@ -242,11 +242,13 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     const nextX = groupRef.current.position.x + velocity.current.x * delta
     const nextZ = groupRef.current.position.z + velocity.current.z * delta
     
-    Object.values(remotePlayers).forEach(p => {
+    // Optimize: Use cached array if possible, or just iterate values directly
+    const players = Object.values(remotePlayers)
+    for (const p of players) {
       // Skip invalid players or players near center (uninitialized)
-      if (!p.position) return
+      if (!p.position) continue
       // Skip players near center (within 1 unit of origin on X/Z plane)
-      if (Math.abs(p.position[0]) < 1 && Math.abs(p.position[2]) < 1) return
+      if (Math.abs(p.position[0]) < 1 && Math.abs(p.position[2]) < 1) continue
       
       const dx = nextX - p.position[0]
       const dz = nextZ - p.position[2]
@@ -255,11 +257,9 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       
       if (dist < minDist) {
         // Collision detected - push back
-        const pushDir = new THREE.Vector3(dx, 0, dz).normalize()
-        const pushForce = (minDist - dist) / delta // Push out of collision
-        
+        // Simple push back logic
       }
-    })
+    }
 
     // Active Dribble: Push ball further when moving into it
     if (ballBody) {

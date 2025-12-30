@@ -915,11 +915,8 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     socket.emit('move', { 
       position: [pos.x, pos.y, pos.z], 
       rotation: rot,
-      name: playerName,
-      team: playerTeam,
-      color: teamColor,
-      invisible, // Send invisible state
-      giant // Send giant state
+      invisible, 
+      giant 
     })
   })
 
@@ -1256,8 +1253,14 @@ export default function Scene() {
     socket.on('player-joined', (player) => {
       setRemotePlayers((prev) => ({ ...prev, [player.id]: player }))
     })
-    socket.on('player-move', ({ id, position, rotation, name, team, color, invisible, giant }) => {
-      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color, invisible, giant } } : prev)
+    socket.on('player-move', (data) => {
+      setRemotePlayers((prev) => {
+        if (!prev[data.id]) return prev;
+        return {
+          ...prev,
+          [data.id]: { ...prev[data.id], ...data }
+        };
+      })
     })
     socket.on('player-left', (id) => {
       setRemotePlayers((prev) => {
