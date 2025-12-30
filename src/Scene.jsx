@@ -28,7 +28,7 @@ function Platform({ position = [0, 0, 0], size = [4, 0.5, 2], color = '#6b8e23' 
   )
 }
 
-function CameraController({ targetRef }) {
+function CameraController({ targetRef, isFreeLook }) {
   const { camera } = useThree()
   const orbit = useRef({
     azimuth: 0,
@@ -42,13 +42,23 @@ function CameraController({ targetRef }) {
 
   useEffect(() => {
     const onPointerDown = (e) => {
-      if (e.button !== 0) return
+      if (e.button !== 0 && e.button !== 2) return
+      
       orbit.current.dragging = true
       orbit.current.lastX = e.clientX
       orbit.current.lastY = e.clientY
+      
+      if (e.button === 2 && isFreeLook) {
+        console.log("Free Look ACTIVE")
+        isFreeLook.current = true
+      }
     }
     const onPointerUp = () => {
       orbit.current.dragging = false
+      if (isFreeLook) {
+        console.log("Free Look INACTIVE")
+        isFreeLook.current = false
+      }
     }
     const onPointerMove = (e) => {
       if (!orbit.current.dragging) return
@@ -60,14 +70,17 @@ function CameraController({ targetRef }) {
       orbit.current.polar -= dy * 0.01
       orbit.current.polar = Math.max(0.2, Math.min(Math.PI / 2, orbit.current.polar))
     }
+    
+    const onContextMenu = (e) => e.preventDefault()
+
     window.addEventListener('pointerdown', onPointerDown)
     window.addEventListener('pointerup', onPointerUp)
     window.addEventListener('pointermove', onPointerMove)
-    // Wheel -> zoom
+    window.addEventListener('contextmenu', onContextMenu)
+    
     const onWheel = (e) => {
-      // Normalize wheel delta (deltaY direction: positive = scroll down = zoom out)
       const delta = e.deltaY
-      const zoomSensitivity = 0.025 // tweakable sensitivity
+      const zoomSensitivity = 0.025
       const minDistance = 3
       const maxDistance = 18
       const current = orbit.current
@@ -78,14 +91,14 @@ function CameraController({ targetRef }) {
       window.removeEventListener('pointerdown', onPointerDown)
       window.removeEventListener('pointerup', onPointerUp)
       window.removeEventListener('pointermove', onPointerMove)
+      window.removeEventListener('contextmenu', onContextMenu)
       window.removeEventListener('wheel', onWheel)
     }
-  }, [])
+  }, [isFreeLook])
 
   useFrame(() => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
     const { azimuth, polar } = orbit.current
-    // Smoothly approach target distance for easing
     orbit.current.distance = THREE.MathUtils.lerp(orbit.current.distance, orbit.current.targetDistance ?? orbit.current.distance, 0.12)
     const distance = orbit.current.distance
     const x = p.x + distance * Math.sin(polar) * Math.sin(azimuth)
@@ -97,7 +110,7 @@ function CameraController({ targetRef }) {
   return null
 }
 
-function Door({ position = [16, 1, 0], open = false }) {
+function StadiumDoor({ position = [16, 1, 0], open = false }) {
   // Door slides up when open
   return (
     <mesh position={[position[0], position[1] + (open ? 2 : 0), position[2]]} castShadow>
@@ -707,7 +720,7 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null }) {
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null }) {
   // Callback when player kicks the ball - send update to server
   const handleKick = () => {
     if (socket && ballBody) {
@@ -782,6 +795,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
         powerUps={powerUps}
         onCollectPowerUp={onCollectPowerUp}
         onPowerUpActive={onPowerUpActive}
+        isFreeLook={isFreeLook}
       />
       {/* Name label follows player position */}
       {playerName && (
@@ -984,6 +998,7 @@ export default function Scene() {
   const chatRef = useRef(null)
   const prevScoresRef = useRef({ red: 0, blue: 0 })
   const pitchSize = [30, 0.2, 20]
+  const isFreeLook = useRef(false) // Ref for Free Look mode
   
   // Power-up Spawning Logic
   useEffect(() => {
@@ -1348,6 +1363,7 @@ export default function Scene() {
             powerUps={activePowerUps}
             onCollectPowerUp={handleCollectPowerUp}
             onPowerUpActive={handlePowerUpActive}
+            isFreeLook={isFreeLook}
           />
           {/* Remote players */}
           {Object.entries(remotePlayers)
@@ -1367,7 +1383,7 @@ export default function Scene() {
               />
             ))}
           {/* Camera controller */}
-          <CameraController targetRef={playerRef} />
+          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} />
 
           {/* Render PowerUps */}
           {activePowerUps.map(p => (

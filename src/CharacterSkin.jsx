@@ -16,6 +16,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   powerUps = [],
   onCollectPowerUp = null,
   onPowerUpActive = null,
+  isFreeLook = null,
   children 
 }, ref) {
   const groupRef = useRef()
@@ -111,6 +112,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   useFrame((_, delta) => {
     if (!groupRef.current) return
     
+
+    
     // Apply power-up multipliers
     const speed = 8 * effects.current.speed
     const gravity = 20
@@ -181,15 +184,18 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     }
 
     // Always rotate player to face camera direction (Strafe Mode)
-    const targetAngle = Math.atan2(cameraForward.x, cameraForward.z)
-    const currentRot = groupRef.current.rotation.y
-    let rotDiff = targetAngle - currentRot
-    // Normalize angle difference
-    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
-    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
-    
-    // Smoothly rotate
-    groupRef.current.rotation.y += rotDiff * Math.min(1, 20 * delta)
+    // UNLESS Free Look is active
+    if (!isFreeLook || !isFreeLook.current) {
+      const targetAngle = Math.atan2(cameraForward.x, cameraForward.z)
+      const currentRot = groupRef.current.rotation.y
+      let rotDiff = targetAngle - currentRot
+      // Normalize angle difference
+      while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+      while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
+      
+      // Smoothly rotate
+      groupRef.current.rotation.y += rotDiff * Math.min(1, 20 * delta)
+    }
     
     // Apply horizontal velocity with lerp for smooth movement
     velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, moveDir.x * speed, 0.15)
