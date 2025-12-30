@@ -131,6 +131,18 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   useFrame((_, delta) => {
     if (!groupRef.current) return
     
+    // Update invisible state in userData for sync
+    groupRef.current.userData.invisible = effects.current.invisible
+    
+    // Update local visual opacity
+    const targetOpacity = effects.current.invisible ? 0.2 : 1.0
+    groupRef.current.traverse((child) => {
+      if (child.isMesh && child.material) {
+        child.material.transparent = true
+        child.material.opacity = THREE.MathUtils.lerp(child.material.opacity, targetOpacity, 0.1)
+      }
+    })
+    
     // Apply power-up multipliers
     const speed = 8 * effects.current.speed
     const gravity = 20
