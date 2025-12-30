@@ -1002,6 +1002,7 @@ export default function Scene() {
   const hasJoined = useStore((s) => s.hasJoined)
   const playerName = useStore((s) => s.playerName)
   const playerTeam = useStore((s) => s.playerTeam)
+  const roomId = useStore((s) => s.roomId)
 
   const playerRef = useRef()
   const targetRef = useRef() // Camera target
@@ -1083,7 +1084,28 @@ export default function Scene() {
   useEffect(() => {
     const s = io('https://socket-rox7.onrender.com')
     setSocket(s)
-    s.on('init', ({ id, players, ball, scores }) => {
+    return () => s.disconnect()
+  }, [ballBody])
+
+  // Handle joining room
+  useEffect(() => {
+    if (socket && hasJoined && roomId) {
+      console.log("Joining room:", roomId)
+      socket.emit('join-room', { roomId })
+    }
+  }, [socket, hasJoined, roomId])
+
+  // Socket event listeners
+  useEffect(() => {
+    if (!socket) return
+    
+    // Wait for join action
+    // Moved to separate useEffect to avoid reconnecting socket
+    // if (hasJoined && roomId) {
+    //   socket.emit('join-room', { roomId })
+    // }
+
+    socket.on('init', ({ id, players, ball, scores }) => {
       setPlayerId(id)
       setRemotePlayers(players)
       if (scores) setScores(scores)
@@ -1092,26 +1114,26 @@ export default function Scene() {
         ballBody.velocity.set(...ball.velocity)
       }
     })
-    s.on('player-joined', (player) => {
+    socket.on('player-joined', (player) => {
       setRemotePlayers((prev) => ({ ...prev, [player.id]: player }))
     })
-    s.on('player-move', ({ id, position, rotation, name, team, color, invisible, giant }) => {
+    socket.on('player-move', ({ id, position, rotation, name, team, color, invisible, giant }) => {
       setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color, invisible, giant } } : prev)
     })
-    s.on('player-left', (id) => {
+    socket.on('player-left', (id) => {
       setRemotePlayers((prev) => {
         const copy = { ...prev }
         delete copy[id]
         return copy
       })
     })
-    s.on('ball-update', (ball) => {
+    socket.on('ball-update', (ball) => {
       if (ballBody) {
         ballBody.position.set(...ball.position)
         ballBody.velocity.set(...ball.velocity)
       }
     })
-    s.on('score-update', (newScores) => {
+    socket.on('score-update', (newScores) => {
       // Check if a goal was scored
       if (newScores.red > prevScoresRef.current.red || newScores.blue > prevScoresRef.current.blue) {
         setCelebration({ team: newScores.red > prevScoresRef.current.red ? 'red' : 'blue' })
@@ -1139,14 +1161,14 @@ export default function Scene() {
       prevScoresRef.current = { ...newScores }
       setScores(newScores)
     })
-    s.on('ball-reset', (ball) => {
+    socket.on('ball-reset', (ball) => {
       if (ballBody) {
         ballBody.position.set(...ball.position)
         ballBody.velocity.set(...ball.velocity)
         ballBody.angularVelocity.set(0, 0, 0)
       }
     })
-    s.on('chat-message', (msg) => {
+    socket.on('chat-message', (msg) => {
       setChatMessages(prev => [...prev.slice(-49), msg]) // Keep last 50 messages
       // Auto-scroll to bottom
       setTimeout(() => {
@@ -1156,9 +1178,16 @@ export default function Scene() {
       }, 50)
     })
     return () => {
-      s.disconnect()
+      socket.off('init')
+      socket.off('player-joined')
+      socket.off('player-move')
+      socket.off('player-left')
+      socket.off('ball-update')
+      socket.off('score-update')
+      socket.off('ball-reset')
+      socket.off('chat-message')
     }
-  }, [ballBody])
+  }, [socket, ballBody])
 
   useEffect(() => {
     // Add soccer ball to physics world
