@@ -1118,7 +1118,7 @@ export default function Scene() {
         
         // Play goal sound
         const audio = new Audio('/winner-game-sound-404167.mp3')
-        audio.volume = 0.2
+        audio.volume = 0.05
         audio.play().catch(e => console.error("Audio play failed:", e))
         
         // Stop sound after 2 seconds
