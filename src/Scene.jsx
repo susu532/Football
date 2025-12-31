@@ -1165,7 +1165,11 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
 
   return (
     <group ref={groupRef}>
-      <primitive object={clonedScene} scale={characterScale} position={[0, character === 'car' ? 0.2 : 0, 0]} />
+      <primitive 
+        object={clonedScene} 
+        scale={characterScale} 
+        position={[0, character === 'car' ? 0.01 : 0, 0]} 
+      />
       {playerName && !invisible && ( // Hide name label if invisible
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>
           <div className={`player-name-label ${team}`}>{playerName}</div>

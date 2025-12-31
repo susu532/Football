@@ -24,7 +24,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   const PLAYER_MODEL_PATH = characterType === 'cat' ? '/models/cat.glb' : '/models/low_poly_car.glb'
   
   // Character scaling: cat uses 0.01, car uses 0.15
-  const characterScale = characterType === 'cat' ? 0.01 : 0.0010
+  const characterScale = characterType === 'cat' ? 0.01 : 0.0015
   
   // Position offset to match cat height (car may need different base position)
   const positionOffset = characterType === 'car' ? [0, 0.2, 0] : [0, 0, 0]
@@ -471,8 +471,12 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   })
   
   return (
-    <group ref={groupRef} position={[position[0] + positionOffset[0], position[1] + positionOffset[1], position[2] + positionOffset[2]]}>
-      <primitive object={clonedScene} scale={characterScale} position={[0, 0, 0]} />
+    <group ref={groupRef} position={[position[0], position[1], position[2]]}>
+      <primitive 
+        object={clonedScene} 
+        scale={characterScale} 
+        position={[positionOffset[0], positionOffset[0], positionOffset[2]]} 
+      />
       {children}
     </group>
   )
