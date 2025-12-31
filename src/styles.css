@@ -404,6 +404,59 @@ html,
   }
 }
 
+/* Magic Footer */
+.magic-footer {
+  margin-top: auto;
+  padding: 15px 25px;
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--magic-border);
+  border-radius: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  transition: all 0.3s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.magic-footer:hover {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+}
+
+.magic-footer-text {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--magic-text-dim);
+  letter-spacing: 0.5px;
+}
+
+.discord-link {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #5865F2; /* Discord Blurple */
+  text-decoration: none;
+  font-weight: 800;
+  font-size: 0.9rem;
+  transition: all 0.3s ease;
+}
+
+.discord-link:hover {
+  color: #fff;
+  text-shadow: 0 0 10px rgba(88, 101, 242, 0.8);
+}
+
+.discord-icon {
+  width: 20px;
+  height: 20px;
+  fill: currentColor;
+}
+
 /* Magic Mobile Controls */
 .mobile-controls {
   position: fixed;
