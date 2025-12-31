@@ -54,44 +54,15 @@ export default function CharacterPreview({ character, isSelected, onSelect }) {
     <button
       className={`character-preview-card ${isSelected ? 'selected' : ''}`}
       onClick={() => onSelect(character)}
-      style={{
-        padding: '0',
-        border: isSelected ? '3px solid #00d2d3' : '3px solid rgba(255,255,255,0.2)',
-        borderRadius: '16px',
-        background: isSelected ? 'rgba(0, 210, 211, 0.15)' : 'rgba(255, 255, 255, 0.05)',
-        cursor: 'pointer',
-        transition: 'all 0.3s ease',
-        overflow: 'hidden',
-        width: '180px',
-        height: '200px'
-      }}
-      onMouseEnter={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'
-          e.currentTarget.style.transform = 'translateY(-5px)'
-        }
-      }}
-      onMouseLeave={(e) => {
-        if (!isSelected) {
-          e.currentTarget.style.background = 'rgba(255, 255, 255, 0.05)'
-          e.currentTarget.style.transform = 'translateY(0)'
-        }
-      }}
     >
-      <div style={{ width: '100%', height: '150px' }}>
-        <Canvas shadows>
+      <div className="character-preview-canvas">
+        <Canvas shadows gl={{ outputColorSpace: THREE.SRGBColorSpace }}>
           <Suspense fallback={null}>
             <CharacterScene character={character} isSelected={isSelected} />
           </Suspense>
         </Canvas>
       </div>
-      <div style={{ 
-        padding: '10px', 
-        textAlign: 'center',
-        color: '#fff',
-        fontWeight: '600',
-        fontSize: '1.1rem'
-      }}>
+      <div className="character-preview-name">
         {characterName}
       </div>
     </button>
