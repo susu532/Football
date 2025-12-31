@@ -145,7 +145,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     groupRef.current.userData.giant = effects.current.giant
     
     // Apply Giant Scaling
-    const targetScale = effects.current.giant ? 8.0 : 1.0
+    const targetScale = effects.current.giant ? 6.0 : 1.0
     groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
     
     // Update local visual opacity
