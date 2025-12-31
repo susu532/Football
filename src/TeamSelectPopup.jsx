@@ -47,16 +47,16 @@ export default function TeamSelectPopup() {
             <img 
               src="/logo.png" 
               alt="Omni-Pitch Soccer Logo" 
+              className="branding-logo"
               style={{ 
                 width: '120px', 
                 height: '120px', 
                 borderRadius: '50%', 
-                boxShadow: '0 0 20px rgba(0, 255, 255, 0.5)',
                 border: '3px solid rgba(255, 255, 255, 0.2)',
                 marginBottom: '15px'
               }} 
             />
-            <h1 style={{ 
+            <h1 className="branding-title" style={{ 
               margin: 0, 
               fontSize: '2.5rem', 
               fontWeight: '900',
@@ -64,8 +64,7 @@ export default function TeamSelectPopup() {
               WebkitBackgroundClip: 'text',
               WebkitTextFillColor: 'transparent',
               textTransform: 'uppercase',
-              letterSpacing: '2px',
-              textShadow: '0 0 10px rgba(0, 255, 255, 0.3)'
+              letterSpacing: '2px'
             }}>
               Omni-Pitch Soccer
             </h1>

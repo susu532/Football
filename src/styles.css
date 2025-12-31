@@ -266,6 +266,49 @@ html,
   cursor: not-allowed;
 }
 
+/* Branding Animations */
+@keyframes logoFloat {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  50% { transform: translateY(-10px) rotate(5deg); }
+}
+
+@keyframes titleShimmer {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 255, 0.5); }
+  50% { box-shadow: 0 0 40px rgba(0, 255, 255, 0.8), 0 0 60px rgba(255, 0, 255, 0.3); }
+}
+
+.branding-logo {
+  animation: logoFloat 4s ease-in-out infinite, glowPulse 3s ease-in-out infinite;
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  cursor: pointer;
+}
+
+.branding-logo:hover {
+  transform: scale(1.15) rotate(10deg);
+  box-shadow: 0 0 50px rgba(0, 255, 255, 0.9), 0 0 80px rgba(255, 0, 255, 0.5);
+  filter: brightness(1.2);
+}
+
+.branding-title {
+  background-size: 200% auto !important;
+  animation: titleShimmer 4s linear infinite;
+  transition: all 0.4s ease;
+  cursor: default;
+  user-select: none;
+}
+
+.branding-title:hover {
+  transform: scale(1.05);
+  text-shadow: 0 0 20px rgba(0, 255, 255, 0.6), 0 0 40px rgba(255, 0, 255, 0.4);
+  letter-spacing: 4px;
+}
+
 /* Player Name Label */
 .player-name-label {
   background: rgba(0, 0, 0, 0.7);
