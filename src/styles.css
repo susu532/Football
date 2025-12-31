@@ -403,3 +403,122 @@ html,
     align-items: center;
   }
 }
+
+/* Magic Mobile Controls */
+.mobile-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 10000;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 30px;
+  padding-bottom: max(30px, env(safe-area-inset-bottom));
+}
+
+/* Joystick */
+.joystick-container {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.joystick-base {
+  width: 140px;
+  height: 140px;
+  border-radius: 50%;
+  background: var(--magic-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--magic-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.joystick-knob {
+  width: 60px;
+  height: 60px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--magic-accent), var(--magic-secondary));
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+  position: absolute;
+  transition: transform 0.05s ease-out;
+}
+
+/* Action Buttons */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  pointer-events: auto;
+}
+
+.action-button {
+  width: 90px;
+  height: 90px;
+  border-radius: 50%;
+  border: 1px solid var(--magic-border);
+  background: var(--magic-card);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.action-button:active {
+  transform: scale(0.9);
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.button-icon {
+  font-size: 32px;
+  margin-bottom: 4px;
+}
+
+.button-label {
+  font-size: 10px;
+  font-weight: 900;
+  color: var(--magic-accent);
+  text-transform: uppercase;
+  letter-spacing: 2px;
+}
+
+.jump-button.active, .jump-button:hover {
+  border-color: var(--magic-accent);
+  box-shadow: 0 0 20px rgba(0, 242, 254, 0.3);
+}
+
+.kick-button {
+  background: linear-gradient(135deg, rgba(255, 71, 87, 0.2), rgba(255, 71, 87, 0.1));
+}
+
+.kick-button .button-label {
+  color: #ff4757;
+}
+
+.kick-button:active {
+  background: #ff4757;
+}
+
+.kick-button:active .button-label,
+.kick-button:active .button-icon {
+  color: #fff;
+}
+
+/* Hide mobile controls on desktop */
+@media (hover: hover) and (pointer: fine) {
+  .mobile-controls {
+    display: none;
+  }
+}
