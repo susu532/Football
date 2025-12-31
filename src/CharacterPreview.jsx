@@ -79,7 +79,7 @@ export default function CharacterPreview({ character, isSelected, onSelect }) {
       }}
     >
       <div style={{ width: '100%', height: '150px' }}>
-        <Canvas shadows gl={{ outputColorSpace: THREE.SRGBColorSpace }}>
+        <Canvas shadows>
           <Suspense fallback={null}>
             <CharacterScene character={character} isSelected={isSelected} />
           </Suspense>
