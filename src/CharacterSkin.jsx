@@ -4,9 +4,6 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import * as CANNON from 'cannon-es'
 
-// Single player model path (cat model for all players)
-const PLAYER_MODEL_PATH = '/models/cat.glb'
-
 const CharacterSkin = forwardRef(function CharacterSkin({ 
   position = [0, 0, 0], 
   teamColor = '#888',
@@ -18,10 +15,20 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   onPowerUpActive = null,
   isFreeLook = null,
   mobileInput = null, // { move: {x, y}, jump: bool, kick: bool }
+  characterType = 'cat',
   children 
 }, ref) {
   const groupRef = useRef()
   
+  // Determine model path based on character type
+  const PLAYER_MODEL_PATH = characterType === 'cat' ? '/models/cat.glb' : '/models/low_poly_car.glb'
+  
+  // Character scaling: cat uses 0.01, car uses 0.15
+  const characterScale = characterType === 'cat' ? 0.01 : 0.15
+  
+  // Position offset to match cat height (car may need different base position)
+  const positionOffset = characterType === 'car' ? [0, 0.2, 0] : [0, 0, 0]
+   
   // Power-up effects state
   const effects = useRef({
     speed: 0.8,
@@ -34,7 +41,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   // Get camera for relative movement
   const { camera } = useThree()
   
-  // Load the GLB model
+  // Load the GLB model dynamically based on character type
   const { scene } = useGLTF(PLAYER_MODEL_PATH)
   
   // Clone the scene to avoid sharing state between instances
@@ -464,8 +471,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   })
   
   return (
-    <group ref={groupRef} position={position}>
-      <primitive object={clonedScene} scale={0.01} position={[0, 0, 0]} />
+    <group ref={groupRef} position={[position[0] + positionOffset[0], position[1] + positionOffset[1], position[2] + positionOffset[2]]}>
+      <primitive object={clonedScene} scale={characterScale} position={[0, 0, 0]} />
       {children}
     </group>
   )

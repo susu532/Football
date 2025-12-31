@@ -877,7 +877,7 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null, mobileInput = null }) {
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null, mobileInput = null, characterType = 'cat' }) {
   // Callback when player kicks the ball - send update to server
   const handleKick = () => {
     if (socket && ballBody) {
@@ -937,7 +937,8 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
       team: playerTeam,
       color: teamColor,
       invisible, // Send invisible state
-      giant // Send giant state
+      giant, // Send giant state
+      character: characterType // Send character type
     })
   })
 
@@ -965,6 +966,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
         onPowerUpActive={onPowerUpActive}
         isFreeLook={isFreeLook}
         mobileInput={mobileInput}
+        characterType={characterType}
       />
       {/* Name label follows player position */}
       {playerName && (
@@ -1045,7 +1047,7 @@ function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, play
 // Single player model path for all players (cat model)
 const PLAYER_MODEL_PATH = '/models/cat.glb'
 
-function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '', invisible = false, giant = false }) {
+function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '', invisible = false, giant = false, character = 'cat' }) {
   // Physics body for remote player
   const [body] = useState(() => createPlayerBody(position))
   const groupRef = useRef()
@@ -1064,7 +1066,9 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   }, [body, giant])
 
   // Load GLB model for remote player
-  const { scene } = useGLTF(PLAYER_MODEL_PATH)
+  const playerModelPath = character === 'cat' ? '/models/cat.glb' : '/models/low_poly_car.glb'
+  const characterScale = character === 'cat' ? 0.01 : 0.15
+  const { scene } = useGLTF(playerModelPath)
   
   const clonedScene = React.useMemo(() => {
     const cloned = scene.clone()
@@ -1142,8 +1146,8 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   })
 
   return (
-    <group ref={groupRef} position={position}>
-      <primitive object={clonedScene} scale={0.01} position={[0, 0, 0]} />
+    <group ref={groupRef} position={[position[0], position[1] + (character === 'car' ? 0.2 : 0), position[2]]}>
+      <primitive object={clonedScene} scale={characterScale} position={[0, 0, 0]} />
       {playerName && !invisible && ( // Hide name label if invisible
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>
           <div className={`player-name-label ${team}`}>{playerName}</div>
@@ -1161,6 +1165,7 @@ export default function Scene() {
   const playerName = useStore((s) => s.playerName)
   const playerTeam = useStore((s) => s.playerTeam)
   const roomId = useStore((s) => s.roomId)
+  const playerCharacter = useStore((s) => s.playerCharacter)
   const leaveGame = useStore((s) => s.leaveGame)
 
   const playerRef = useRef()
@@ -1280,10 +1285,10 @@ export default function Scene() {
   // Handle joining room
   useEffect(() => {
     if (socket && hasJoined && roomId) {
-      console.log("Joining room:", roomId)
-      socket.emit('join-room', { roomId })
+      console.log("Joining room:", roomId, "with character:", playerCharacter)
+      socket.emit('join-room', { roomId, character: playerCharacter })
     }
-  }, [socket, hasJoined, roomId])
+  }, [socket, hasJoined, roomId, playerCharacter])
 
   // Socket event listeners
   useEffect(() => {
@@ -1307,8 +1312,8 @@ export default function Scene() {
     socket.on('player-joined', (player) => {
       setRemotePlayers((prev) => ({ ...prev, [player.id]: player }))
     })
-    socket.on('player-move', ({ id, position, rotation, name, team, color, invisible, giant }) => {
-      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color, invisible, giant } } : prev)
+    socket.on('player-move', ({ id, position, rotation, name, team, color, invisible, giant, character }) => {
+      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color, invisible, giant, character } } : prev)
     })
     socket.on('player-left', (id) => {
       setRemotePlayers((prev) => {
@@ -1732,13 +1737,14 @@ export default function Scene() {
             onPowerUpActive={handlePowerUpActive}
             isFreeLook={isFreeLook}
             mobileInput={mobileInput}
+            characterType={playerCharacter}
           />
           {Object.entries(remotePlayers)
             .filter(([id]) => id !== playerId)
             .filter(([_, p]) => p.position && p.position[0] !== undefined)
             .filter(([_, p]) => !(p.position[0] === 0 && p.position[2] === 0))
             .map(([id, p]) => (
-              <RemotePlayerWithPhysics 
+            <RemotePlayerWithPhysics 
                 key={id} 
                 id={id} 
                 position={p.position} 
@@ -1748,6 +1754,7 @@ export default function Scene() {
                 team={p.team} 
                 invisible={p.invisible}
                 giant={p.giant}
+                character={p.character || 'cat'}
               />
             ))}
           <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />

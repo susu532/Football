@@ -478,6 +478,30 @@ html,
   }
 }
 
+/* Character Selection */
+.character-buttons {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+}
+
+.character-preview-card {
+  cursor: pointer;
+  transition: all 0.3s ease;
+  overflow: hidden;
+}
+
+.character-preview-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+}
+
+.character-preview-card.selected {
+  border-color: #00d2d3 !important;
+  background: rgba(0, 210, 211, 0.15) !important;
+  box-shadow: 0 0 20px rgba(0, 210, 211, 0.4);
+}
+
 /* Responsive adjustments for smaller phones */
 @media (max-width: 400px) {
   .joystick-base {

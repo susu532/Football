@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import useStore from './store'
+import CharacterPreview from './CharacterPreview'
 
 // Random name generator
 const adjectives = ['Swift', 'Thunder', 'Shadow', 'Blaze', 'Storm', 'Frost', 'Iron', 'Steel', 'Phantom', 'Cyber', 'Nova', 'Turbo', 'Mega', 'Ultra', 'Epic']
@@ -15,9 +16,16 @@ function generateRandomName() {
 export default function TeamSelectPopup() {
   const joinGame = useStore((s) => s.joinGame)
   const hasJoined = useStore((s) => s.hasJoined)
+  const setPlayerCharacter = useStore((s) => s.setPlayerCharacter)
   
   const [selectedTeam, setSelectedTeam] = useState(null)
   const [selectedRoom, setSelectedRoom] = useState('room1')
+  const [selectedCharacter, setSelectedCharacter] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('playerCharacter') || 'cat'
+    }
+    return 'cat'
+  })
   const [playerName, setPlayerName] = useState('')
   
   useEffect(() => {
@@ -26,6 +34,14 @@ export default function TeamSelectPopup() {
   
   if (hasJoined) return null
   
+  const handleCharacterSelect = (character) => {
+    setSelectedCharacter(character)
+    setPlayerCharacter(character)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('playerCharacter', character)
+    }
+  }
+
   const handleJoin = () => {
     if (!selectedTeam) {
       alert('Please select a team!')
@@ -35,7 +51,7 @@ export default function TeamSelectPopup() {
       alert('Please enter a name!')
       return
     }
-    joinGame(playerName.trim(), selectedTeam, selectedRoom)
+    joinGame(playerName.trim(), selectedTeam, selectedRoom, selectedCharacter)
   }
   
   return (
@@ -125,8 +141,28 @@ export default function TeamSelectPopup() {
                 <span className="team-name">Blue Team</span>
                 
               </button>
+          </div>
+           
+          </div>
+          
+          <div className="team-select-section">
+            <h2>Choose Your Character</h2>
+            <div className="character-buttons" style={{ 
+              display: 'flex',
+              gap: '20px', 
+              justifyContent: 'center'
+            }}>
+              <CharacterPreview 
+                character="cat" 
+                isSelected={selectedCharacter === 'cat'} 
+                onSelect={handleCharacterSelect}
+              />
+              <CharacterPreview 
+                character="car" 
+                isSelected={selectedCharacter === 'car'} 
+                onSelect={handleCharacterSelect}
+              />
             </div>
-            
           </div>
           
           <div className="team-select-section">
