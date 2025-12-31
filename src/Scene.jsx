@@ -905,8 +905,10 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     }
   })
 
-  // Send player movement to server with player data
+  // Send player movement to server with change detection
   const lastUpdate = useRef(0)
+  const lastMoveData = useRef(null)
+  
   useFrame((state) => {
     if (!socket || !playerId || !playerRef.current) return
     
@@ -920,6 +922,54 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     // Read invisible and giant state from userData (set by CharacterSkin)
     const invisible = playerRef.current.userData?.invisible || false
     const giant = playerRef.current.userData?.giant || false
+    
+    // Build move data
+    const moveData = {
+      position: [pos.x, pos.y, pos.z],
+      rotation: rot,
+      name: playerName,
+      team: playerTeam,
+      color: teamColor,
+      invisible,
+      giant,
+      character: characterType
+    }
+    
+    // Only send changed data to reduce bandwidth
+    const changes = {}
+    if (!lastMoveData.current) {
+      // First update, send everything
+      socket.emit('move', moveData)
+      lastMoveData.current = moveData
+      return
+    }
+    
+    // Check which fields changed
+    if (lastMoveData.current.position[0] !== moveData.position[0] ||
+        lastMoveData.current.position[1] !== moveData.position[1] ||
+        lastMoveData.current.position[2] !== moveData.position[2]) {
+      changes.position = moveData.position
+    }
+    
+    if (lastMoveData.current.rotation !== moveData.rotation) {
+      changes.rotation = moveData.rotation
+    }
+    
+    if (lastMoveData.current.invisible !== moveData.invisible) {
+      changes.invisible = moveData.invisible
+    }
+    
+    if (lastMoveData.current.giant !== moveData.giant) {
+      changes.giant = moveData.giant
+    }
+    
+    // Include ID for reference
+    if (Object.keys(changes).length > 0) {
+      changes.id = playerId
+      socket.emit('move', changes)
+    }
+    
+    lastMoveData.current = moveData
     
     // Update physics body radius dynamically
     if (body && body.shapes.length > 0) {
@@ -1058,7 +1108,6 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   const groupRef = useRef()
   const targetPosition = useRef(new THREE.Vector3(...position))
   const targetRotation = useRef(rotation)
-  const isInitialized = useRef(false)
   
   // Update physics body radius for remote players
   useEffect(() => {
@@ -1122,25 +1171,13 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
 
   // Update target when new position comes in
   useEffect(() => {
-    // Teleport if distance is too large (> 5 units) or if not initialized
-    const currentPos = groupRef.current ? groupRef.current.position : new THREE.Vector3(...position)
-    const dist = currentPos.distanceTo(new THREE.Vector3(...position))
-    
-    if (!isInitialized.current || dist > 5) {
-      if (groupRef.current) {
-        groupRef.current.position.set(position[0], position[1], position[2])
-        groupRef.current.rotation.y = rotation
-      }
-      isInitialized.current = true
-    }
-    
     targetPosition.current.set(position[0], position[1], position[2])
     targetRotation.current = rotation
   }, [position, rotation])
 
   // Smoothly interpolate towards target position
   useFrame((_, delta) => {
-    if (groupRef.current && isInitialized.current) {
+    if (groupRef.current) {
       // Use damp for time-based smoothing (independent of frame rate)
       // Lambda 15 gives a good balance of smoothness and responsiveness
       const lambda = 15
@@ -1164,12 +1201,8 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   })
 
   return (
-    <group ref={groupRef}>
-      <primitive 
-        object={clonedScene} 
-        scale={characterScale} 
-        position={[0, character === 'car' ? 0.01 : 0, 0]} 
-      />
+    <group ref={groupRef} position={[position[0], position[1] + (character === 'car' ? 0.2 : 0), position[2]]}>
+      <primitive object={clonedScene} scale={characterScale} position={[0, 0, 0]} />
       {playerName && !invisible && ( // Hide name label if invisible
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>
           <div className={`player-name-label ${team}`}>{playerName}</div>
