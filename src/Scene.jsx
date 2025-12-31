@@ -1058,6 +1058,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   const groupRef = useRef()
   const targetPosition = useRef(new THREE.Vector3(...position))
   const targetRotation = useRef(rotation)
+  const isInitialized = useRef(false)
   
   // Update physics body radius for remote players
   useEffect(() => {
@@ -1121,13 +1122,25 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
 
   // Update target when new position comes in
   useEffect(() => {
+    // Teleport if distance is too large (> 5 units) or if not initialized
+    const currentPos = groupRef.current ? groupRef.current.position : new THREE.Vector3(...position)
+    const dist = currentPos.distanceTo(new THREE.Vector3(...position))
+    
+    if (!isInitialized.current || dist > 5) {
+      if (groupRef.current) {
+        groupRef.current.position.set(position[0], position[1], position[2])
+        groupRef.current.rotation.y = rotation
+      }
+      isInitialized.current = true
+    }
+    
     targetPosition.current.set(position[0], position[1], position[2])
     targetRotation.current = rotation
   }, [position, rotation])
 
   // Smoothly interpolate towards target position
   useFrame((_, delta) => {
-    if (groupRef.current) {
+    if (groupRef.current && isInitialized.current) {
       // Use damp for time-based smoothing (independent of frame rate)
       // Lambda 15 gives a good balance of smoothness and responsiveness
       const lambda = 15
@@ -1151,8 +1164,8 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   })
 
   return (
-    <group ref={groupRef} position={[position[0], position[1] + (character === 'car' ? 0.2 : 0), position[2]]}>
-      <primitive object={clonedScene} scale={characterScale} position={[0, 0, 0]} />
+    <group ref={groupRef}>
+      <primitive object={clonedScene} scale={characterScale} position={[0, character === 'car' ? 0.2 : 0, 0]} />
       {playerName && !invisible && ( // Hide name label if invisible
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>
           <div className={`player-name-label ${team}`}>{playerName}</div>
