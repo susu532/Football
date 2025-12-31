@@ -7,7 +7,7 @@ function CharacterModel({ modelPath, character, isSelected }) {
   const groupRef = useRef()
   const { scene } = useGLTF(modelPath)
   
-  const characterScale = character === 'cat' ? 0.01 : 0.15
+  const characterScale = character === 'cat' ? 0.05 : 0.005
   
   const clonedScene = React.useMemo(() => {
     const cloned = scene.clone()

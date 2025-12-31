@@ -24,7 +24,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   const PLAYER_MODEL_PATH = characterType === 'cat' ? '/models/cat.glb' : '/models/low_poly_car.glb'
   
   // Character scaling: cat uses 0.01, car uses 0.15
-  const characterScale = characterType === 'cat' ? 0.01 : 0.0015
+  const characterScale = characterType === 'cat' ? 0.01 : 0.0010
   
   // Position offset to match cat height (car may need different base position)
   const positionOffset = characterType === 'car' ? [0, 0.2, 0] : [0, 0, 0]
@@ -145,7 +145,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     groupRef.current.userData.giant = effects.current.giant
     
     // Apply Giant Scaling
-    const targetScale = effects.current.giant ? 10.0 : 1.0
+    const targetScale = effects.current.giant ? 8.0 : 1.0
     groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
     
     // Update local visual opacity
