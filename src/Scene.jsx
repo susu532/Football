@@ -1223,10 +1223,14 @@ export default function Scene() {
 
   // Connect to socket.io server
   useEffect(() => {
+    if (!hasJoined) return
     const s = io('https://socket-rox7.onrender.com')
     setSocket(s)
-    return () => s.disconnect()
-  }, [ballBody])
+    return () => {
+      s.disconnect()
+      setSocket(null)
+    }
+  }, [hasJoined, ballBody])
 
   // Handle joining room
   useEffect(() => {
@@ -1880,8 +1884,12 @@ export default function Scene() {
               <button
                 onClick={() => {
                   setShowExitConfirm(false);
+                  if (socket) {
+                    socket.emit('leave-room', { roomId });
+                    socket.disconnect();
+                  }
+                  setScores({ red: 0, blue: 0 }); // Reset local scores
                   leaveGame();
-                  if (socket) socket.disconnect();
                 }}
                 style={{
                   flex: 1,
