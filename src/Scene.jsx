@@ -905,8 +905,10 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     }
   })
 
-  // Send player movement to server with player data
+  // Send player movement to server with change detection
   const lastUpdate = useRef(0)
+  const lastMoveData = useRef(null)
+  
   useFrame((state) => {
     if (!socket || !playerId || !playerRef.current) return
     
@@ -920,6 +922,54 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     // Read invisible and giant state from userData (set by CharacterSkin)
     const invisible = playerRef.current.userData?.invisible || false
     const giant = playerRef.current.userData?.giant || false
+    
+    // Build move data
+    const moveData = {
+      position: [pos.x, pos.y, pos.z],
+      rotation: rot,
+      name: playerName,
+      team: playerTeam,
+      color: teamColor,
+      invisible,
+      giant,
+      character: characterType
+    }
+    
+    // Only send changed data to reduce bandwidth
+    const changes = {}
+    if (!lastMoveData.current) {
+      // First update, send everything
+      socket.emit('move', moveData)
+      lastMoveData.current = moveData
+      return
+    }
+    
+    // Check which fields changed
+    if (lastMoveData.current.position[0] !== moveData.position[0] ||
+        lastMoveData.current.position[1] !== moveData.position[1] ||
+        lastMoveData.current.position[2] !== moveData.position[2]) {
+      changes.position = moveData.position
+    }
+    
+    if (lastMoveData.current.rotation !== moveData.rotation) {
+      changes.rotation = moveData.rotation
+    }
+    
+    if (lastMoveData.current.invisible !== moveData.invisible) {
+      changes.invisible = moveData.invisible
+    }
+    
+    if (lastMoveData.current.giant !== moveData.giant) {
+      changes.giant = moveData.giant
+    }
+    
+    // Include ID for reference
+    if (Object.keys(changes).length > 0) {
+      changes.id = playerId
+      socket.emit('move', changes)
+    }
+    
+    lastMoveData.current = moveData
     
     // Update physics body radius dynamically
     if (body && body.shapes.length > 0) {

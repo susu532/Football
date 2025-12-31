@@ -101,6 +101,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   const verticalVelocity = useRef(0)
   const isOnGround = useRef(true)
   const jumpCount = useRef(0) // Track number of jumps
+  const lastPosition = useRef(new THREE.Vector3()) // Track position for movement check
   
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -277,19 +278,43 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, moveDir.x * speed, 0.15)
     velocity.current.z = THREE.MathUtils.lerp(velocity.current.z, moveDir.z * speed, 0.15)
 
-    // Player-Player Collision Detection
+    // Player-Player Collision Detection (optimized)
     const nextX = groupRef.current.position.x + velocity.current.x * delta
     const nextZ = groupRef.current.position.z + velocity.current.z * delta
     
-    Object.values(remotePlayers).forEach(p => {
-      // Skip invalid players or players near center (uninitialized)
-      if (!p.position) return
-      // Skip players near center (within 1 unit of origin on X/Z plane)
-      if (Math.abs(p.position[0]) < 1 && Math.abs(p.position[2]) < 1) return
-      
+    // Early exit: Check if player is moving
+    const movementSpeed = groupRef.current.position.distanceTo(lastPosition.current)
+    if (movementSpeed < 0.01) {
+      // Player is stationary, skip collision check
+      return
+    }
+    
+    // Distance pre-filter: Sort players by distance and check only nearest 5
+    const nearbyPlayers = Object.values(remotePlayers)
+      .filter(p => {
+        // Skip invalid players or players near center (uninitialized)
+        if (!p.position) return false
+        // Skip players near center (within 1 unit of origin on X/Z plane)
+        if (Math.abs(p.position[0]) < 1 && Math.abs(p.position[2]) < 1) return false
+        
+        const dx = nextX - p.position[0]
+        const dz = nextZ - p.position[2]
+        const dist = Math.sqrt(dx*dx + dz*dz)
+        return dist < 5 // Pre-filter: only consider players within 5 units
+      })
+      .map(p => ({
+        p,
+        dist: Math.sqrt(
+          Math.pow(nextX - p.position[0], 2) +
+          Math.pow(nextZ - p.position[2], 2)
+        )
+      }))
+      .sort((a, b) => a.dist - b.dist)
+      .slice(0, 5) // Only check 5 nearest players
+    
+    nearbyPlayers.forEach(({ p, dist }) => {
       const dx = nextX - p.position[0]
       const dz = nextZ - p.position[2]
-      const dist = Math.sqrt(dx*dx + dz*dz)
       const minDist = playerRadius * 2 // 0.5 + 0.5
       
       if (dist < minDist) {
@@ -299,6 +324,9 @@ const CharacterSkin = forwardRef(function CharacterSkin({
         
       }
     })
+    
+    // Update last position for next frame
+    lastPosition.current.copy(groupRef.current.position)
 
     // Active Dribble: Push ball further when moving into it
     if (ballBody) {
