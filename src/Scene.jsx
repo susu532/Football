@@ -1366,6 +1366,27 @@ export default function Scene() {
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      {/* Room Name - Top Left */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        left: '20px',
+        zIndex: 9999,
+        background: 'rgba(0,0,0,0.5)',
+        padding: '10px 20px',
+        borderRadius: '12px',
+        color: 'white',
+        fontSize: '18px',
+        fontWeight: 'bold',
+        textTransform: 'uppercase',
+        letterSpacing: '1px',
+        border: '1px solid rgba(255,255,255,0.2)',
+        backdropFilter: 'blur(5px)',
+        pointerEvents: 'none'
+      }}>
+        📍 {roomId.replace('room', 'Room ')}
+      </div>
+
       {/* Scoreboard - outside Canvas, fixed on top */}
       <div style={{ 
         position: 'absolute', 
