@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
+import React, { useRef, useEffect, useState, Suspense, useCallback, lazy } from 'react'
 import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
 import { Html, Sparkles, Stars, Loader, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
@@ -12,6 +12,7 @@ import TeamSelectPopup from './TeamSelectPopup'
 import { PhysicsHandler, GoalDetector } from './GameLogic'
 import { PowerUp, POWER_UP_TYPES } from './PowerUp'
 import MobileControls from './MobileControls'
+import MapComponents from './MapComponents'
 
 // Small Soccer placeholder - replace with real widget/SDK integration
 function openSoccerPlaceholder() {
@@ -734,123 +735,7 @@ function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColor = '#e
   )
 }
 
-// Mystery Shack Environment
-function MysteryShack() {
-  const gltf = useGLTF('/models/gravity_falls.glb')
-  
-  // Clone to avoid issues if used multiple times (though here it's once)
-  const scene = React.useMemo(() => {
-    const cloned = gltf.scene.clone()
-    cloned.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true
-        child.receiveShadow = true
-      }
-    })
-    return cloned
-  }, [gltf.scene])
 
-  return <primitive object={scene} position={[0, -10, 0]} scale={4} />
-}
-
-// Ocean Floor Environment
-function OceanFloor() {
-  const gltf = useGLTF('/models/oceanfloor.glb')
-  const scene = React.useMemo(() => {
-    const cloned = gltf.scene.clone()
-    cloned.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true
-        child.receiveShadow = true
-        // Enhance materials for deep ocean look
-        if (child.material) {
-          child.material = child.material.clone()
-          child.material.emissive = new THREE.Color('#004433')
-          child.material.emissiveIntensity = 0.5
-          child.material.roughness = 0.8
-        }
-      }
-    })
-    return cloned
-  }, [gltf.scene])
-  return <primitive object={scene} position={[0,26, 0]} scale={100} />
-}
-
-// City at Night Environment
-function CityAtNight() {
-  const gltf = useGLTF('/models/city_at_night.glb')
-  const scene = React.useMemo(() => {
-    const cloned = gltf.scene.clone()
-    cloned.traverse((child) => {
-      if (child.isMesh) {
-        child.castShadow = true
-        child.receiveShadow = true
-      }
-    })
-    return cloned
-  }, [gltf.scene])
-  return <primitive object={scene} position={[30, -26.5, -35]} scale={1} />
-}
-
-// Room 4: Cloud Station
-function CloudStation() {
-  const gltf = useGLTF('/maps/cloud_station.glb')
-  return <primitive object={gltf.scene} position={[-20, -20, 0]} scale={20} />
-}
-
-// Room 5: Creek Falls
-function CreekFalls() {
-  const gltf = useGLTF('/maps/creek_falls_world_maps.glb')
-  return <primitive object={gltf.scene} position={[10, 0, -35]} scale={2} />
-}
-
-// Room 6: Soccer Stadium
-function SoccerStadiumMap() {
-  const gltf = useGLTF('/maps_two/soccer_stadium.glb')
-  return <primitive object={gltf.scene} position={[0, -7.5, 0]} scale={0.2} />
-}
-
-// Room 7: Gravity Falls 2
-function GravityFallsMap() {
-  const gltf = useGLTF('/maps/gravity_falls.glb')
-  return <primitive object={gltf.scene} position={[10, 0, -26]} scale={4} />
-}
-
-// Room 8: Minecraft World
-function MinecraftMap() {
-  const gltf = useGLTF('/maps_two/minecraft_world.glb')
-  return <primitive object={gltf.scene} position={[0, -10.5, 0]} scale={80} />
-}
-
-// Room 9: Moon
-function MoonMap() {
-  const gltf = useGLTF('/maps/moon_-_mare_moscoviense.glb')
-  return <primitive object={gltf.scene} position={[0, 33, 0]} scale={0.5} />
-}
-
-// Room 10: Tropical Island
-function TropicalIslandMap() {
-  const gltf = useGLTF('/maps_two/tropical_island.glb')
-  return <primitive object={gltf.scene} position={[0, -2.6, 0]} scale={50} />
-}
-
-// Room 11: Ship in Clouds
-function ShipInClouds() {
-  const gltf = useGLTF('/maps/ship_in_clouds.glb')
-  return <primitive object={gltf.scene} position={[0, -10, 100]} scale={100} />
-}
-
-// Room 12: Desert
-function DesertMap() {
-  const gltf = useGLTF('/maps/stylized_desert_skybox_2.glb')
-  return <primitive object={gltf.scene} position={[0, 0, 0]} scale={50} />
-}
-
-// Room 13: Mario World
-function MarioMap() {
-  const gltf = useGLTF('/maps_two/world_1-1.glb')
-  return <primitive object={gltf.scene} position={[0, 1.4, 0]} scale={50} />
-}
 
 // Soccer Ball (using GLB model)
 const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0], radius = 0.22 }, ref) {
@@ -973,23 +858,12 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     
     // Update physics body radius dynamically
     if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 3.0 : 0.9 // 10x radius if giant
+      const targetRadius = giant ? 3.0 : 0.9
       if (body.shapes[0].radius !== targetRadius) {
         body.shapes[0].radius = targetRadius
         body.updateBoundingRadius()
       }
     }
-    
-    socket.emit('move', { 
-      position: [pos.x, pos.y, pos.z], 
-      rotation: rot,
-      name: playerName,
-      team: playerTeam,
-      color: teamColor,
-      invisible, // Send invisible state
-      giant, // Send giant state
-      character: characterType // Send character type
-    })
   })
 
   // Create a separate ref for the name label that follows the player
@@ -1039,8 +913,9 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
       meshRef.current.quaternion.copy(ballBody.quaternion)
     }
   })
-  // Host sends ball state to server with throttling
+  // Host sends ball state to server with throttling and velocity threshold
   const lastBallUpdate = useRef(0)
+  const lastBallData = useRef(null)
   useFrame((state) => {
     if (!socket || !playerId) return
     if (Object.keys(remotePlayers)[0] === playerId) {
@@ -1049,10 +924,33 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
       lastBallUpdate.current = now
       
       if (ballBody) {
-        socket.emit('ball-update', {
-          position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
-          velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
-        })
+        const ballVelocity = Math.sqrt(
+          ballBody.velocity.x ** 2 +
+          ballBody.velocity.y ** 2 +
+          ballBody.velocity.z ** 2
+        )
+        
+        // Only send update if ball is moving significantly (threshold: 0.1 units/sec)
+        const velocityThreshold = 0.1
+        
+        if (ballVelocity > velocityThreshold) {
+          const ballData = {
+            position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
+            velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
+          }
+          
+          // Check if data actually changed
+          if (!lastBallData.current ||
+              Math.abs(lastBallData.current.position[0] - ballData.position[0]) > 0.01 ||
+              Math.abs(lastBallData.current.position[1] - ballData.position[1]) > 0.01 ||
+              Math.abs(lastBallData.current.position[2] - ballData.position[2]) > 0.01 ||
+              Math.abs(lastBallData.current.velocity[0] - ballData.velocity[0]) > 0.01 ||
+              Math.abs(lastBallData.current.velocity[1] - ballData.velocity[1]) > 0.01 ||
+              Math.abs(lastBallData.current.velocity[2] - ballData.velocity[2]) > 0.01) {
+            socket.emit('ball-update', ballData)
+            lastBallData.current = ballData
+          }
+        }
       }
     }
   })
@@ -1108,6 +1006,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   const groupRef = useRef()
   const targetPosition = useRef(new THREE.Vector3(...position))
   const targetRotation = useRef(rotation)
+  const lastPosition = useRef(new THREE.Vector3(...position))
   
   // Update physics body radius for remote players
   useEffect(() => {
@@ -1223,6 +1122,14 @@ export default function Scene() {
   const playerCharacter = useStore((s) => s.playerCharacter)
   const leaveGame = useStore((s) => s.leaveGame)
 
+  // Adaptive shadow quality based on device
+  const [shadowMapSize, setShadowMapSize] = useState(2048)
+  
+  useEffect(() => {
+    const isMobile = window.innerWidth < 768 || 'ontouchstart' in window
+    setShadowMapSize(isMobile ? 1024 : 2048)
+  }, [])
+
   const playerRef = useRef()
   const targetRef = useRef() // Camera target
   const [hasModel, setHasModel] = useState(false)
@@ -1236,12 +1143,28 @@ export default function Scene() {
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [celebration, setCelebration] = useState(null) // { team: 'red' | 'blue' }
   const [activePowerUps, setActivePowerUps] = useState([])
-  const [activeEffect, setActiveEffect] = useState(null) // { type: 'speed'|'kick'|'jump'|'invisible', label: '⚡' }
+  const [activeEffect, setActiveEffect] = useState(null)
   const chatRef = useRef(null)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const prevScoresRef = useRef({ red: 0, blue: 0 })
   const pitchSize = [30, 0.2, 20]
-  const isFreeLook = useRef(false) // Ref for Free Look mode
+  const isFreeLook = useRef(false)
+  
+  // Connection quality tracking
+  const [connectionQuality, setConnectionQuality] = useState('excellent')
+  const [ping, setPing] = useState(0)
+  const lastPingTime = useRef(0)
+  
+  // Helper function for connection quality color
+  const getConnectionQualityColor = (quality) => {
+    switch(quality) {
+      case 'excellent': return '#00ff00'
+      case 'good': return '#ffff00'
+      case 'fair': return '#ffa500'
+      case 'poor': return '#ff0000'
+      default: return '#888'
+    }
+  }
   
   // Mobile controls state
   const mobileInput = useRef({ move: { x: 0, y: 0 }, jump: false, kick: false })
@@ -1329,9 +1252,42 @@ export default function Scene() {
   // Connect to socket.io server
   useEffect(() => {
     if (!hasJoined) return
-    const s = io('https://socket-rox7.onrender.com')
+    const s = io('https://socket-rox7.onrender.com', {
+      transports: ['websocket', 'polling'],
+      upgrade: true,
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    })
     setSocket(s)
+    
+    // Ping measurement
+    const measurePing = () => {
+      const start = Date.now()
+      s.emit('ping', start)
+    }
+    
+    s.on('pong', (timestamp) => {
+      const pingTime = Date.now() - timestamp
+      setPing(pingTime)
+      
+      // Update connection quality based on ping
+      if (pingTime < 100) {
+        setConnectionQuality('excellent')
+      } else if (pingTime < 200) {
+        setConnectionQuality('good')
+      } else if (pingTime < 300) {
+        setConnectionQuality('fair')
+      } else {
+        setConnectionQuality('poor')
+      }
+    })
+    
+    // Measure ping every 2 seconds
+    const pingInterval = setInterval(measurePing, 2000)
+    
     return () => {
+      clearInterval(pingInterval)
       s.disconnect()
       setSocket(null)
     }
@@ -1390,7 +1346,7 @@ export default function Scene() {
         
         // Play goal sound
         const audio = new Audio('/winner-game-sound-404167.mp3')
-        audio.volume = 0.05
+        audio.volume = 0.03
         audio.play().catch(e => console.error("Audio play failed:", e))
         
         // Stop sound after 2 seconds
@@ -1493,18 +1449,32 @@ export default function Scene() {
         letterSpacing: '1px',
         border: '1px solid rgba(255,255,255,0.2)',
         backdropFilter: 'blur(5px)',
-        pointerEvents: 'none'
+        pointerEvents: 'none',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '5px'
       }}>
-        📍 {roomId.replace('room', 'Room ')}
-        
+        <div>📍 {roomId.replace('room', 'Room ')}</div>
+        <div style={{
+          fontSize: '12px',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '8px'
+        }}>
+          <span style={{ color: getConnectionQualityColor(connectionQuality) }}>
+            ● {connectionQuality.toUpperCase()}
+          </span>
+          <span>{ping}ms</span>
+        </div>
       </div>
+
        <button
           onClick={() => setShowExitConfirm(true)}
           style={{
- position: 'absolute',
-        top: '20px',
-        left: '180px',
-        zIndex: 9999,
+            position: 'absolute',
+            top: '20px',
+            left: '180px',
+            zIndex: 9999,
             background: 'rgba(255,71,87,0.5)',
             border: '1px solid rgba(255,255,255,0.2)',
             borderRadius: '12px',
@@ -1749,8 +1719,8 @@ export default function Scene() {
             intensity={2} 
             color="#fff" 
             castShadow 
-            shadow-mapSize-width={2048} 
-            shadow-mapSize-height={2048}
+            shadow-mapSize-width={shadowMapSize} 
+            shadow-mapSize-height={shadowMapSize}
             shadow-camera-left={-50}
             shadow-camera-right={50}
             shadow-camera-top={50}
@@ -1759,19 +1729,71 @@ export default function Scene() {
           />
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
           <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
-          {roomId === 'room1' && <MysteryShack />}
-          {roomId === 'room2' && <OceanFloor />}
-          {roomId === 'room3' && <CityAtNight />}
-          {roomId === 'room4' && <CloudStation />}
-          {roomId === 'room5' && <CreekFalls />}
-          {roomId === 'room6' && <SoccerStadiumMap />}
-          {roomId === 'room7' && <GravityFallsMap />}
-          {roomId === 'room8' && <MinecraftMap />}
-          {roomId === 'room9' && <MoonMap />}
-          {roomId === 'room10' && <TropicalIslandMap />}
-          {roomId === 'room11' && <ShipInClouds />}
-          {roomId === 'room12' && <DesertMap />}
-          {roomId === 'room13' && <MarioMap />}
+          {roomId === 'room1' && (
+            <Suspense fallback={null}>
+              <MapComponents.MysteryShack />
+            </Suspense>
+          )}
+          {roomId === 'room2' && (
+            <Suspense fallback={null}>
+              <MapComponents.OceanFloor />
+            </Suspense>
+          )}
+          {roomId === 'room3' && (
+            <Suspense fallback={null}>
+              <MapComponents.CityAtNight />
+            </Suspense>
+          )}
+          {roomId === 'room4' && (
+            <Suspense fallback={null}>
+              <MapComponents.CloudStation />
+            </Suspense>
+          )}
+          {roomId === 'room5' && (
+            <Suspense fallback={null}>
+              <MapComponents.CreekFalls />
+            </Suspense>
+          )}
+          {roomId === 'room6' && (
+            <Suspense fallback={null}>
+              <MapComponents.SoccerStadiumMap />
+            </Suspense>
+          )}
+          {roomId === 'room7' && (
+            <Suspense fallback={null}>
+              <MapComponents.GravityFallsMap />
+            </Suspense>
+          )}
+          {roomId === 'room8' && (
+            <Suspense fallback={null}>
+              <MapComponents.MinecraftMap />
+            </Suspense>
+          )}
+          {roomId === 'room9' && (
+            <Suspense fallback={null}>
+              <MapComponents.MoonMap />
+            </Suspense>
+          )}
+          {roomId === 'room10' && (
+            <Suspense fallback={null}>
+              <MapComponents.TropicalIslandMap />
+            </Suspense>
+          )}
+          {roomId === 'room11' && (
+            <Suspense fallback={null}>
+              <MapComponents.ShipInClouds />
+            </Suspense>
+          )}
+          {roomId === 'room12' && (
+            <Suspense fallback={null}>
+              <MapComponents.DesertMap />
+            </Suspense>
+          )}
+          {roomId === 'room13' && (
+            <Suspense fallback={null}>
+              <MapComponents.MarioMap />
+            </Suspense>
+          )}
           <SoccerPitch size={pitchSize} />
           <SoccerGoal position={[11, 0.1, 0]} rotation={[0, -Math.PI / 1, 0]} netColor={teamColors.blue} />
           <SoccerGoal position={[-11, 0.1, 0]} rotation={[0, Math.PI / 0.5, 0]} netColor={teamColors.red} />

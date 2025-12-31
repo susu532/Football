@@ -50,13 +50,13 @@ export function createWorld() {
   if (world) return world
 
   world = new CANNON.World()
-  world.gravity.set(0, -9.81, 0) // Increased gravity for "heavier" ball feel (was -9.81)
+  world.gravity.set(0, -9.81, 0)
   
   // S-tier broadphase for performance
   world.broadphase = new CANNON.SAPBroadphase(world)
   
-  // Higher solver iterations for stable physics
-  world.solver.iterations = 20
+  // Reduced solver iterations for better performance on low-end devices
+  world.solver.iterations = 10
   world.solver.tolerance = 0.001
   
   // Disable sleeping for responsive ball
@@ -93,9 +93,9 @@ export function getWorld() {
   return world || createWorld()
 }
 
-// Sub-stepping physics for stability - S-tier precision
-const fixedTimeStep = 1 / 120   // 120 Hz physics
-const maxSubSteps = 8           // More substeps for accuracy
+// Sub-stepping physics for stability - optimized for performance
+const fixedTimeStep = 1 / 60   // 60 Hz physics (reduced from 120 for better performance)
+const maxSubSteps = 4           // Reduced substeps for CPU efficiency
 
 export function stepWorld(dt = 1 / 60) {
   if (world) {
