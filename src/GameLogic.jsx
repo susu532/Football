@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { stepWorld } from './physics'
 
@@ -10,12 +10,21 @@ export function PhysicsHandler() {
 }
 
 export function GoalDetector({ ballBody, socket, playerId, remotePlayers, pitchSize }) {
+  // Cache host determination to avoid sorting every frame
+  const hostCache = useRef(null)
+  const lastPlayerCount = useRef(0)
+  
   useFrame(() => {
     if (!ballBody || !socket || !playerId) return
     
-    // Determine host (lowest ID)
-    const allIds = [playerId, ...Object.keys(remotePlayers)].sort()
-    const isHost = allIds[0] === playerId
+    // Only recalculate host when player count changes
+    const playerCount = Object.keys(remotePlayers).length + 1
+    if (playerCount !== lastPlayerCount.current || hostCache.current === null) {
+      const allIds = [playerId, ...Object.keys(remotePlayers)].sort()
+      hostCache.current = allIds[0] === playerId
+      lastPlayerCount.current = playerCount
+    }
+    const isHost = hostCache.current
 
     if (isHost) {
       const { x, y, z } = ballBody.position
