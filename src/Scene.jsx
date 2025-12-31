@@ -989,10 +989,15 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
       meshRef.current.quaternion.copy(ballBody.quaternion)
     }
   })
-  // Host sends ball state to server
-  useFrame(() => {
+  // Host sends ball state to server with throttling
+  const lastBallUpdate = useRef(0)
+  useFrame((state) => {
     if (!socket || !playerId) return
     if (Object.keys(remotePlayers)[0] === playerId) {
+      const now = state.clock.getElapsedTime()
+      if (now - lastBallUpdate.current < 0.033) return
+      lastBallUpdate.current = now
+      
       if (ballBody) {
         socket.emit('ball-update', {
           position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
