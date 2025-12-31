@@ -326,3 +326,177 @@ html,
 .player-name-label.blue {
   border-bottom: 3px solid #3742fa;
 }
+
+/* Mobile Controls */
+.mobile-controls {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  z-index: 10000;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  padding: 20px;
+  padding-bottom: max(20px, env(safe-area-inset-bottom));
+}
+
+/* Joystick Container */
+.joystick-container {
+  pointer-events: auto;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.joystick-base {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.15), rgba(255,255,255,0.05));
+  border: 2px solid rgba(255,255,255,0.2);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,0.3),
+    inset 0 2px 4px rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.joystick-knob {
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #00d2d3, #54a0ff);
+  border: 2px solid rgba(255,255,255,0.5);
+  box-shadow: 
+    0 4px 15px rgba(0,210,211,0.5),
+    inset 0 2px 4px rgba(255,255,255,0.3);
+  transition: transform 0.05s ease-out;
+  position: absolute;
+}
+
+.joystick-knob::after {
+  content: '';
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.4);
+}
+
+/* Action Buttons Container */
+.action-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  pointer-events: auto;
+}
+
+/* Action Button Base */
+.action-button {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.3);
+  background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.2), rgba(255,255,255,0.05));
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 
+    0 8px 32px rgba(0,0,0,0.3),
+    inset 0 2px 4px rgba(255,255,255,0.1);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  touch-action: manipulation;
+  user-select: none;
+  -webkit-user-select: none;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action-button:active {
+  transform: scale(0.9);
+  box-shadow: 
+    0 4px 16px rgba(0,0,0,0.4),
+    inset 0 2px 8px rgba(0,0,0,0.2);
+}
+
+.button-icon {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.button-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: white;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-top: 4px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* Kick Button Specific */
+.kick-button {
+  background: linear-gradient(135deg, rgba(255,71,87,0.4), rgba(255,107,129,0.2));
+  border-color: rgba(255,71,87,0.5);
+}
+
+.kick-button:active {
+  background: linear-gradient(135deg, rgba(255,71,87,0.7), rgba(255,107,129,0.5));
+  box-shadow: 
+    0 4px 20px rgba(255,71,87,0.6),
+    inset 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Jump Button Specific */
+.jump-button {
+  background: linear-gradient(135deg, rgba(0,210,211,0.4), rgba(84,160,255,0.2));
+  border-color: rgba(0,210,211,0.5);
+}
+
+.jump-button:active {
+  background: linear-gradient(135deg, rgba(0,210,211,0.7), rgba(84,160,255,0.5));
+  box-shadow: 
+    0 4px 20px rgba(0,210,211,0.6),
+    inset 0 2px 8px rgba(0,0,0,0.2);
+}
+
+/* Hide mobile controls on desktop */
+@media (hover: hover) and (pointer: fine) {
+  .mobile-controls {
+    display: none;
+  }
+}
+
+/* Responsive adjustments for smaller phones */
+@media (max-width: 400px) {
+  .joystick-base {
+    width: 100px;
+    height: 100px;
+  }
+  
+  .joystick-knob {
+    width: 40px;
+    height: 40px;
+  }
+  
+  .action-button {
+    width: 70px;
+    height: 70px;
+  }
+  
+  .button-icon {
+    font-size: 24px;
+  }
+}
+

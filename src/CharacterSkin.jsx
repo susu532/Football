@@ -17,6 +17,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   onCollectPowerUp = null,
   onPowerUpActive = null,
   isFreeLook = null,
+  mobileInput = null, // { move: {x, y}, jump: bool, kick: bool }
   children 
 }, ref) {
   const groupRef = useRef()
@@ -201,6 +202,37 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     if (keys.current['a'] || keys.current['q'] || keys.current['arrowleft']) inputX -= 1
     if (keys.current['d'] || keys.current['arrowright']) inputX += 1
     
+    let kickRequested = keys.current['f']
+    
+    // Mobile joystick input (overrides keyboard if present)
+    if (mobileInput && mobileInput.current) {
+      const mobile = mobileInput.current
+      if (mobile.move && (mobile.move.x !== 0 || mobile.move.y !== 0)) {
+        inputX = mobile.move.x
+        inputZ = -mobile.move.y // Invert for camera-relative movement
+      }
+      
+      // Mobile jump
+      if (mobile.jump) {
+        const baseJumpForce = 8 * effects.current.jump
+        if (isOnGround.current) {
+          verticalVelocity.current = baseJumpForce
+          isOnGround.current = false
+          jumpCount.current = 1
+        } else if (jumpCount.current < 2) {
+          verticalVelocity.current = baseJumpForce * 0.8
+          jumpCount.current = 2
+        }
+        mobile.jump = false // Reset
+      }
+      
+      // Mobile kick
+      if (mobile.kick) {
+        kickRequested = true
+        mobile.kick = false // Reset
+      }
+    }
+    
     // Get camera direction (horizontal only)
     const cameraForward = new THREE.Vector3()
     camera.getWorldDirection(cameraForward)
@@ -301,7 +333,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     // Jump logic moved to handleKeyDown
     
     // Power Kick with F key
-    if (keys.current['f'] && ballBody) {
+    if (kickRequested && ballBody) {
       const playerPos = groupRef.current.position
       const ballPos = ballBody.position
       

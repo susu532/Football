@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, Suspense } from 'react'
+import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
 import { Html, Sparkles, Stars, Loader, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
@@ -11,6 +11,7 @@ import { io } from 'socket.io-client'
 import TeamSelectPopup from './TeamSelectPopup'
 import { PhysicsHandler, GoalDetector } from './GameLogic'
 import { PowerUp, POWER_UP_TYPES } from './PowerUp'
+import MobileControls from './MobileControls'
 
 // Small Soccer placeholder - replace with real widget/SDK integration
 function openSoccerPlaceholder() {
@@ -28,7 +29,7 @@ function Platform({ position = [0, 0, 0], size = [4, 0.5, 2], color = '#6b8e23' 
   )
 }
 
-function CameraController({ targetRef, isFreeLook }) {
+function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
   const { camera } = useThree()
   const orbit = useRef({
     azimuth: 0,
@@ -39,6 +40,14 @@ function CameraController({ targetRef, isFreeLook }) {
     lastX: 0,
     lastY: 0,
   })
+  
+  // Expose orbit ref for external control (mobile swipe)
+  useEffect(() => {
+    if (cameraOrbit) {
+      cameraOrbit.current = orbit.current
+    }
+  }, [cameraOrbit])
+
 
   useEffect(() => {
     const onPointerDown = (e) => {
@@ -859,7 +868,7 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null }) {
+function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], remotePlayers = {}, ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null, mobileInput = null }) {
   // Callback when player kicks the ball - send update to server
   const handleKick = () => {
     if (socket && ballBody) {
@@ -946,6 +955,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
         onCollectPowerUp={onCollectPowerUp}
         onPowerUpActive={onPowerUpActive}
         isFreeLook={isFreeLook}
+        mobileInput={mobileInput}
       />
       {/* Name label follows player position */}
       {playerName && (
@@ -1163,6 +1173,32 @@ export default function Scene() {
   const prevScoresRef = useRef({ red: 0, blue: 0 })
   const pitchSize = [30, 0.2, 20]
   const isFreeLook = useRef(false) // Ref for Free Look mode
+  
+  // Mobile controls state
+  const mobileInput = useRef({ move: { x: 0, y: 0 }, jump: false, kick: false })
+  const cameraOrbit = useRef(null) // Reference to camera orbit state
+  
+  // Mobile control callbacks
+  const handleMobileMove = useCallback((x, y) => {
+    mobileInput.current.move = { x, y }
+  }, [])
+  
+  const handleMobileJump = useCallback(() => {
+    mobileInput.current.jump = true
+  }, [])
+  
+  const handleMobileKick = useCallback(() => {
+    mobileInput.current.kick = true
+  }, [])
+  
+  const handleMobileCameraMove = useCallback((dx, dy) => {
+    // Apply camera rotation like mouse drag
+    if (cameraOrbit.current) {
+      cameraOrbit.current.azimuth -= dx * 0.01
+      cameraOrbit.current.polar -= dy * 0.01
+      cameraOrbit.current.polar = Math.max(0.2, Math.min(Math.PI / 2, cameraOrbit.current.polar))
+    }
+  }, [])
   
   // Power-up Spawning Logic
   useEffect(() => {
@@ -1686,6 +1722,7 @@ export default function Scene() {
             onCollectPowerUp={handleCollectPowerUp}
             onPowerUpActive={handlePowerUpActive}
             isFreeLook={isFreeLook}
+            mobileInput={mobileInput}
           />
           {Object.entries(remotePlayers)
             .filter(([id]) => id !== playerId)
@@ -1704,7 +1741,7 @@ export default function Scene() {
                 giant={p.giant}
               />
             ))}
-          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} />
+          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
           {activePowerUps.map(p => (
             <PowerUp 
               key={p.id} 
@@ -1715,6 +1752,16 @@ export default function Scene() {
         </Suspense>
       </Canvas>
       <Loader />
+      
+      {/* Mobile Controls - Only visible on touch devices */}
+      {hasJoined && (
+        <MobileControls 
+          onMove={handleMobileMove}
+          onJump={handleMobileJump}
+          onKick={handleMobileKick}
+          onCameraMove={handleMobileCameraMove}
+        />
+      )}
       
       {/* Chat Box - Bottom Right */}
       <div style={{
