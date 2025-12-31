@@ -98,7 +98,11 @@ export default function MobileControls({
     if (isDraggingRef.current) return
 
     // Only handle single touch not on controls
-    if (e.target.closest('.mobile-controls') || e.target.closest('.joystick-container') || e.target.closest('.action-buttons')) {
+    // We check the target and all its parents up to the control container
+    if (e.target.closest('.mobile-controls') || 
+        e.target.closest('.joystick-container') || 
+        e.target.closest('.action-buttons') ||
+        e.target.closest('.action-button')) {
       return
     }
     
@@ -161,7 +165,7 @@ export default function MobileControls({
   }, [isDragging, handleJoystickMove, handleJoystickEnd])
 
   return (
-    <div className="mobile-controls">
+    <div className="mobile-controls" onPointerDown={(e) => e.stopPropagation()}>
       {/* Virtual Joystick - Bottom Left */}
       <div 
         ref={joystickRef}

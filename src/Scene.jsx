@@ -51,6 +51,15 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
 
   useEffect(() => {
     const onPointerDown = (e) => {
+      // Ignore if clicking on mobile controls
+      if (e.target.closest('.mobile-controls') || e.target.closest('.joystick-container') || e.target.closest('.action-buttons')) {
+        return
+      }
+
+      // On mobile, we handle camera swipe via touch events in MobileControls.jsx
+      // to avoid conflicts with the joystick. So we ignore touch pointer events here.
+      if (e.pointerType === 'touch') return
+
       if (e.button !== 0 && e.button !== 2) return
       
       orbit.current.dragging = true
