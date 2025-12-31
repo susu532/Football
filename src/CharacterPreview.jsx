@@ -1,6 +1,7 @@
 import React, { useRef, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, OrbitControls, PerspectiveCamera } from '@react-three/drei'
+import * as THREE from 'three'
 
 function CharacterModel({ modelPath, character, isSelected }) {
   const groupRef = useRef()
@@ -78,7 +79,7 @@ export default function CharacterPreview({ character, isSelected, onSelect }) {
       }}
     >
       <div style={{ width: '100%', height: '150px' }}>
-        <Canvas shadows>
+        <Canvas shadows gl={{ outputColorSpace: THREE.SRGBColorSpace }}>
           <Suspense fallback={null}>
             <CharacterScene character={character} isSelected={isSelected} />
           </Suspense>

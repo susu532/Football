@@ -1067,7 +1067,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
 
   // Load GLB model for remote player
   const playerModelPath = character === 'cat' ? '/models/cat.glb' : '/models/low_poly_car.glb'
-  const characterScale = character === 'cat' ? 0.01 : 0.15
+  const characterScale = character === 'cat' ? 0.01 : 0.0015
   const { scene } = useGLTF(playerModelPath)
   
   const clonedScene = React.useMemo(() => {
