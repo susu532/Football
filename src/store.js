@@ -16,6 +16,7 @@ const useStore = create((set) => ({
     roomId: roomId,
     hasJoined: true 
   }),
+  leaveGame: () => set({ hasJoined: false }),
 }))
 
 export default useStore

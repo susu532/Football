@@ -1142,6 +1142,7 @@ export default function Scene() {
   const playerName = useStore((s) => s.playerName)
   const playerTeam = useStore((s) => s.playerTeam)
   const roomId = useStore((s) => s.roomId)
+  const leaveGame = useStore((s) => s.leaveGame)
 
   const playerRef = useRef()
   const targetRef = useRef() // Camera target
@@ -1158,6 +1159,7 @@ export default function Scene() {
   const [activePowerUps, setActivePowerUps] = useState([])
   const [activeEffect, setActiveEffect] = useState(null) // { type: 'speed'|'kick'|'jump'|'invisible', label: '⚡' }
   const chatRef = useRef(null)
+  const [showExitConfirm, setShowExitConfirm] = useState(false)
   const prevScoresRef = useRef({ red: 0, blue: 0 })
   const pitchSize = [30, 0.2, 20]
   const isFreeLook = useRef(false) // Ref for Free Look mode
@@ -1385,6 +1387,80 @@ export default function Scene() {
         pointerEvents: 'none'
       }}>
         📍 {roomId.replace('room', 'Room ')}
+        
+      </div>
+       <button
+          onClick={() => setShowExitConfirm(true)}
+          style={{
+ position: 'absolute',
+        top: '20px',
+        left: '180px',
+        zIndex: 9999,
+            background: 'rgba(255,71,87,0.5)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '12px',
+            color: 'white',
+            padding: '10px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '18px',
+            transition: 'all 0.2s'
+          }}
+          title="Exit to Menu"
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,71,87,0.7)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,71,87,0.5)'}
+        >
+          🚪
+        </button>
+      
+
+      {/* Game Controls - Top Right */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        right: '20px',
+        zIndex: 9999,
+        display: 'flex',
+        gap: '10px'
+      }}>
+        
+        {/* Fullscreen Button */}
+        <button
+          onClick={() => {
+            if (!document.fullscreenElement) {
+              document.documentElement.requestFullscreen().catch(err => {
+                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
+              });
+            } else {
+              document.exitFullscreen();
+            }
+          }}
+          style={{
+            background: 'rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '12px',
+            color: 'white',
+            padding: '10px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            transition: 'all 0.2s'
+          }}
+          title="Toggle Fullscreen"
+          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
+        >
+          ⛶
+        </button>
+
+        {/* Exit Button */}
+       
       </div>
 
       {/* Scoreboard - outside Canvas, fixed on top */}
@@ -1525,6 +1601,14 @@ export default function Scene() {
           100% {
             transform: scale(1.1);
           }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+        @keyframes popIn {
+          from { transform: scale(0.8); opacity: 0; }
+          to { transform: scale(1); opacity: 1; }
         }
       `}</style>
       {/* 3D Canvas */}
@@ -1726,6 +1810,106 @@ export default function Scene() {
           </>
         )}
       </div>
+
+      {/* Modern S-Tier Exit Confirmation Pop-up */}
+      {showExitConfirm && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 20000,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background: 'rgba(0,0,0,0.8)',
+          backdropFilter: 'blur(10px)',
+          animation: 'fadeIn 0.3s ease-out'
+        }}>
+          <div style={{
+            background: 'linear-gradient(135deg, rgba(20,20,30,0.9), rgba(40,40,60,0.9))',
+            padding: '40px',
+            borderRadius: '24px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,71,87,0.2)',
+            textAlign: 'center',
+            maxWidth: '400px',
+            width: '90%',
+            transform: 'scale(1)',
+            animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}>
+            <div style={{ fontSize: '64px', marginBottom: '20px' }}>🚪</div>
+            <h2 style={{ 
+              color: 'white', 
+              fontSize: '28px', 
+              margin: '0 0 15px 0',
+              fontWeight: '900',
+              textTransform: 'uppercase',
+              letterSpacing: '1px'
+            }}>
+              Leaving so soon?
+            </h2>
+            <p style={{ 
+              color: 'rgba(255,255,255,0.7)', 
+              fontSize: '16px', 
+              margin: '0 0 30px 0',
+              lineHeight: '1.5'
+            }}>
+              Are you sure you want to leave the match? Your current score will be lost.
+            </p>
+            <div style={{ display: 'flex', gap: '15px' }}>
+              <button
+                onClick={() => setShowExitConfirm(false)}
+                style={{
+                  flex: 1,
+                  padding: '15px',
+                  borderRadius: '12px',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                  background: 'rgba(255,255,255,0.05)',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
+                onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
+              >
+                STAY
+              </button>
+              <button
+                onClick={() => {
+                  setShowExitConfirm(false);
+                  leaveGame();
+                  if (socket) socket.disconnect();
+                }}
+                style={{
+                  flex: 1,
+                  padding: '15px',
+                  borderRadius: '12px',
+                  border: 'none',
+                  background: 'linear-gradient(45deg, #ff4757, #ff6b81)',
+                  color: 'white',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 5px 15px rgba(255,71,87,0.4)',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow = '0 8px 20px rgba(255,71,87,0.6)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow = '0 5px 15px rgba(255,71,87,0.4)';
+                }}
+              >
+                LEAVE
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
