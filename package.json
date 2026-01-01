@@ -13,6 +13,7 @@
     "@react-three/fiber": "^8.13.2",
     "cannon-es": "0.20.0",
     "express": "^5.1.0",
+    "playroomkit": "^0.0.94",
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "socket.io": "^4.8.1",

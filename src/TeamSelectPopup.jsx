@@ -13,7 +13,7 @@ function generateRandomName() {
   return `${adj}${noun}${num}`
 }
 
-export default function TeamSelectPopup() {
+export default function TeamSelectPopup({ defaultName }) {
   const joinGame = useStore((s) => s.joinGame)
   const hasJoined = useStore((s) => s.hasJoined)
   const setPlayerCharacter = useStore((s) => s.setPlayerCharacter)
@@ -25,11 +25,15 @@ export default function TeamSelectPopup() {
     }
     return 'cat'
   })
-  const [playerName, setPlayerName] = useState('')
+  const [playerName, setPlayerName] = useState(defaultName || '')
   
   useEffect(() => {
-    setPlayerName(generateRandomName())
-  }, [])
+    if (!defaultName) {
+      setPlayerName(generateRandomName())
+    } else {
+      setPlayerName(defaultName)
+    }
+  }, [defaultName])
   
   if (hasJoined) return null
   
