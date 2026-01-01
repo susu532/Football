@@ -16,7 +16,7 @@ const postMaterial = new CANNON.Material('post') // Goal posts and crossbar
 // Ball vs Ground - Natural grass-like rolling
 // Ball vs Ground - Natural grass-like rolling
 const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-  friction: 0.8,           // Increased for faster stopping (was 0.5)
+  friction: 0.9,           // Increased for faster stopping (was 0.8)
   restitution: 0.6,        // Bouncier grass (real soccer balls bounce well)
   contactEquationStiffness: 1e8,
   contactEquationRelaxation: 3,

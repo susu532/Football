@@ -318,7 +318,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           // Apply impulse in direction of PLAYER MODEL FACING
           // User request: "make it follow the direction of the model"
           
-          const dribblePower = 0.35 // Further reduced for very tight control
+          const dribblePower = 0.8 // Increased for better forward push (was 0.35)
           const rotation = groupRef.current.rotation.y
           
           // Calculate forward vector from rotation
@@ -375,7 +375,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           kickDir.normalize()
           
           // 4. Power calculation
-          const basePower = 12 * effects.current.kick // Apply kick power-up
+          const basePower = 15 * effects.current.kick // Increased base power (was 12)
           const randomVar = 0.95 + Math.random() * 0.1 // 0.95 - 1.05 variation (less random)
           const kickPower = basePower * randomVar
           
