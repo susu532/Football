@@ -824,7 +824,18 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     const changes = {}
     if (!lastMoveData.current) {
       // First update, send everything
-      socket.emit('move', moveData)
+      socket.emit('m', {
+        p: moveData.position,
+        r: moveData.rotation,
+        i: moveData.invisible,
+        g: moveData.giant
+      })
+      socket.emit('player-info', {
+        name: moveData.name,
+        team: moveData.team,
+        color: moveData.color,
+        character: moveData.character
+      })
       lastMoveData.current = moveData
       return
     }
@@ -833,25 +844,36 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     if (lastMoveData.current.position[0] !== moveData.position[0] ||
         lastMoveData.current.position[1] !== moveData.position[1] ||
         lastMoveData.current.position[2] !== moveData.position[2]) {
-      changes.position = moveData.position
+      changes.p = moveData.position
     }
     
     if (lastMoveData.current.rotation !== moveData.rotation) {
-      changes.rotation = moveData.rotation
+      changes.r = moveData.rotation
     }
     
     if (lastMoveData.current.invisible !== moveData.invisible) {
-      changes.invisible = moveData.invisible
+      changes.i = moveData.invisible
     }
     
     if (lastMoveData.current.giant !== moveData.giant) {
-      changes.giant = moveData.giant
+      changes.g = moveData.giant
     }
     
     // Include ID for reference
     if (Object.keys(changes).length > 0) {
       changes.id = playerId
-      socket.emit('move', changes)
+      socket.emit('m', changes)
+    }
+
+    // Check metadata changes
+    const infoChanges = {}
+    if (lastMoveData.current.name !== moveData.name) infoChanges.name = moveData.name
+    if (lastMoveData.current.team !== moveData.team) infoChanges.team = moveData.team
+    if (lastMoveData.current.color !== moveData.color) infoChanges.color = moveData.color
+    if (lastMoveData.current.character !== moveData.character) infoChanges.character = moveData.character
+
+    if (Object.keys(infoChanges).length > 0) {
+      socket.emit('player-info', infoChanges)
     }
     
     lastMoveData.current = moveData
@@ -935,19 +957,19 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
         
         if (ballVelocity > velocityThreshold) {
           const ballData = {
-            position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
-            velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
+            p: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
+            v: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
           }
           
           // Check if data actually changed
           if (!lastBallData.current ||
-              Math.abs(lastBallData.current.position[0] - ballData.position[0]) > 0.01 ||
-              Math.abs(lastBallData.current.position[1] - ballData.position[1]) > 0.01 ||
-              Math.abs(lastBallData.current.position[2] - ballData.position[2]) > 0.01 ||
-              Math.abs(lastBallData.current.velocity[0] - ballData.velocity[0]) > 0.01 ||
-              Math.abs(lastBallData.current.velocity[1] - ballData.velocity[1]) > 0.01 ||
-              Math.abs(lastBallData.current.velocity[2] - ballData.velocity[2]) > 0.01) {
-            socket.emit('ball-update', ballData)
+              Math.abs(lastBallData.current.p[0] - ballData.p[0]) > 0.01 ||
+              Math.abs(lastBallData.current.p[1] - ballData.p[1]) > 0.01 ||
+              Math.abs(lastBallData.current.p[2] - ballData.p[2]) > 0.01 ||
+              Math.abs(lastBallData.current.v[0] - ballData.v[0]) > 0.01 ||
+              Math.abs(lastBallData.current.v[1] - ballData.v[1]) > 0.01 ||
+              Math.abs(lastBallData.current.v[2] - ballData.v[2]) > 0.01) {
+            socket.emit('b', ballData)
             lastBallData.current = ballData
           }
         }
@@ -1304,11 +1326,7 @@ export default function Scene() {
   useEffect(() => {
     if (!socket) return
     
-    // Wait for join action
-    // Moved to separate useEffect to avoid reconnecting socket
-    // if (hasJoined && roomId) {
-    //   socket.emit('join-room', { roomId })
-    // }
+
 
     socket.on('init', ({ id, players, ball, scores }) => {
       setPlayerId(id)
@@ -1322,9 +1340,32 @@ export default function Scene() {
     socket.on('player-joined', (player) => {
       setRemotePlayers((prev) => ({ ...prev, [player.id]: player }))
     })
-    socket.on('player-move', ({ id, position, rotation, name, team, color, invisible, giant, character }) => {
-      setRemotePlayers((prev) => prev[id] ? { ...prev, [id]: { ...prev[id], position, rotation, name, team, color, invisible, giant, character } } : prev)
+    // Optimized movement handler
+    socket.on('m', ({ id, p, r, i, g }) => {
+      setRemotePlayers((prev) => {
+        if (!prev[id]) return prev
+        const player = { ...prev[id] }
+        if (p) player.position = p
+        if (r !== undefined) player.rotation = r
+        if (i !== undefined) player.invisible = i
+        if (g !== undefined) player.giant = g
+        return { ...prev, [id]: player }
+      })
     })
+
+    // Player info handler
+    socket.on('player-info', ({ id, name, team, character, color }) => {
+      setRemotePlayers((prev) => {
+        if (!prev[id]) return prev
+        const player = { ...prev[id] }
+        if (name) player.name = name
+        if (team) player.team = team
+        if (character) player.character = character
+        if (color) player.color = color
+        return { ...prev, [id]: player }
+      })
+    })
+
     socket.on('player-left', (id) => {
       setRemotePlayers((prev) => {
         const copy = { ...prev }
@@ -1332,10 +1373,10 @@ export default function Scene() {
         return copy
       })
     })
-    socket.on('ball-update', (ball) => {
+    socket.on('b', (ball) => {
       if (ballBody) {
-        ballBody.position.set(...ball.position)
-        ballBody.velocity.set(...ball.velocity)
+        ballBody.position.set(...ball.p)
+        ballBody.velocity.set(...ball.v)
       }
     })
     socket.on('score-update', (newScores) => {
@@ -1385,9 +1426,10 @@ export default function Scene() {
     return () => {
       socket.off('init')
       socket.off('player-joined')
-      socket.off('player-move')
+      socket.off('m')
+      socket.off('player-info')
       socket.off('player-left')
-      socket.off('ball-update')
+      socket.off('b')
       socket.off('score-update')
       socket.off('ball-reset')
       socket.off('chat-message')
@@ -1432,8 +1474,7 @@ export default function Scene() {
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      {/* Room Name - Top Left */}
-      {/* Room Name - Top Left */}
+      {/* Connection Status - Top Left */}
       <div style={{
         position: 'absolute',
         top: '20px',
