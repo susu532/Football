@@ -565,7 +565,7 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, ballAuthority }) {
   // Ball authority sends ball state to server with throttling and velocity threshold
   const lastBallUpdate = useRef(0)
   const lastBallData = useRef(null)
-  useFrame((state) => {
+  useFrame((state, delta) => {
     if (!socket || !playerId) return
     if (ballAuthority === playerId) {
       const now = state.clock.getElapsedTime()
@@ -573,6 +573,16 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, ballAuthority }) {
       lastBallUpdate.current = now
 
       if (ballBody) {
+        // Limit angular velocity (spin)
+        const maxAv = 15.0 
+        const avSq = ballBody.angularVelocity.x**2 + ballBody.angularVelocity.y**2 + ballBody.angularVelocity.z**2
+        if (avSq > maxAv**2) {
+           const scale = maxAv / Math.sqrt(avSq)
+           ballBody.angularVelocity.x *= scale
+           ballBody.angularVelocity.y *= scale
+           ballBody.angularVelocity.z *= scale
+        }
+
         const ballVelocity = Math.sqrt(
           ballBody.velocity.x ** 2 +
           ballBody.velocity.y ** 2 +
@@ -599,6 +609,24 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, ballAuthority }) {
             socket.emit('b', ballData)
             lastBallData.current = ballData
           }
+        }
+      }
+    } else {
+      // Non-authority: Interpolate towards server state
+      if (ballBody && ballBody.targetPosition) {
+        // Smoothly interpolate position
+        // Lambda 10 gives good responsiveness without too much jitter
+        const lambda = 10
+        
+        ballBody.position.x = THREE.MathUtils.damp(ballBody.position.x, ballBody.targetPosition.x, lambda, delta)
+        ballBody.position.y = THREE.MathUtils.damp(ballBody.position.y, ballBody.targetPosition.y, lambda, delta)
+        ballBody.position.z = THREE.MathUtils.damp(ballBody.position.z, ballBody.targetPosition.z, lambda, delta)
+        
+        // Also interpolate velocity for visual consistency (optional but good for prediction)
+        if (ballBody.targetVelocity) {
+           ballBody.velocity.x = THREE.MathUtils.damp(ballBody.velocity.x, ballBody.targetVelocity.x, lambda, delta)
+           ballBody.velocity.y = THREE.MathUtils.damp(ballBody.velocity.y, ballBody.targetVelocity.y, lambda, delta)
+           ballBody.velocity.z = THREE.MathUtils.damp(ballBody.velocity.z, ballBody.targetVelocity.z, lambda, delta)
         }
       }
     }
@@ -1006,8 +1034,17 @@ export default function Scene() {
     })
     socket.on('b', (ball) => {
       if (ballBody) {
-        ballBody.position.set(...ball.p)
-        ballBody.velocity.set(...ball.v)
+        // Store target state for interpolation
+        ballBody.targetPosition = new THREE.Vector3(...ball.p)
+        ballBody.targetVelocity = new THREE.Vector3(...ball.v)
+        
+        // If this is the first update or we're very far off, snap immediately
+        if (!ballBody.lastServerUpdate || 
+            ballBody.position.distanceTo(ballBody.targetPosition) > 5.0) {
+          ballBody.position.copy(ballBody.targetPosition)
+          ballBody.velocity.copy(ballBody.targetVelocity)
+        }
+        ballBody.lastServerUpdate = Date.now()
       }
     })
     // Combined event for goal score and ball reset
