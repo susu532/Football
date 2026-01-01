@@ -880,7 +880,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     
     // Update physics body radius dynamically
     if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 6.0 : 0.9
+      const targetRadius = giant ? 4.0 : 0.9
       if (body.shapes[0].radius !== targetRadius) {
         body.shapes[0].radius = targetRadius
         body.updateBoundingRadius()
@@ -960,7 +960,15 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, ballAuthority }) {
         // or just let visual be smooth and physics snap.
         // Let's snap physics to target for now to ensure collisions are roughly correct
         // but use the visual mesh for rendering
-        ballBody.position.lerp(targetPosition.current, 0.2)
+        // Apply velocity correction to guide physics body
+        // Instead of using Cannon's lerp (which requires a target vector and is strict),
+        // we'll manually interpolate or just snap to the visual position which is already smoothed.
+        // Snapping to visual position is safest for now to avoid type errors.
+        ballBody.position.set(
+          meshRef.current.position.x,
+          meshRef.current.position.y,
+          meshRef.current.position.z
+        )
         ballBody.velocity.copy(targetVelocity.current)
       }
       
@@ -1093,7 +1101,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   // Update physics body radius for remote players
   useEffect(() => {
     if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 6.0 : 0.9
+      const targetRadius = giant ? 4.0 : 0.9
       if (body.shapes[0].radius !== targetRadius) {
         body.shapes[0].radius = targetRadius
         body.updateBoundingRadius()
