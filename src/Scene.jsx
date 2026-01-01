@@ -737,27 +737,27 @@ export default function Scene() {
           audio.pause()
           audio.currentTime = 0
         }, 3000)
-        setTimeout(() => setCelebration(null), 4000)
+        setTimeout(() => setCelebration(null), 3000) // Sync to 3s
         
         // Reset local player position
-        if (playerRef.current) {
-          const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-          playerRef.current.position.set(...spawn)
-        }
+        setTimeout(() => {
+          if (playerRef.current) {
+            const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
+            playerRef.current.position.set(...spawn)
+          }
+        }, 3000) // Sync to 3s
       })
 
-      // Listen for chat messages
-      RPC.register('send-chat', (data) => {
-        setChatMessages(prev => [...(prev || []).slice(-49), data])
-        // Auto-scroll to bottom
-        setTimeout(() => {
-          if (chatRef.current) {
-            chatRef.current.scrollTop = chatRef.current.scrollHeight
-          }
-        }, 50)
-      })
+      // RPC chat removed in favor of stable useMultiplayerState
     }
   }, [isLaunched, playerTeam])
+
+  // Auto-scroll chat when messages change
+  useEffect(() => {
+    if (chatRef.current) {
+      chatRef.current.scrollTop = chatRef.current.scrollHeight
+    }
+  }, [chatMessages])
 
   // Filter out my player from remote players list
   const remotePlayers = React.useMemo(() => {
@@ -1289,8 +1289,8 @@ export default function Scene() {
                       message: chatInput.trim(),
                       time: Date.now()
                     }
-                    // Broadcast chat to all clients via RPC
-                    RPC.call('send-chat', newMessage, RPC.Mode.ALL)
+                    // Use multiplayer state for stable sync
+                    setChatMessages(prev => [...(prev || []).slice(-49), newMessage])
                     setChatInput('')
                   }
                 }}
