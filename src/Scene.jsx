@@ -9,7 +9,7 @@ import * as CANNON from 'cannon-es'
 import { useSpring, a } from '@react-spring/three'
 
 import { usePlayroom } from './usePlayroom'
-import { usePlayerState } from 'playroomkit'
+import { usePlayerState, RPC } from 'playroomkit'
 import TeamSelectPopup from './TeamSelectPopup'
 import { PhysicsHandler } from './GameLogic'
 import { PowerUp, POWER_UP_TYPES } from './PowerUp'
@@ -492,21 +492,23 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
   )
 }
 
-function GoalDetector({ ballBody, setScores, onGoal }) {
-  useFrame(() => {
+function GoalDetector({ ballBody, onGoal }) {
+  const lastGoalTime = useRef(0)
+  
+  useFrame((state) => {
     if (ballBody) {
       const { x, y, z } = ballBody.position
+      const now = state.clock.getElapsedTime()
       
-      // New specs: position=[-11.2, 1.5, 0], args=[0.2, 4, 4.6]
-      // Trigger when ball crosses the net line (approx 12.4)
-      if (Math.abs(x) > 11.1 && Math.abs(z) < 2.3 && y < 3.5) {
+      // Cooldown of 5 seconds to prevent multiple triggers during the respawn delay
+      if (now - lastGoalTime.current < 5) return
+
+      // New specs: position=[-11.2, 0, 0], args=[0.2, 6, 4.6]
+      if (Math.abs(x) > 11.1 && Math.abs(z) < 2.3 && y < 4) {
         const teamScored = x > 0 ? 'red' : 'blue'
+        lastGoalTime.current = now
         onGoal(teamScored)
-        
-        // Reset ball
-        ballBody.position.set(0, 2, 0)
-        ballBody.velocity.set(0, 0, 0)
-        ballBody.angularVelocity.set(0, 0, 0)
+        // Immediate reset removed to allow ball to stay in net visually
       }
     }
   })
@@ -722,6 +724,41 @@ export default function Scene() {
     me 
   } = usePlayroom()
 
+  // RPC Listeners
+  useEffect(() => {
+    if (isLaunched) {
+      // Listen for goal celebrations
+      RPC.register('goal-scored', (data) => {
+        setCelebration({ team: data.team })
+        const audio = new Audio('/winner-game-sound-404167.mp3')
+        audio.volume = 0.03
+        audio.play().catch(e => console.error("Audio play failed:", e))
+        setTimeout(() => {
+          audio.pause()
+          audio.currentTime = 0
+        }, 3000)
+        setTimeout(() => setCelebration(null), 4000)
+        
+        // Reset local player position
+        if (playerRef.current) {
+          const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
+          playerRef.current.position.set(...spawn)
+        }
+      })
+
+      // Listen for chat messages
+      RPC.register('send-chat', (data) => {
+        setChatMessages(prev => [...(prev || []).slice(-49), data])
+        // Auto-scroll to bottom
+        setTimeout(() => {
+          if (chatRef.current) {
+            chatRef.current.scrollTop = chatRef.current.scrollHeight
+          }
+        }, 50)
+      })
+    }
+  }, [isLaunched, playerTeam])
+
   // Filter out my player from remote players list
   const remotePlayers = React.useMemo(() => {
     if (!me) return []
@@ -875,32 +912,25 @@ export default function Scene() {
       newScores[team]++
       setScores(newScores)
       
+      // Broadcast goal to all clients via RPC
+      RPC.call('goal-scored', { team }, RPC.Mode.ALL)
+      
       // Reset ball after delay
       setTimeout(() => {
+        // 1. Reset physics body (Host only)
+        if (ballBody) {
+          ballBody.position.set(0, 2, 0)
+          ballBody.velocity.set(0, 0, 0)
+          ballBody.angularVelocity.set(0, 0, 0)
+        }
+        // 2. Sync state to all clients
         setBallState({ position: [0, 2, 0], velocity: [0, 0, 0] }, true)
-      }, 2000)
+      }, 3000)
     }
   }
 
-  // Handle score updates
+  // Handle score updates (Visuals only, logic moved to RPC)
   useEffect(() => {
-      if (scores.red > prevScoresRef.current.red || scores.blue > prevScoresRef.current.blue) {
-        setCelebration({ team: scores.red > prevScoresRef.current.red ? 'red' : 'blue' })
-        const audio = new Audio('/winner-game-sound-404167.mp3')
-        audio.volume = 0.03
-        audio.play().catch(e => console.error("Audio play failed:", e))
-        setTimeout(() => {
-          audio.pause()
-          audio.currentTime = 0
-        }, 2000)
-        setTimeout(() => setCelebration(null), 3000)
-        setTimeout(() => {
-          if (playerRef.current) {
-            const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-            playerRef.current.position.set(...spawn)
-          }
-        }, 2000)
-      }
       prevScoresRef.current = { ...scores }
   }, [scores])
 
@@ -1259,13 +1289,13 @@ export default function Scene() {
                       message: chatInput.trim(),
                       time: Date.now()
                     }
-                    // Add to multiplayer state (limit to last 50 messages)
-                    setChatMessages(prev => [...(prev || []).slice(-49), newMessage])
+                    // Broadcast chat to all clients via RPC
+                    RPC.call('send-chat', newMessage, RPC.Mode.ALL)
                     setChatInput('')
                   }
                 }}
-              style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.2)' }}
-            >
+                style={{ padding: '10px', borderTop: '1px solid rgba(255,255,255,0.2)' }}
+              >
               <input
                 type="text"
                 value={chatInput}
