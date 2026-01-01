@@ -1691,7 +1691,7 @@ export default function Scene() {
         }
       `}</style>
       {/* 3D Canvas */}
-      <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }}>
+      <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }} gl={{ outputColorSpace: THREE.SRGBColorSpace }}>
         <Suspense fallback={null}>
           <PhysicsHandler />
           <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
