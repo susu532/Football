@@ -1384,12 +1384,11 @@ export default function Scene() {
       }
     })
     // Combined event for goal score and ball reset
-    socket.on('goal-scored', (data) => {
-      const { scores, ball, team, timestamp } = data;
-
-      // Check if a goal was scored
-      if (scores.red > prevScoresRef.current.red || scores.blue > prevScoresRef.current.blue) {
-        setCelebration({ team: scores.red > prevScoresRef.current.red ? 'red' : 'blue' })
+    // Handle score updates
+    socket.on('score-update', (newScores) => {
+      // Check if a goal was scored (score increased)
+      if (newScores.red > prevScoresRef.current.red || newScores.blue > prevScoresRef.current.blue) {
+        setCelebration({ team: newScores.red > prevScoresRef.current.red ? 'red' : 'blue' })
 
         // Play goal sound
         const audio = new Audio('/winner-game-sound-404167.mp3')
@@ -1403,6 +1402,7 @@ export default function Scene() {
         }, 2000)
 
         setTimeout(() => setCelebration(null), 3000) // Hide after 3 seconds
+        
         // Respawn players after 2 seconds
         setTimeout(() => {
           if (playerRef.current) {
@@ -1411,16 +1411,18 @@ export default function Scene() {
           }
         }, 2000)
       }
+      
+      prevScoresRef.current = { ...newScores }
+      setScores(newScores)
+    })
 
-      // Reset ball position and velocity
+    // Handle ball reset
+    socket.on('ball-reset', (ball) => {
       if (ballBody) {
         ballBody.position.set(...ball.position)
         ballBody.velocity.set(...ball.velocity)
         ballBody.angularVelocity.set(0, 0, 0)
       }
-
-      prevScoresRef.current = { ...scores }
-      setScores(scores)
     })
     socket.on('chat-message', (msg) => {
       setChatMessages(prev => [...prev.slice(-49), msg]) // Keep last 50 messages
@@ -1438,13 +1440,23 @@ export default function Scene() {
     })
 
     // Handle full state sync to fix desync
-    socket.on('full-state-sync', ({ players, ball, scores, ballAuthority }) => {
-      if (scores) setScores(scores)
-      if (ballAuthority) setBallAuthority(ballAuthority)
-      if (ballBody) {
-        ballBody.position.set(...ball.position)
-        ballBody.velocity.set(...ball.velocity)
-        ballBody.angularVelocity.set(0, 0, 0)
+    // Handle full state sync to fix desync
+    socket.on('full-state-sync', ({ players, ball, scores }) => {
+      if (scores) {
+        setScores(scores)
+        prevScoresRef.current = { ...scores }
+      }
+      if (ballBody && ball) {
+        // Only snap ball if distance is significant to avoid jitter
+        const dist = Math.sqrt(
+          Math.pow(ballBody.position.x - ball.position[0], 2) + 
+          Math.pow(ballBody.position.y - ball.position[1], 2) + 
+          Math.pow(ballBody.position.z - ball.position[2], 2)
+        )
+        if (dist > 2.0) { // Only snap if desync is > 2 meters
+          ballBody.position.set(...ball.position)
+          ballBody.velocity.set(...ball.velocity)
+        }
       }
       // Update remote players with full state
       setRemotePlayers(players)
