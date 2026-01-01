@@ -475,7 +475,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       <primitive 
         object={clonedScene} 
         scale={characterScale} 
-        position={[positionOffset[0], positionOffset[1], positionOffset[2]]} 
+        position={[positionOffset[0], positionOffset[0], positionOffset[2]]} 
       />
       {children}
     </group>

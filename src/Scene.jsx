@@ -1800,7 +1800,7 @@ export default function Scene() {
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
           <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
           <Suspense fallback={null}>
-            <MapComponents.GravityFallsMap />
+            <MapComponents.MysteryShack />
           </Suspense>
           <SoccerPitch size={pitchSize} />
           <SoccerGoal position={[11, 0.1, 0]} rotation={[0, -Math.PI / 1, 0]} netColor={teamColors.blue} />
