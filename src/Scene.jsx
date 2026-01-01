@@ -1379,16 +1379,19 @@ export default function Scene() {
         ballBody.velocity.set(...ball.v)
       }
     })
-    socket.on('score-update', (newScores) => {
+    // Combined event for goal score and ball reset
+    socket.on('goal-scored', (data) => {
+      const { scores, ball, team, timestamp } = data;
+
       // Check if a goal was scored
-      if (newScores.red > prevScoresRef.current.red || newScores.blue > prevScoresRef.current.blue) {
-        setCelebration({ team: newScores.red > prevScoresRef.current.red ? 'red' : 'blue' })
-        
+      if (scores.red > prevScoresRef.current.red || scores.blue > prevScoresRef.current.blue) {
+        setCelebration({ team: scores.red > prevScoresRef.current.red ? 'red' : 'blue' })
+
         // Play goal sound
         const audio = new Audio('/winner-game-sound-404167.mp3')
         audio.volume = 0.03
         audio.play().catch(e => console.error("Audio play failed:", e))
-        
+
         // Stop sound after 2 seconds
         setTimeout(() => {
           audio.pause()
@@ -1404,15 +1407,16 @@ export default function Scene() {
           }
         }, 2000)
       }
-      prevScoresRef.current = { ...newScores }
-      setScores(newScores)
-    })
-    socket.on('ball-reset', (ball) => {
+
+      // Reset ball position and velocity
       if (ballBody) {
         ballBody.position.set(...ball.position)
         ballBody.velocity.set(...ball.velocity)
         ballBody.angularVelocity.set(0, 0, 0)
       }
+
+      prevScoresRef.current = { ...scores }
+      setScores(scores)
     })
     socket.on('chat-message', (msg) => {
       setChatMessages(prev => [...prev.slice(-49), msg]) // Keep last 50 messages
@@ -1430,8 +1434,7 @@ export default function Scene() {
       socket.off('player-info')
       socket.off('player-left')
       socket.off('b')
-      socket.off('score-update')
-      socket.off('ball-reset')
+      socket.off('goal-scored')
       socket.off('chat-message')
     }
   }, [socket, ballBody])
