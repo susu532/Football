@@ -1263,8 +1263,8 @@ export default function Scene() {
             <Skybox />
             
             <SoccerPitch size={pitchSize} />
-            <SoccerGoal position={[-15, 0, 0]} rotation={[0, Math.PI / 2, 0]} netColor={teamColors.red} />
-            <SoccerGoal position={[15, 0, 0]} rotation={[0, -Math.PI / 2, 0]} netColor={teamColors.blue} />
+            <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor={teamColors.red} />
+            <SoccerGoal position={[11.2, 0, 0]} rotation={[0, -Math.PI, 0]} netColor={teamColors.blue} />
             
             {/* Ball with Physics and Sync */}
             <SoccerBallWithPhysics 
