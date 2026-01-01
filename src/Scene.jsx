@@ -880,7 +880,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     
     // Update physics body radius dynamically
     if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 3.0 : 0.9
+      const targetRadius = giant ? 6.0 : 0.9
       if (body.shapes[0].radius !== targetRadius) {
         body.shapes[0].radius = targetRadius
         body.updateBoundingRadius()
@@ -926,7 +926,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
   )
 }
 
-function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
+function SoccerBallWithPhysics({ ballBody, socket, playerId, ballAuthority }) {
   const meshRef = useRef()
   // Sync mesh with physics
   useFrame(() => {
@@ -935,32 +935,32 @@ function SoccerBallWithPhysics({ ballBody, socket, playerId, remotePlayers }) {
       meshRef.current.quaternion.copy(ballBody.quaternion)
     }
   })
-  // Host sends ball state to server with throttling and velocity threshold
+  // Ball authority sends ball state to server with throttling and velocity threshold
   const lastBallUpdate = useRef(0)
   const lastBallData = useRef(null)
   useFrame((state) => {
     if (!socket || !playerId) return
-    if (Object.keys(remotePlayers)[0] === playerId) {
+    if (ballAuthority === playerId) {
       const now = state.clock.getElapsedTime()
-      if (now - lastBallUpdate.current < 0.033) return
+      if (now - lastBallUpdate.current < 0.025) return // 40 Hz (25ms)
       lastBallUpdate.current = now
-      
+
       if (ballBody) {
         const ballVelocity = Math.sqrt(
           ballBody.velocity.x ** 2 +
           ballBody.velocity.y ** 2 +
           ballBody.velocity.z ** 2
         )
-        
+
         // Only send update if ball is moving significantly (threshold: 0.1 units/sec)
         const velocityThreshold = 0.1
-        
+
         if (ballVelocity > velocityThreshold) {
           const ballData = {
             p: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
             v: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
           }
-          
+
           // Check if data actually changed
           if (!lastBallData.current ||
               Math.abs(lastBallData.current.p[0] - ballData.p[0]) > 0.01 ||
@@ -1033,7 +1033,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   // Update physics body radius for remote players
   useEffect(() => {
     if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 9.0 : 0.9
+      const targetRadius = giant ? 6.0 : 0.9
       if (body.shapes[0].radius !== targetRadius) {
         body.shapes[0].radius = targetRadius
         body.updateBoundingRadius()
@@ -1067,7 +1067,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   useFrame(() => {
     if (groupRef.current) {
       // Giant Scaling
-      const targetScale = giant ? 10.0 : 1.0
+      const targetScale = giant ? 6.0 : 1.0
       groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
       
       // Invisibility
@@ -1082,13 +1082,10 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   })
   
   useEffect(() => {
-    // Don't add physics body if position is at default center (uninitialized)
-    if (position[0] === 0 && position[2] === 0) return
-    
     const world = getWorld()
     world.addBody(body)
     return () => world.removeBody(body)
-  }, [body, position])
+  }, [body])
 
   // Update target when new position comes in
   useEffect(() => {
@@ -1170,10 +1167,12 @@ export default function Scene() {
   const prevScoresRef = useRef({ red: 0, blue: 0 })
   const pitchSize = [30, 0.2, 20]
   const isFreeLook = useRef(false)
+  const [ballAuthority, setBallAuthority] = useState(null) // Track which player has ball authority
   
   // Connection quality tracking
   const [connectionQuality, setConnectionQuality] = useState('excellent')
   const [ping, setPing] = useState(0)
+  const [showConnectionWarning, setShowConnectionWarning] = useState(false)
   const lastPingTime = useRef(0)
   
   // Helper function for connection quality color
@@ -1291,16 +1290,20 @@ export default function Scene() {
     s.on('pong', (timestamp) => {
       const pingTime = Date.now() - timestamp
       setPing(pingTime)
-      
+
       // Update connection quality based on ping
       if (pingTime < 100) {
         setConnectionQuality('excellent')
+        setShowConnectionWarning(false)
       } else if (pingTime < 200) {
         setConnectionQuality('good')
+        setShowConnectionWarning(false)
       } else if (pingTime < 300) {
         setConnectionQuality('fair')
+        setShowConnectionWarning(false)
       } else {
         setConnectionQuality('poor')
+        setShowConnectionWarning(true)
       }
     })
     
@@ -1328,10 +1331,11 @@ export default function Scene() {
     
 
 
-    socket.on('init', ({ id, players, ball, scores }) => {
+    socket.on('init', ({ id, players, ball, scores, ballAuthority }) => {
       setPlayerId(id)
       setRemotePlayers(players)
       if (scores) setScores(scores)
+      if (ballAuthority) setBallAuthority(ballAuthority)
       if (ballBody) {
         ballBody.position.set(...ball.position)
         ballBody.velocity.set(...ball.velocity)
@@ -1427,6 +1431,24 @@ export default function Scene() {
         }
       }, 50)
     })
+
+    // Handle ball authority reassignment
+    socket.on('ball-authority', (newAuthority) => {
+      setBallAuthority(newAuthority)
+    })
+
+    // Handle full state sync to fix desync
+    socket.on('full-state-sync', ({ players, ball, scores, ballAuthority }) => {
+      if (scores) setScores(scores)
+      if (ballAuthority) setBallAuthority(ballAuthority)
+      if (ballBody) {
+        ballBody.position.set(...ball.position)
+        ballBody.velocity.set(...ball.velocity)
+        ballBody.angularVelocity.set(0, 0, 0)
+      }
+      // Update remote players with full state
+      setRemotePlayers(players)
+    })
     return () => {
       socket.off('init')
       socket.off('player-joined')
@@ -1436,6 +1458,8 @@ export default function Scene() {
       socket.off('b')
       socket.off('goal-scored')
       socket.off('chat-message')
+      socket.off('ball-authority')
+      socket.off('full-state-sync')
     }
   }, [socket, ballBody])
 
@@ -1510,6 +1534,26 @@ export default function Scene() {
           <span>{ping}ms</span>
         </div>
       </div>
+
+      {/* Connection Warning */}
+      {showConnectionWarning && (
+        <div style={{
+          position: 'absolute',
+          top: '80px',
+          left: '20px',
+          zIndex: 9999,
+          background: 'rgba(255, 0, 0, 0.7)',
+          padding: '10px 15px',
+          borderRadius: '8px',
+          color: 'white',
+          fontSize: '12px',
+          fontWeight: 'bold',
+          backdropFilter: 'blur(5px)',
+          animation: 'pulse 1s infinite'
+        }}>
+          ⚠️ POOR CONNECTION - PLAYERS MAY DESYNC
+        </div>
+      )}
 
        <button
           onClick={() => setShowExitConfirm(true)}
@@ -1737,7 +1781,7 @@ export default function Scene() {
       <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }} gl={{ outputColorSpace: THREE.SRGBColorSpace }}>
         <Suspense fallback={null}>
           <PhysicsHandler />
-          <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
+          <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} ballAuthority={ballAuthority} pitchSize={pitchSize} />
           <color attach="background" args={["#87CEEB"]} />
           <ambientLight intensity={0.7} color="#FFFFFF" />
           <directionalLight 
@@ -1756,12 +1800,12 @@ export default function Scene() {
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
           <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
           <Suspense fallback={null}>
-            <MapComponents.SoccerStadiumMap />
+            <MapComponents.GravityFallsMap />
           </Suspense>
           <SoccerPitch size={pitchSize} />
           <SoccerGoal position={[11, 0.1, 0]} rotation={[0, -Math.PI / 1, 0]} netColor={teamColors.blue} />
           <SoccerGoal position={[-11, 0.1, 0]} rotation={[0, Math.PI / 0.5, 0]} netColor={teamColors.red} />
-          <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} />
+          <SoccerBallWithPhysics ballBody={ballBody} socket={socket} playerId={playerId} ballAuthority={ballAuthority} />
           <LocalPlayerWithSync 
             socket={socket} 
             playerId={playerId} 
@@ -1783,16 +1827,15 @@ export default function Scene() {
           {Object.entries(remotePlayers)
             .filter(([id]) => id !== playerId)
             .filter(([_, p]) => p.position && p.position[0] !== undefined)
-            .filter(([_, p]) => !(p.position[0] === 0 && p.position[2] === 0))
             .map(([id, p]) => (
-            <RemotePlayerWithPhysics 
-                key={id} 
-                id={id} 
-                position={p.position} 
-                color={p.color || '#888'} 
-                rotation={p.rotation} 
-                playerName={p.name} 
-                team={p.team} 
+            <RemotePlayerWithPhysics
+                key={id}
+                id={id}
+                position={p.position}
+                color={p.color || '#888'}
+                rotation={p.rotation}
+                playerName={p.name}
+                team={p.team}
                 invisible={p.invisible}
                 giant={p.giant}
                 character={p.character || 'cat'}

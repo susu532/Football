@@ -9,15 +9,14 @@ export function PhysicsHandler() {
   return null
 }
 
-export function GoalDetector({ ballBody, socket, playerId, remotePlayers, pitchSize }) {
+export function GoalDetector({ ballBody, socket, playerId, remotePlayers, ballAuthority, pitchSize }) {
   useFrame(() => {
     if (!ballBody || !socket || !playerId) return
-    
-    // Determine host (lowest ID)
-    const allIds = [playerId, ...Object.keys(remotePlayers)].sort()
-    const isHost = allIds[0] === playerId
 
-    if (isHost) {
+    // Determine if we have ball authority
+    const hasAuthority = ballAuthority === playerId
+
+    if (hasAuthority) {
       const { x, y, z } = ballBody.position
       // Goal positions are now on LEFT/RIGHT sides (X axis) at x = ±11
       const blueGoalX = -11.2  // Left side (deeper in net)
