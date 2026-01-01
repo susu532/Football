@@ -21,14 +21,7 @@ function openSoccerPlaceholder() {
   window.alert('Open Soccer (placeholder)')
 }
 
-function Platform({ position = [0, 0, 0], size = [4, 0.5, 2], color = '#6b8e23' }) {
-  return (
-    <mesh position={position} receiveShadow>
-      <boxGeometry args={size} />
-      <meshStandardMaterial color={color} />
-    </mesh>
-  )
-}
+
 
 function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
   const { camera } = useThree()
@@ -129,109 +122,13 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
   return null
 }
 
-function StadiumDoor({ position = [16, 1, 0], open = false }) {
-  // Door slides up when open
-  return (
-    <mesh position={[position[0], position[1] + (open ? 2 : 0), position[2]]} castShadow>
-      <boxGeometry args={[1, 3, 0.2]} />
-      <meshStandardMaterial color={open ? '#8f8' : '#444'} />
-    </mesh>
-  )
-}
 
-function Button({ position = [14, 0.5, 0], onPress }) {
-  const [pressed, setPressed] = useState(false)
-  const [showSparkles, setShowSparkles] = useState(false)
-  const { scale, color } = useSpring({ 
-    scale: pressed ? 1.3 : 1, 
-    color: pressed ? '#f06292' : '#ffb6d5',
-    config: { tension: 300, friction: 10 } 
-  })
-  
-  const handlePress = () => {
-    setPressed(true)
-    setShowSparkles(true)
-    onPress && onPress()
-    setTimeout(() => {
-      setPressed(false)
-      setShowSparkles(false)
-    }, 500)
-  }
-  
-  return (
-    <group position={position}>
-      <a.mesh
-        onClick={handlePress}
-        castShadow
-        scale-x={scale}
-        scale-y={scale}
-        scale-z={scale}
-      >
-        <cylinderGeometry args={[0.5, 0.5, 0.2, 32]} />
-        <a.meshStandardMaterial color={color} />
-      </a.mesh>
-      {showSparkles && (
-        <Sparkles count={20} scale={2} size={2} speed={0.4} color="#f06292" />
-      )}
-    </group>
-  )
-}
 
-function MovingPlatform({ position = [0, 2, -6], size = [3, 0.5, 2], range = 4, speed = 1, platforms, platformIndex }) {
-  const meshRef = useRef()
-  const [isPlayerOn, setIsPlayerOn] = useState(false)
-  
-  useFrame(({ clock }) => {
-    if (meshRef.current) {
-      const newZ = position[2] + Math.sin(clock.getElapsedTime() * speed) * range
-      meshRef.current.position.z = newZ
-      
-      // Update the platform position in the platforms array for collision detection
-      if (platforms && platformIndex !== undefined) {
-        platforms[platformIndex].position[2] = newZ
-      }
-    }
-  })
-  
-  return (
-    <group>
-      <mesh ref={meshRef} position={position} receiveShadow castShadow>
-        <boxGeometry args={size} />
-        <meshPhysicalMaterial 
-          color={isPlayerOn ? "#ff6b9d" : "#bada55"} 
-          metalness={0.3}
-          roughness={0.4}
-          clearcoat={0.5}
-        />
-      </mesh>
-      {isPlayerOn && (
-        <Sparkles
-          position={[position[0], position[1] + 0.5, position[2]]}
-          count={10}
-          scale={1.5}
-          size={1}
-          speed={0.3}
-          color="#ff6b9d"
-        />
-      )}
-    </group>
-  )
-}
 
-function Tree({ position = [10, 0.75, -4] }) {
-  return (
-    <group position={position}>
-      <mesh position={[0, 0.75, 0]} castShadow>
-        <cylinderGeometry args={[0.2, 0.3, 1.5, 12]} />
-        <meshStandardMaterial color="#8b5a2b" />
-      </mesh>
-      <mesh position={[0, 1.7, 0]} castShadow>
-        <sphereGeometry args={[0.8, 16, 16]} />
-        <meshStandardMaterial color="#228B22" />
-      </mesh>
-    </group>
-  )
-}
+
+
+
+
 
 
 function Skybox() {
@@ -260,114 +157,13 @@ function GrassTerrain({ position = [0, -0.05, 0], size = [200, 200] }) {
   )
 }
 
-function Street({ position = [0, -0.04, 0], size = [20, 20] }) {
-  return (
-    <mesh position={position} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={size} />
-      <meshStandardMaterial color="#2C2C2C" roughness={0.9} />
-    </mesh>
-  )
-}
 
-function Sidewalk({ position = [0, -0.03, 0], size = [25, 25] }) {
-  return (
-    <mesh position={position} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={size} />
-      <meshStandardMaterial color="#C0C0C0" roughness={0.8} />
-    </mesh>
-  )
-}
 
-function Building({ position = [0, 0, 0], size = [8, 12, 8], color = "#A0A0A0", windows = true, type = "office" }) {
-  return (
-    <group position={position}>
-      {/* Main building */}
-      <mesh position={[0, size[1]/2, 0]} castShadow receiveShadow>
-        <boxGeometry args={size} />
-        <meshPhysicalMaterial color={color} roughness={0.7} metalness={0.2} />
-      </mesh>
-      
-      {/* Windows */}
-      {windows && (
-        <>
-          {Array.from({ length: Math.floor(size[1]/3) }, (_, i) => (
-            <mesh key={i} position={[0, i * 3 - size[1]/2 + 1.5, size[2]/2 + 0.01]}>
-              <planeGeometry args={[size[0] * 0.8, 2]} />
-              <meshStandardMaterial color="#87CEEB" transparent opacity={0.7} />
-            </mesh>
-          ))}
-        </>
-      )}
-      
-      {/* Building details based on type */}
-      {type === "office" && (
-        <>
-          {/* Rooftop antenna */}
-          <mesh position={[0, size[1] + 0.5, 0]}>
-            <cylinderGeometry args={[0.05, 0.05, 1, 8]} />
-            <meshStandardMaterial color="#404040" />
-          </mesh>
-          {/* Air conditioning units */}
-          <mesh position={[size[0]/3, size[1] + 0.1, size[2]/3]}>
-            <boxGeometry args={[1, 0.3, 0.8]} />
-            <meshStandardMaterial color="#C0C0C0" />
-          </mesh>
-        </>
-      )}
-      
-      {type === "residential" && (
-        <>
-          {/* Chimney */}
-          <mesh position={[size[0]/4, size[1] + 0.3, size[2]/4]}>
-            <cylinderGeometry args={[0.3, 0.3, 0.6, 8]} />
-            <meshStandardMaterial color="#8B4513" />
-          </mesh>
-          {/* Door */}
-          <mesh position={[0, 0.5, size[2]/2 + 0.01]}>
-            <planeGeometry args={[1, 2]} />
-            <meshStandardMaterial color="#654321" />
-          </mesh>
-        </>
-      )}
-      
-      {type === "skyscraper" && (
-        <>
-          {/* Spire */}
-          <mesh position={[0, size[1] + 2, 0]}>
-            <coneGeometry args={[0.5, 2, 8]} />
-            <meshStandardMaterial color="#FFD700" metalness={0.8} />
-          </mesh>
-          {/* Multiple antennas */}
-          <mesh position={[-size[0]/4, size[1] + 1, 0]}>
-            <cylinderGeometry args={[0.02, 0.02, 1.5, 6]} />
-            <meshStandardMaterial color="#404040" />
-          </mesh>
-          <mesh position={[size[0]/4, size[1] + 1, 0]}>
-            <cylinderGeometry args={[0.02, 0.02, 1.5, 6]} />
-            <meshStandardMaterial color="#404040" />
-          </mesh>
-        </>
-      )}
-    </group>
-  )
-}
 
-function Streetlight({ position = [0, 0, 0] }) {
-  return (
-    <group position={position}>
-      {/* Pole */}
-      <mesh position={[0, 2, 0]} castShadow>
-        <cylinderGeometry args={[0.05, 0.05, 4, 8]} />
-        <meshStandardMaterial color="#404040" metalness={0.8} />
-      </mesh>
-      {/* Light */}
-      <mesh position={[0, 4.2, 0]} castShadow>
-        <sphereGeometry args={[0.3, 16, 16]} />
-        <meshStandardMaterial color="#FFD700" emissive="#FFD700" emissiveIntensity={0.5} />
-      </mesh>
-    </group>
-  )
-}
+
+
+
+
 
 function Car({ position = [0, 0, 0], color = "#FF0000" }) {
   return (
@@ -398,187 +194,18 @@ function Car({ position = [0, 0, 0], color = "#FF0000" }) {
   )
 }
 
-function CityTree({ position = [0, 0, 0], type = "oak" }) {
-  return (
-    <group position={position}>
-      {/* Trunk */}
-      <mesh position={[0, 1, 0]} castShadow>
-        <cylinderGeometry args={[0.2, 0.3, 2, 8]} />
-        <meshStandardMaterial color="#8B4513" />
-      </mesh>
-      
-      {/* Foliage based on type */}
-      {type === "oak" && (
-        <>
-          <mesh position={[0, 2.5, 0]} castShadow>
-            <sphereGeometry args={[1.2, 16, 16]} />
-            <meshStandardMaterial color="#228B22" />
-          </mesh>
-        </>
-      )}
-      
-      {type === "pine" && (
-        <>
-          <mesh position={[0, 2.2, 0]} castShadow>
-            <coneGeometry args={[0.8, 1.5, 8]} />
-            <meshStandardMaterial color="#2E8B57" />
-          </mesh>
-          <mesh position={[0, 3.2, 0]} castShadow>
-            <coneGeometry args={[0.6, 1.2, 8]} />
-            <meshStandardMaterial color="#2E8B57" />
-          </mesh>
-          <mesh position={[0, 4.1, 0]} castShadow>
-            <coneGeometry args={[0.4, 0.8, 8]} />
-            <meshStandardMaterial color="#2E8B57" />
-          </mesh>
-        </>
-      )}
-      
-      {type === "palm" && (
-        <>
-          <mesh position={[0, 2.8, 0]} castShadow>
-            <sphereGeometry args={[0.3, 8, 8]} />
-            <meshStandardMaterial color="#8B4513" />
-          </mesh>
-          {/* Palm fronds */}
-          {[...Array(6)].map((_, i) => (
-            <mesh key={i} position={[0, 2.8, 0]} rotation={[0, (i * Math.PI) / 3, 0]}>
-              <planeGeometry args={[0.1, 1.5]} />
-              <meshStandardMaterial color="#228B22" side={THREE.DoubleSide} />
-            </mesh>
-          ))}
-        </>
-      )}
-    </group>
-  )
-}
 
-function Rock({ position = [0, 0.3, 0], scale = 1, type = "boulder" }) {
-  return (
-    <group position={position} scale={scale}>
-      {type === "boulder" && (
-        <mesh castShadow receiveShadow>
-          <dodecahedronGeometry args={[0.5, 1]} />
-          <meshPhysicalMaterial color="#696969" roughness={0.8} metalness={0.1} />
-        </mesh>
-      )}
-      
-      {type === "small" && (
-        <mesh castShadow receiveShadow>
-          <octahedronGeometry args={[0.3, 0]} />
-          <meshPhysicalMaterial color="#A9A9A9" roughness={0.7} metalness={0.2} />
-        </mesh>
-      )}
-      
-      {type === "flat" && (
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[0.8, 0.2, 0.6]} />
-          <meshPhysicalMaterial color="#778899" roughness={0.9} metalness={0.1} />
-        </mesh>
-      )}
-    </group>
-  )
-}
 
-function Bush({ position = [0, 0.2, 0], scale = 1 }) {
-  return (
-    <group position={position} scale={scale}>
-      <mesh position={[0, 0.3, 0]} castShadow>
-        <sphereGeometry args={[0.4, 12, 12]} />
-        <meshStandardMaterial color="#32CD32" />
-      </mesh>
-      <mesh position={[0.2, 0.4, 0.1]} castShadow>
-        <sphereGeometry args={[0.3, 10, 10]} />
-        <meshStandardMaterial color="#228B22" />
-      </mesh>
-      <mesh position={[-0.2, 0.4, -0.1]} castShadow>
-        <sphereGeometry args={[0.3, 10, 10]} />
-        <meshStandardMaterial color="#228B22" />
-      </mesh>
-    </group>
-  )
-}
 
-function TrashCan({ position = [0, 0, 0] }) {
-  return (
-    <group position={position}>
-      <mesh position={[0, 0.5, 0]} castShadow receiveShadow>
-        <cylinderGeometry args={[0.3, 0.3, 1, 8]} />
-        <meshStandardMaterial color="#404040" metalness={0.6} />
-      </mesh>
-    </group>
-  )
-}
 
-function Bench({ position = [0, 0, 0] }) {
-  return (
-    <group position={position}>
-      {/* Seat */}
-      <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
-        <boxGeometry args={[2, 0.1, 0.5]} />
-        <meshStandardMaterial color="#8B4513" />
-      </mesh>
-      {/* Back */}
-      <mesh position={[0, 0.6, -0.2]} castShadow>
-        <boxGeometry args={[2, 0.6, 0.1]} />
-        <meshStandardMaterial color="#8B4513" />
-      </mesh>
-      {/* Legs */}
-      <mesh position={[-0.8, 0.15, 0]} castShadow>
-        <boxGeometry args={[0.1, 0.3, 0.1]} />
-        <meshStandardMaterial color="#8B4513" />
-      </mesh>
-      <mesh position={[0.8, 0.15, 0]} castShadow>
-        <boxGeometry args={[0.1, 0.3, 0.1]} />
-        <meshStandardMaterial color="#8B4513" />
-      </mesh>
-    </group>
-  )
-}
 
-function PinkFlower({ position = [0, 0.1, 0], scale = 1, color = "#f06292" }) {
-  return (
-    <group position={position} scale={scale}>
-      {/* Stem */}
-      <mesh position={[0, 0.15, 0]}>
-        <cylinderGeometry args={[0.04, 0.04, 0.3, 8]} />
-        <meshStandardMaterial color="#a5d6a7" />
-      </mesh>
-      {/* Petals */}
-      {[...Array(6)].map((_, i) => (
-        <mesh key={i} position={[Math.cos(i * Math.PI/3) * 0.13, 0.32, Math.sin(i * Math.PI/3) * 0.13]}>
-          <sphereGeometry args={[0.07, 8, 8]} />
-          <meshStandardMaterial color={color} />
-        </mesh>
-      ))}
-      {/* Center */}
-      <mesh position={[0, 0.32, 0]}>
-        <sphereGeometry args={[0.06, 8, 8]} />
-        <meshStandardMaterial color="#fff59d" />
-      </mesh>
-    </group>
-  )
-}
 
-function PinkHeart({ position = [0, 0.2, 0], scale = 1, color = "#f06292" }) {
-  // Heart shape using two spheres and a cone
-  return (
-    <group position={position} scale={scale}>
-      <mesh position={[-0.07, 0.22, 0]}>
-        <sphereGeometry args={[0.09, 10, 10]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0.07, 0.22, 0]}>
-        <sphereGeometry args={[0.09, 10, 10]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh rotation={[Math.PI, 0, Math.PI/4]} position={[0, 0.13, 0]}>
-        <coneGeometry args={[0.13, 0.18, 16]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-    </group>
-  )
-}
+
+
+
+
+
+
 
 
 
