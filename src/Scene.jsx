@@ -926,18 +926,78 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
   )
 }
 
+// Ball component with physics and interpolation
 function SoccerBallWithPhysics({ ballBody, socket, playerId, ballAuthority }) {
   const meshRef = useRef()
-  // Sync mesh with physics
-  useFrame(() => {
-    if (meshRef.current && ballBody) {
+  const targetPosition = useRef(new THREE.Vector3(0, 0.5, 0))
+  const targetVelocity = useRef(new THREE.Vector3(0, 0, 0))
+  
+  // Sync mesh with physics or interpolate
+  useFrame((state, delta) => {
+    if (!ballBody || !meshRef.current) return
+
+    // If we have authority, we drive the physics
+    if (ballAuthority === playerId) {
       meshRef.current.position.copy(ballBody.position)
       meshRef.current.quaternion.copy(ballBody.quaternion)
+    } else {
+      // If we don't have authority, we interpolate towards target
+      // But we also need to keep the physics body in sync so collisions work
+      
+      // 1. Smoothly move visual mesh
+      const lambda = 10 // Interpolation speed
+      meshRef.current.position.lerp(targetPosition.current, lambda * delta)
+      
+      // 2. Sync physics body to visual mesh (soft sync)
+      // If distance is too large, snap physics body
+      const dist = meshRef.current.position.distanceTo(ballBody.position)
+      if (dist > 1.0) {
+        ballBody.position.copy(meshRef.current.position)
+        ballBody.velocity.copy(targetVelocity.current)
+      } else {
+        // Apply velocity correction to guide physics body
+        // This is complex, so for now let's just snap physics to visual for consistency
+        // or just let visual be smooth and physics snap.
+        // Let's snap physics to target for now to ensure collisions are roughly correct
+        // but use the visual mesh for rendering
+        ballBody.position.lerp(targetPosition.current, 0.2)
+        ballBody.velocity.copy(targetVelocity.current)
+      }
+      
+      // Rotate ball based on velocity for visual realism
+      // (Simple approximation if we don't sync rotation)
+      const speed = targetVelocity.current.length()
+      if (speed > 0.1) {
+        const axis = new THREE.Vector3(targetVelocity.current.z, 0, -targetVelocity.current.x).normalize()
+        meshRef.current.rotateOnWorldAxis(axis, (speed * delta) / 0.22)
+      }
     }
   })
+
+  // Listen for ball updates to set target
+  useEffect(() => {
+    if (!socket) return
+    
+    const handleBallUpdate = (ball) => {
+      // Update target position/velocity
+      targetPosition.current.set(ball.p[0], ball.p[1], ball.p[2])
+      targetVelocity.current.set(ball.v[0], ball.v[1], ball.v[2])
+      
+      // If we are authority, we ignore this (handled in loop)
+      // If we are NOT authority, the useFrame loop will interpolate to this
+    }
+    
+    socket.on('b', handleBallUpdate)
+    
+    return () => {
+      socket.off('b', handleBallUpdate)
+    }
+  }, [socket])
+
   // Ball authority sends ball state to server with throttling and velocity threshold
   const lastBallUpdate = useRef(0)
   const lastBallData = useRef(null)
+  
   useFrame((state) => {
     if (!socket || !playerId) return
     if (ballAuthority === playerId) {
@@ -1377,12 +1437,8 @@ export default function Scene() {
         return copy
       })
     })
-    socket.on('b', (ball) => {
-      if (ballBody) {
-        ballBody.position.set(...ball.p)
-        ballBody.velocity.set(...ball.v)
-      }
-    })
+    // Ball update handled in SoccerBallWithPhysics component now
+    
     // Combined event for goal score and ball reset
     // Handle score updates
     socket.on('score-update', (newScores) => {
