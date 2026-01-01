@@ -1118,7 +1118,6 @@ export default function Scene() {
   const hasJoined = useStore((s) => s.hasJoined)
   const playerName = useStore((s) => s.playerName)
   const playerTeam = useStore((s) => s.playerTeam)
-  const roomId = useStore((s) => s.roomId)
   const playerCharacter = useStore((s) => s.playerCharacter)
   const leaveGame = useStore((s) => s.leaveGame)
 
@@ -1293,13 +1292,13 @@ export default function Scene() {
     }
   }, [hasJoined, ballBody])
 
-  // Handle joining room
+  // Handle joining game
   useEffect(() => {
-    if (socket && hasJoined && roomId) {
-      console.log("Joining room:", roomId, "with character:", playerCharacter)
-      socket.emit('join-room', { roomId, character: playerCharacter })
+    if (socket && hasJoined) {
+      console.log("Joining game with character:", playerCharacter)
+      socket.emit('join-game', { character: playerCharacter })
     }
-  }, [socket, hasJoined, roomId, playerCharacter])
+  }, [socket, hasJoined, playerCharacter])
 
   // Socket event listeners
   useEffect(() => {
@@ -1434,6 +1433,7 @@ export default function Scene() {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {/* Room Name - Top Left */}
+      {/* Room Name - Top Left */}
       <div style={{
         position: 'absolute',
         top: '20px',
@@ -1454,7 +1454,6 @@ export default function Scene() {
         flexDirection: 'column',
         gap: '5px'
       }}>
-        <div>📍 {roomId.replace('room', 'Room ')}</div>
         <div style={{
           fontSize: '12px',
           display: 'flex',
@@ -1695,24 +1694,7 @@ export default function Scene() {
         <Suspense fallback={null}>
           <PhysicsHandler />
           <GoalDetector ballBody={ballBody} socket={socket} playerId={playerId} remotePlayers={remotePlayers} pitchSize={pitchSize} />
-          {roomId === 'room1' && <color attach="background" args={["#87CEEB"]} />}
-          {roomId === 'room2' && (
-            <>
-              <color attach="background" args={["#001e0f"]} />
-              <fog attach="fog" args={['#001e0f', 5, 40]} />
-            </>
-          )}
-          {roomId === 'room3' && <color attach="background" args={["#050510"]} />}
-          {roomId === 'room4' && <color attach="background" args={["#87CEEB"]} />}
-          {roomId === 'room5' && <color attach="background" args={["#87CEEB"]} />}
-          {roomId === 'room6' && <color attach="background" args={["#87CEEB"]} />}
-          {roomId === 'room7' && <color attach="background" args={["#87CEEB"]} />}
-          {roomId === 'room8' && <color attach="background" args={["#87CEEB"]} />}
-          {roomId === 'room9' && <color attach="background" args={["#000000"]} />}
-          {roomId === 'room10' && <color attach="background" args={["#00BFFF"]} />}
-          {roomId === 'room11' && <color attach="background" args={["#87CEEB"]} />}
-          {roomId === 'room12' && <color attach="background" args={["#87CEEB"]} />}
-          {roomId === 'room13' && <color attach="background" args={["#87CEEB"]} />}
+          <color attach="background" args={["#87CEEB"]} />
           <ambientLight intensity={0.7} color="#FFFFFF" />
           <directionalLight 
             position={[10, 30, 10]} 
@@ -1729,71 +1711,9 @@ export default function Scene() {
           />
           <pointLight position={[-10, 15, -10]} intensity={1.2} color="#fff" />
           <pointLight position={[10, 15, 10]} intensity={1.2} color="#fff" />
-          {roomId === 'room1' && (
-            <Suspense fallback={null}>
-              <MapComponents.MysteryShack />
-            </Suspense>
-          )}
-          {roomId === 'room2' && (
-            <Suspense fallback={null}>
-              <MapComponents.OceanFloor />
-            </Suspense>
-          )}
-          {roomId === 'room3' && (
-            <Suspense fallback={null}>
-              <MapComponents.CityAtNight />
-            </Suspense>
-          )}
-          {roomId === 'room4' && (
-            <Suspense fallback={null}>
-              <MapComponents.CloudStation />
-            </Suspense>
-          )}
-          {roomId === 'room5' && (
-            <Suspense fallback={null}>
-              <MapComponents.CreekFalls />
-            </Suspense>
-          )}
-          {roomId === 'room6' && (
-            <Suspense fallback={null}>
-              <MapComponents.SoccerStadiumMap />
-            </Suspense>
-          )}
-          {roomId === 'room7' && (
-            <Suspense fallback={null}>
-              <MapComponents.GravityFallsMap />
-            </Suspense>
-          )}
-          {roomId === 'room8' && (
-            <Suspense fallback={null}>
-              <MapComponents.MinecraftMap />
-            </Suspense>
-          )}
-          {roomId === 'room9' && (
-            <Suspense fallback={null}>
-              <MapComponents.MoonMap />
-            </Suspense>
-          )}
-          {roomId === 'room10' && (
-            <Suspense fallback={null}>
-              <MapComponents.TropicalIslandMap />
-            </Suspense>
-          )}
-          {roomId === 'room11' && (
-            <Suspense fallback={null}>
-              <MapComponents.ShipInClouds />
-            </Suspense>
-          )}
-          {roomId === 'room12' && (
-            <Suspense fallback={null}>
-              <MapComponents.DesertMap />
-            </Suspense>
-          )}
-          {roomId === 'room13' && (
-            <Suspense fallback={null}>
-              <MapComponents.MarioMap />
-            </Suspense>
-          )}
+          <Suspense fallback={null}>
+            <MapComponents.SoccerStadiumMap />
+          </Suspense>
           <SoccerPitch size={pitchSize} />
           <SoccerGoal position={[11, 0.1, 0]} rotation={[0, -Math.PI / 1, 0]} netColor={teamColors.blue} />
           <SoccerGoal position={[-11, 0.1, 0]} rotation={[0, Math.PI / 0.5, 0]} netColor={teamColors.red} />
@@ -2025,7 +1945,7 @@ export default function Scene() {
                 onClick={() => {
                   setShowExitConfirm(false);
                   if (socket) {
-                    socket.emit('leave-room', { roomId });
+                    socket.emit('leave-game');
                     socket.disconnect();
                   }
                   setScores({ red: 0, blue: 0 }); // Reset local scores

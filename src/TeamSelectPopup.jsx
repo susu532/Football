@@ -19,7 +19,6 @@ export default function TeamSelectPopup() {
   const setPlayerCharacter = useStore((s) => s.setPlayerCharacter)
   
   const [selectedTeam, setSelectedTeam] = useState(null)
-  const [selectedRoom, setSelectedRoom] = useState('room1')
   const [selectedCharacter, setSelectedCharacter] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('playerCharacter') || 'cat'
@@ -51,7 +50,7 @@ export default function TeamSelectPopup() {
       alert('Please enter a name!')
       return
     }
-    joinGame(playerName.trim(), selectedTeam, selectedRoom, selectedCharacter)
+    joinGame(playerName.trim(), selectedTeam, selectedCharacter)
   }
   
   return (
@@ -83,21 +82,6 @@ export default function TeamSelectPopup() {
         {/* Right Content - Interactive Form */}
         <div className="magic-content">
           <h1 className="magic-title">Omni-Pitch</h1>
-          
-          <div className="magic-section">
-            <div className="magic-section-title">Choose Your Room</div>
-            <div className="magic-grid-rooms">
-              {Array.from({ length: 13 }, (_, i) => `room${i + 1}`).map(room => (
-                <button
-                  key={room}
-                  className={`magic-btn-room ${selectedRoom === room ? 'selected' : ''}`}
-                  onClick={() => setSelectedRoom(room)}
-                >
-                  {room.replace('room', 'Room ')}
-                </button>
-              ))}
-            </div>
-          </div>
 
           <div className="magic-section">
             <div className="magic-section-title">Select Your Team</div>
