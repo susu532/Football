@@ -880,7 +880,7 @@ function LocalPlayerWithSync({ socket, playerId, playerRef, hasModel, playerName
     
     // Update physics body radius dynamically
     if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 6.0 : 0.9
+      const targetRadius = giant ? 4.0 : 0.9
       if (body.shapes[0].radius !== targetRadius) {
         body.shapes[0].radius = targetRadius
         body.updateBoundingRadius()
@@ -1033,7 +1033,7 @@ function RemotePlayerWithPhysics({ id, position = [0, 1, 0], color = '#888', rot
   // Update physics body radius for remote players
   useEffect(() => {
     if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 6.0 : 0.9
+      const targetRadius = giant ? 4.0 : 0.9
       if (body.shapes[0].radius !== targetRadius) {
         body.shapes[0].radius = targetRadius
         body.updateBoundingRadius()
