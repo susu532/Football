@@ -16,18 +16,22 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   isFreeLook = null,
   mobileInput = null, // { move: {x, y}, jump: bool, kick: bool }
   characterType = 'cat',
+  isRemote = false,
+  invisible = false,
+  giant = false,
   children 
 }, ref) {
   const groupRef = useRef()
   
   // Determine model path based on character type
+  console.log('CharacterSkin: characterType prop:', characterType)
   const PLAYER_MODEL_PATH = characterType === 'cat' ? '/models/cat.glb' : '/models/low_poly_car.glb'
   
   // Character scaling: cat uses 0.01, car uses 0.15
   const characterScale = characterType === 'cat' ? 0.01 : 0.0015
   
   // Position offset to match cat height (car may need different base position)
-  const positionOffset = characterType === 'car' ? [0, 0.2, 0] : [0, 0, 0]
+  const positionOffset = characterType === 'car' ? [0, 0, 0] : [0, 0, 0]
    
   // Power-up effects state
   const effects = useRef({
@@ -54,10 +58,10 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           child.material = child.material.clone()
           // Apply team color to the model
           child.material.color = new THREE.Color(teamColor)
-          // Fix visibility issues
-          child.material.transparent = true // Enable transparency for invisibility effect
+          // Ensure solid rendering
+          child.material.transparent = false
           child.material.opacity = 1.0
-          child.material.side = THREE.DoubleSide
+          child.material.side = THREE.FrontSide
           child.material.needsUpdate = true
         }
         child.castShadow = true
@@ -140,22 +144,34 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   useFrame((_, delta) => {
     if (!groupRef.current) return
     
-    // Update invisible state in userData for sync
-    groupRef.current.userData.invisible = effects.current.invisible
-    groupRef.current.userData.giant = effects.current.giant
+    // Update invisible state in userData for sync (only for local)
+    if (!isRemote) {
+      groupRef.current.userData.invisible = effects.current.invisible
+      groupRef.current.userData.giant = effects.current.giant
+    }
     
+    // Determine current state (local vs remote)
+    const isGiant = isRemote ? giant : effects.current.giant
+    const isInvisible = isRemote ? invisible : effects.current.invisible
+
     // Apply Giant Scaling
-    const targetScale = effects.current.giant ? 6.0 : 1.0
+    const targetScale = isGiant ? 6.0 : 1.0
     groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
     
     // Update local visual opacity
-    const targetOpacity = effects.current.invisible ? 0.2 : 1.0
+    const targetOpacity = isInvisible ? 0.2 : 1.0
     groupRef.current.traverse((child) => {
       if (child.isMesh && child.material) {
-        child.material.transparent = true
+        // Only enable transparency if actually transparent or transitioning
+        const isTransparent = targetOpacity < 0.99 || child.material.opacity < 0.99
+        child.material.transparent = isTransparent
+        child.material.depthWrite = !isTransparent // Improve depth sorting when opaque
         child.material.opacity = THREE.MathUtils.lerp(child.material.opacity, targetOpacity, 0.1)
       }
     })
+    
+    // Skip movement logic for remote players
+    if (isRemote) return
     
     // Apply power-up multipliers
     const speed = 8 * effects.current.speed
@@ -475,7 +491,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       <primitive 
         object={clonedScene} 
         scale={characterScale} 
-        position={[positionOffset[0], positionOffset[0], positionOffset[2]]} 
+        position={[positionOffset[0], positionOffset[1], positionOffset[2]]} 
       />
       {children}
     </group>

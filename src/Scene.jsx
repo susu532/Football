@@ -11,7 +11,7 @@ import { useSpring, a } from '@react-spring/three'
 import { usePlayroom } from './usePlayroom'
 import { usePlayerState } from 'playroomkit'
 import TeamSelectPopup from './TeamSelectPopup'
-import { PhysicsHandler, GoalDetector } from './GameLogic'
+import { PhysicsHandler } from './GameLogic'
 import { PowerUp, POWER_UP_TYPES } from './PowerUp'
 import MobileControls from './MobileControls'
 import MapComponents from './MapComponents'
@@ -22,6 +22,25 @@ function openSoccerPlaceholder() {
   // Keep this lightweight for the demo.
   window.alert('Open Soccer (placeholder)')
 }
+
+const CSS_ANIMATIONS = `
+  @keyframes confettiFall {
+    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+  }
+  @keyframes goalPulse {
+    0% { transform: scale(1); }
+    100% { transform: scale(1.1); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes popIn {
+    from { transform: scale(0.8); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+  }
+`;
 
 
 
@@ -136,7 +155,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
 function Skybox() {
   // Simple color background, can be replaced with textures
   useThree(({ scene }) => {
-    scene.background = new THREE.Color('#b3e0ff')
+    scene.background = new THREE.Color('#050510')
   })
   return null
 }
@@ -150,14 +169,6 @@ function BlueSky() {
   )
 }
 
-function GrassTerrain({ position = [0, -0.05, 0], size = [200, 200] }) {
-  return (
-    <mesh position={position} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-      <planeGeometry args={size} />
-      <meshStandardMaterial color="#90EE90" roughness={0.8} />
-    </mesh>
-  )
-}
 
 
 
@@ -167,34 +178,8 @@ function GrassTerrain({ position = [0, -0.05, 0], size = [200, 200] }) {
 
 
 
-function Car({ position = [0, 0, 0], color = "#FF0000" }) {
-  return (
-    <group position={position}>
-      {/* Body */}
-      <mesh position={[0, 0.3, 0]} castShadow receiveShadow>
-        <boxGeometry args={[2, 0.6, 4]} />
-        <meshStandardMaterial color={color} metalness={0.8} roughness={0.2} />
-      </mesh>
-      {/* Wheels */}
-      <mesh position={[-0.7, 0.1, 1.2]} castShadow>
-        <cylinderGeometry args={[0.2, 0.2, 0.3, 8]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      <mesh position={[0.7, 0.1, 1.2]} castShadow>
-        <cylinderGeometry args={[0.2, 0.2, 0.3, 8]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      <mesh position={[-0.7, 0.1, -1.2]} castShadow>
-        <cylinderGeometry args={[0.2, 0.2, 0.3, 8]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-      <mesh position={[0.7, 0.1, -1.2]} castShadow>
-        <cylinderGeometry args={[0.2, 0.2, 0.3, 8]} />
-        <meshStandardMaterial color="#222" />
-      </mesh>
-    </group>
-  )
-}
+
+
 
 
 
@@ -507,8 +492,30 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
   )
 }
 
-function SoccerBallWithPhysics({ ballBody, setBallState, isHost }) {
+function GoalDetector({ ballBody, setScores, onGoal }) {
+  useFrame(() => {
+    if (ballBody) {
+      const { x, y, z } = ballBody.position
+      
+      // New specs: position=[-11.2, 1.5, 0], args=[0.2, 4, 4.6]
+      // Trigger when ball crosses the net line (approx 12.4)
+      if (Math.abs(x) > 11.1 && Math.abs(z) < 2.3 && y < 3.5) {
+        const teamScored = x > 0 ? 'red' : 'blue'
+        onGoal(teamScored)
+        
+        // Reset ball
+        ballBody.position.set(0, 2, 0)
+        ballBody.velocity.set(0, 0, 0)
+        ballBody.angularVelocity.set(0, 0, 0)
+      }
+    }
+  })
+  return null
+}
+
+function SoccerBallWithPhysics({ ballBody, ballState, setBallState, isHost }) {
   const meshRef = useRef()
+  
   // Sync mesh with physics
   useFrame(() => {
     if (meshRef.current && ballBody) {
@@ -516,6 +523,7 @@ function SoccerBallWithPhysics({ ballBody, setBallState, isHost }) {
       meshRef.current.quaternion.copy(ballBody.quaternion)
     }
   })
+
   // Host sends ball state to server with throttling
   const lastBallUpdate = useRef(0)
   
@@ -553,50 +561,46 @@ function SoccerBallWithPhysics({ ballBody, setBallState, isHost }) {
           setBallState(ballData, false) // unreliable
         }
       }
+    } else {
+      // Client Sync Logic
+      if (ballBody && ballState) {
+        // Interpolate or snap
+        const dist = Math.sqrt(
+          Math.pow(ballBody.position.x - ballState.position[0], 2) + 
+          Math.pow(ballBody.position.y - ballState.position[1], 2) + 
+          Math.pow(ballBody.position.z - ballState.position[2], 2)
+        )
+        if (dist > 2.0) { 
+          // Snap if too far
+          ballBody.position.set(...ballState.position)
+          ballBody.velocity.set(...ballState.velocity)
+        } else {
+           // Apply velocity from state to keep physics active but guided
+           // This is a simple way to keep it in sync without jittery position setting
+           // However, for precise sports games, position lerping might be better.
+           // Let's try soft position correction + velocity
+           
+           // Simple approach: Snap position if far, otherwise let physics run but nudge velocity?
+           // Actually, standard approach:
+           // ballBody.position.lerp(target, 0.1) -> Cannon bodies don't have lerp.
+           // We can set velocity to move towards target.
+           
+           // For now, let's stick to the previous logic: Snap if far. 
+           // But we should also update velocity to match host so prediction is accurate.
+           ballBody.velocity.set(...ballState.velocity)
+           
+           // Maybe slight position correction?
+           ballBody.position.x += (ballState.position[0] - ballBody.position.x) * 0.1
+           ballBody.position.y += (ballState.position[1] - ballBody.position.y) * 0.1
+           ballBody.position.z += (ballState.position[2] - ballBody.position.z) * 0.1
+        }
+      }
     }
   })
   return <SoccerBall ref={meshRef} />
 }
 
-function RemotePlayer({ position = [0, 1, 0], color = '#888', rotation = 0, playerName = '', team = '' }) {
-  // Remote player using cat-like geometry for consistency
-  return (
-    <group position={position} rotation={[0, rotation, 0]}>
-      {/* Body: elongated ellipsoid */}
-      <mesh position={[0, 0.08, 0]} scale={[0.5, 0.32, 0.28]} castShadow>
-        <sphereGeometry args={[1, 32, 32]} />
-        <meshStandardMaterial color={color} roughness={0.7} metalness={0.05} />
-      </mesh>
-      {/* Head: realistic proportion */}
-      <mesh position={[0, 0.6, 0.02]} scale={[0.42, 0.42, 0.38]} castShadow>
-        <sphereGeometry args={[1, 32, 32]} />
-        <meshStandardMaterial color={color} roughness={0.6} metalness={0.02} />
-      </mesh>
-      {/* Ears */}
-      <mesh position={[-0.18, 0.95, 0]} rotation={[0, 0, -0.2]} scale={[0.9, 0.9, 0.9]} castShadow>
-        <coneGeometry args={[0.09, 0.22, 20]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      <mesh position={[0.18, 0.95, 0]} rotation={[0, 0, 0.2]} scale={[0.9, 0.9, 0.9]} castShadow>
-        <coneGeometry args={[0.09, 0.22, 20]} />
-        <meshStandardMaterial color={color} />
-      </mesh>
-      {/* Eyes */}
-      <group position={[-0.12, 0.82, 0.08]}>
-        <mesh scale={[0.105, 0.06, 0.01]}><sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
-        <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}><circleGeometry args={[1, 32]} /><meshStandardMaterial color="#000" /></mesh>
-      </group>
-      <group position={[0.12, 0.82, 0.08]}>
-        <mesh scale={[0.105, 0.06, 0.01]}><sphereGeometry args={[1, 16, 16]} /><meshStandardMaterial color="#f6f6f6" /></mesh>
-        <mesh position={[0, 0, 0.01]} scale={[0.06, 0.035, 0.01]}><circleGeometry args={[1, 32]} /><meshStandardMaterial color="#000" /></mesh>
-      </group>
-      {/* Player name label */}{playerName && (
-        <Html position={[0, 2.2, 0]} center distanceFactor={8}>
-          <div className={`player-name-label ${team}`}>{playerName}</div>
-        </Html>
-      )}</group>
-  )
-}
+
 
 // Single player model path for all players (cat model)
 const PLAYER_MODEL_PATH = '/models/cat.glb'
@@ -626,46 +630,6 @@ function RemotePlayerWithPhysics({ player }) {
       }
     }
   }, [body, giant])
-
-  // Load GLB model for remote player
-  const playerModelPath = character === 'cat' ? '/models/cat.glb' : '/models/low_poly_car.glb'
-  const characterScale = character === 'cat' ? 0.01 : 0.0015
-  const { scene } = useGLTF(playerModelPath)
-  
-  const clonedScene = React.useMemo(() => {
-    const cloned = scene.clone()
-    cloned.traverse((child) => {
-      if (child.isMesh && child.material) {
-        child.material = child.material.clone()
-        // Apply team color to the model
-        child.material.color = new THREE.Color(color)
-        child.castShadow = true
-        child.receiveShadow = true
-        // Enable transparency for invisibility
-        child.material.transparent = true
-        child.material.opacity = 1.0
-      }
-    })
-    return cloned
-  }, [scene, color])
-  
-  // Handle invisibility and giant updates
-  useFrame(() => {
-    if (groupRef.current) {
-      // Giant Scaling
-      const targetScale = giant ? 6.0 : 1.0
-      groupRef.current.scale.lerp(new THREE.Vector3(targetScale, targetScale, targetScale), 0.1)
-      
-      // Invisibility
-      const targetOpacity = invisible ? 0.0 : 1.0 
-      
-      groupRef.current.traverse((child) => {
-        if (child.isMesh && child.material) {
-          child.material.opacity = THREE.MathUtils.lerp(child.material.opacity, targetOpacity, 0.1)
-        }
-      })
-    }
-  })
   
   useEffect(() => {
     const world = getWorld()
@@ -683,15 +647,19 @@ function RemotePlayerWithPhysics({ player }) {
   useFrame((_, delta) => {
     if (groupRef.current) {
       // Use damp for time-based smoothing (independent of frame rate)
-      // Lambda 15 gives a good balance of smoothness and responsiveness
-      const lambda = 15
+      // Lambda 20 gives a snappier but still smooth feel
+      const lambda = 20
       
       groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetPosition.current.x, lambda, delta)
       groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetPosition.current.y, lambda, delta)
       groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetPosition.current.z, lambda, delta)
       
-      // Smooth rotation
-      groupRef.current.rotation.y = THREE.MathUtils.damp(groupRef.current.rotation.y, targetRotation.current, lambda, delta)
+      // Smooth rotation (handle wrap-around)
+      let rotDiff = targetRotation.current - groupRef.current.rotation.y
+      while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+      while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
+      
+      groupRef.current.rotation.y += rotDiff * Math.min(1, lambda * delta)
       
       // Sync physics body with visual position
       if (body) {
@@ -705,10 +673,17 @@ function RemotePlayerWithPhysics({ player }) {
   })
 
   return (
-    <group ref={groupRef} position={[position[0], position[1] + (character === 'car' ? 0.2 : 0), position[2]]}>
-      <primitive object={clonedScene} scale={characterScale} position={[0, 0, 0]} />
-      {playerName && !invisible && ( // Hide name label if invisible
-        <Html position={[0, 2.2, 0]} center distanceFactor={8}>
+    <group ref={groupRef} position={[position[0], position[1], position[2]]}>
+      <CharacterSkin 
+        characterType={character}
+        teamColor={color}
+        isRemote={true}
+        invisible={invisible}
+        giant={giant}
+        key={character} // Force remount on character change
+      />
+      {playerName && !invisible && (
+        <Html key={`label-${playerName}`} position={[0, 2.2, 0]} center distanceFactor={8}>
           <div className={`player-name-label ${team}`}>{playerName}</div>
         </Html>
       )}
@@ -736,14 +711,22 @@ export default function Scene() {
 
   const { 
     isLaunched, 
-    players: remotePlayers, 
+    players, 
     ballState, 
     setBallState, 
     scores, 
     setScores, 
+    chatMessages,
+    setChatMessages,
     isHost, 
     me 
   } = usePlayroom()
+
+  // Filter out my player from remote players list
+  const remotePlayers = React.useMemo(() => {
+    if (!me) return []
+    return players.filter(p => p.id !== me.id)
+  }, [players, me])
 
   const playerRef = useRef()
   const targetRef = useRef() // Camera target
@@ -753,7 +736,7 @@ export default function Scene() {
   // const [remotePlayers, setRemotePlayers] = useState({}) // Replaced by usePlayroom
   const [ballBody] = useState(() => createSoccerBallBody())
   // const [scores, setScores] = useState({ red: 0, blue: 0 }) // Replaced by usePlayroom
-  const [chatMessages, setChatMessages] = useState([])
+  // const chatMessages = [] // Replaced by usePlayroom
   const [chatInput, setChatInput] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [celebration, setCelebration] = useState(null) // { team: 'red' | 'blue' }
@@ -869,10 +852,7 @@ export default function Scene() {
   // Sync ball physics with Playroom state
   useEffect(() => {
     if (ballBody && ballState) {
-      // If we are host, we control the ball, so we don't snap to state unless it's a reset
-      // If we are client, we snap to state
       if (!isHost) {
-        // Interpolate or snap
         const dist = Math.sqrt(
           Math.pow(ballBody.position.x - ballState.position[0], 2) + 
           Math.pow(ballBody.position.y - ballState.position[1], 2) + 
@@ -882,38 +862,38 @@ export default function Scene() {
           ballBody.position.set(...ballState.position)
           ballBody.velocity.set(...ballState.velocity)
         } else {
-           // Smooth lerp could go here, but for now let's trust the physics engine 
-           // and only correct if far off, or maybe apply velocity?
-           // Actually, for clients, we should probably set position/velocity from state
-           // but let physics run in between updates.
-           // For simplicity in this step, let's just snap if far, otherwise let physics run?
-           // No, clients need to follow host.
-           // We'll handle this in SoccerBallWithPhysics component actually.
+           ballBody.velocity.set(...ballState.velocity)
         }
       }
     }
   }, [ballBody, ballState, isHost])
 
-  // Handle score updates (Goal detection is local for host, synced for others)
+  // Handle goal scored
+  const handleGoal = (team) => {
+    if (isHost) {
+      const newScores = { ...scores }
+      newScores[team]++
+      setScores(newScores)
+      
+      // Reset ball after delay
+      setTimeout(() => {
+        setBallState({ position: [0, 2, 0], velocity: [0, 0, 0] }, true)
+      }, 2000)
+    }
+  }
+
+  // Handle score updates
   useEffect(() => {
-      // Check if a goal was scored (score increased)
       if (scores.red > prevScoresRef.current.red || scores.blue > prevScoresRef.current.blue) {
         setCelebration({ team: scores.red > prevScoresRef.current.red ? 'red' : 'blue' })
-
-        // Play goal sound
         const audio = new Audio('/winner-game-sound-404167.mp3')
         audio.volume = 0.03
         audio.play().catch(e => console.error("Audio play failed:", e))
-
-        // Stop sound after 2 seconds
         setTimeout(() => {
           audio.pause()
           audio.currentTime = 0
         }, 2000)
-
-        setTimeout(() => setCelebration(null), 3000) // Hide after 3 seconds
-        
-        // Respawn players after 2 seconds
+        setTimeout(() => setCelebration(null), 3000)
         setTimeout(() => {
           if (playerRef.current) {
             const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
@@ -921,12 +901,10 @@ export default function Scene() {
           }
         }, 2000)
       }
-      
       prevScoresRef.current = { ...scores }
   }, [scores])
 
   useEffect(() => {
-    // Add soccer ball to physics world
     const world = createWorld()
     world.addBody(ballBody)
     return () => {
@@ -934,35 +912,13 @@ export default function Scene() {
     }
   }, [ballBody])
 
-  // Manage remote player physics bodies
-  useEffect(() => {
-    const world = getWorld()
-    const bodies = {} // Map id -> body
-
-    // We need to sync bodies with remotePlayers state
-    // But since we can't easily diff inside this effect without refs or complex logic,
-    // we'll use a ref to track created bodies or just iterate.
-    // Actually, a better way is to handle body creation/update in a separate component for each remote player,
-    // or do it here. Let's do it here for simplicity but we need to be careful not to recreate bodies constantly.
-    
-    // Strategy: We'll use a ref to store the bodies map so it persists across renders
-    // But we can't easily use a ref inside this effect if we want to react to remotePlayers changes.
-    // Instead, let's make a RemotePlayerPhysics component that handles its own body!
-    // That's much cleaner.
-  }, []) 
-
-
-
-
-
-
-
   if (!hasJoined) {
     return <TeamSelectPopup defaultName={me?.getProfile()?.name} />
   }
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+      <style>{CSS_ANIMATIONS}</style>
       {/* Connection Status - Top Left */}
       <div style={{
         position: 'absolute',
@@ -1054,16 +1010,13 @@ export default function Scene() {
         display: 'flex',
         gap: '10px'
       }}>
-        
-        {/* Fullscreen Button */}
         <button
           onClick={() => {
+            const elem = document.documentElement
             if (!document.fullscreenElement) {
-              document.documentElement.requestFullscreen().catch(err => {
-                console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-              });
+              elem.requestFullscreen()
             } else {
-              document.exitFullscreen();
+              document.exitFullscreen()
             }
           }}
           style={{
@@ -1073,77 +1026,49 @@ export default function Scene() {
             color: 'white',
             padding: '10px',
             cursor: 'pointer',
-            backdropFilter: 'blur(5px)',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: '20px',
-            transition: 'all 0.2s'
+            backdropFilter: 'blur(5px)'
           }}
-          title="Toggle Fullscreen"
-          onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
-          onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.5)'}
         >
           ⛶
         </button>
-
-        {/* Exit Button */}
-       
       </div>
 
-      {/* Scoreboard - outside Canvas, fixed on top */}
-      <div style={{ 
-        position: 'absolute', 
-        top: 0, 
-        left: 0, 
-        right: 0, 
-        zIndex: 9999, 
-        pointerEvents: 'none',
+      {/* Scoreboard - Top Center */}
+      <div style={{
+        position: 'absolute',
+        top: '20px',
+        left: '50%',
+        transform: 'translateX(-50%)',
+        zIndex: 9999,
         display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '20px'
+        gap: '20px',
+        background: 'rgba(0,0,0,0.6)',
+        padding: '10px 30px',
+        borderRadius: '20px',
+        border: '1px solid rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(10px)'
       }}>
-        <div style={{ 
-          fontSize: '48px', 
-          fontWeight: 'bold', 
-          color: 'white', 
-          textShadow: '2px 2px 4px rgba(0,0,0,0.5)',
-          display: 'flex', 
-          gap: '30px', 
-          textTransform: 'uppercase',
-          background: 'rgba(0,0,0,0.5)',
-          padding: '10px 30px',
-          borderRadius: '12px'
-        }}>
-          <span style={{ color: '#ff4757' }}>RED: {scores.red}</span>
-          <span style={{ color: 'white' }}>-</span>
-          <span style={{ color: '#3742fa' }}>BLUE: {scores.blue}</span>
-        </div>
-       
+        <div style={{ color: '#ff4757', fontSize: '32px', fontWeight: 'bold' }}>{scores.red}</div>
+        <div style={{ color: 'white', fontSize: '32px', fontWeight: 'bold' }}>-</div>
+        <div style={{ color: '#3742fa', fontSize: '32px', fontWeight: 'bold' }}>{scores.blue}</div>
       </div>
-
-      {/* Active Power-Up Indicator */}
+      
+      {/* Active Power-up Indicator */}
       {activeEffect && (
         <div style={{
           position: 'absolute',
-          top: '20px',
-          right: '20px',
-          zIndex: 10,
-          background: 'rgba(0,0,0,0.7)',
-          padding: '15px',
-          borderRadius: '50%',
-          width: '80px',
-          height: '80px',
-          display: 'flex',
-          justifyContent: 'center',
-          alignItems: 'center',
-          fontSize: '48px',
-          border: `4px solid ${activeEffect.color}`,
-          boxShadow: `0 0 20px ${activeEffect.color}`,
-          animation: 'pulse 1s infinite alternate'
+          top: '100px',
+          left: '50%',
+          transform: 'translateX(-50%)',
+          zIndex: 9999,
+          background: 'rgba(255, 215, 0, 0.8)',
+          padding: '10px 20px',
+          borderRadius: '20px',
+          color: 'black',
+          fontWeight: 'bold',
+          animation: 'bounce 0.5s infinite alternate'
         }}>
-          {activeEffect.label}
+          ⚡ {activeEffect.name} Active!
         </div>
       )}
 
@@ -1151,116 +1076,53 @@ export default function Scene() {
       {celebration && (
         <div style={{
           position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
           zIndex: 10000,
-          pointerEvents: 'none',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'rgba(0,0,0,0.3)'
+          fontSize: '80px',
+          fontWeight: 'bold',
+          color: celebration.team === 'red' ? '#ff4757' : '#3742fa',
+          textShadow: '0 0 20px rgba(255,255,255,0.8)',
+          animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
         }}>
-          {/* Confetti particles */}
-          {Array.from({ length: 50 }).map((_, i) => (
-            <div
-              key={i}
-              style={{
-                position: 'absolute',
-                width: `${Math.random() * 15 + 5}px`,
-                height: `${Math.random() * 15 + 5}px`,
-                background: celebration.team === 'red' 
-                  ? ['#ff4757', '#ff6b81', '#ffd32a', '#fff200'][Math.floor(Math.random() * 4)]
-                  : ['#3742fa', '#5f6cff', '#00d2d3', '#54a0ff'][Math.floor(Math.random() * 4)],
-                borderRadius: Math.random() > 0.5 ? '50%' : '0',
-                left: `${Math.random() * 100}%`,
-                top: `-10%`,
-                animation: `confettiFall ${2 + Math.random() * 2}s ease-out forwards`,
-                animationDelay: `${Math.random() * 0.5}s`,
-                transform: `rotate(${Math.random() * 360}deg)`
-              }}
-            />
-          ))}
-          {/* GOAL Text */}
-          <div style={{
-            fontSize: '120px',
-            fontWeight: '900',
-            color: celebration.team === 'red' ? '#ff4757' : '#3742fa',
-            textShadow: `0 0 20px ${celebration.team === 'red' ? '#ff4757' : '#3742fa'}, 
-                         0 0 40px ${celebration.team === 'red' ? '#ff4757' : '#3742fa'},
-                         0 0 60px ${celebration.team === 'red' ? '#ff4757' : '#3742fa'},
-                         4px 4px 0 #000`,
-            animation: 'goalPulse 0.5s ease-in-out infinite alternate',
-            textTransform: 'uppercase',
-            letterSpacing: '20px'
-          }}>
-            ⚽ GOAL! ⚽
-          </div>
-          <div style={{
-            position: 'absolute',
-            bottom: '30%',
-            fontSize: '36px',
-            fontWeight: 'bold',
-            color: 'white',
-            textShadow: '2px 2px 4px rgba(0,0,0,0.8)'
-          }}>
-            {celebration.team.toUpperCase()} TEAM SCORES!
-          </div>
+          GOAL!
         </div>
       )}
-      
-      {/* CSS Animations */}
-      <style>{`
-        @keyframes confettiFall {
-          0% {
-            transform: translateY(0) rotate(0deg);
-            opacity: 1;
-          }
-          100% {
-            transform: translateY(100vh) rotate(720deg);
-            opacity: 0;
-          }
-        }
-        @keyframes goalPulse {
-          0% {
-            transform: scale(1);
-          }
-          100% {
-            transform: scale(1.1);
-          }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-        @keyframes popIn {
-          from { transform: scale(0.8); opacity: 0; }
-          to { transform: scale(1); opacity: 1; }
-        }
-      `}</style>
+
       {/* 3D Canvas */}
       <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }} gl={{ outputColorSpace: THREE.SRGBColorSpace }}>
 
           <Suspense fallback={null}>
+            <fog attach="fog" args={['#050510', 10, 50]} />
             <PhysicsHandler />
-            <GoalDetector onGoal={(team) => {
-              // Only host handles scoring
-              if (isHost) {
-                 const newScores = { ...scores }
-                 newScores[team]++
-                 setScores(newScores, true) // reliable
-                 
-                 // Reset ball after delay (handled by effect or just set position)
-                 setTimeout(() => {
-                   setBallState({ position: [0, 0.5, 0], velocity: [0, 0, 0] }, true)
-                 }, 2000)
-              }
-            }} />
+            {isHost && (
+              <GoalDetector 
+                ballBody={ballBody} 
+                setScores={setScores} 
+                onGoal={handleGoal}
+              />
+            )}
             
-            <ambientLight intensity={0.5} />
-            <pointLight position={[10, 10, 10]} intensity={1} castShadow />
+            <ambientLight intensity={0.2} />
+            <hemisphereLight intensity={0.3} groundColor="#000000" skyColor="#1a1a2e" />
+            <pointLight position={[10, 10, 10]} intensity={0.5} castShadow />
+            <directionalLight 
+              position={[-20, 30, 20]} 
+              intensity={1.5} 
+              color="#aaccff" 
+              castShadow 
+              shadow-mapSize={[2048, 2048]}
+              shadow-camera-left={-30}
+              shadow-camera-right={30}
+              shadow-camera-top={30}
+              shadow-camera-bottom={-30}
+            />
             <Skybox />
+            <MapComponents.MysteryShack />
+            <Sparkles count={300} scale={[40, 20, 40]} size={3} speed={0.3} color="#aaccff" />
+            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+            
             
             <SoccerPitch size={pitchSize} />
             <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor={teamColors.red} />
@@ -1289,7 +1151,9 @@ export default function Scene() {
               isFreeLook={isFreeLook}
               mobileInput={mobileInput}
               characterType={playerCharacter}
+              key={playerCharacter} // Force remount when character changes
             />
+
             
             {/* Remote Players */}
             {remotePlayers.map((p) => (
@@ -1371,7 +1235,7 @@ export default function Scene() {
                 }}
               >
                 {chatMessages.map((msg, i) => (
-                  <div key={i} style={{ marginBottom: '8px' }}>
+                  <div key={msg.time + '-' + msg.playerName} style={{ marginBottom: '8px' }}>
                     <span style={{ 
                       color: msg.team === 'red' ? '#ff4757' : msg.team === 'blue' ? '#3742fa' : '#888',
                       fontWeight: 'bold',
@@ -1389,8 +1253,14 @@ export default function Scene() {
                 onSubmit={(e) => {
                   e.preventDefault()
                   if (chatInput.trim()) {
-                    // Chat disabled for now as socket is removed
-                    // socket.emit('chat-message', ...)
+                    const newMessage = {
+                      playerName: playerName || 'Guest',
+                      team: playerTeam,
+                      message: chatInput.trim(),
+                      time: Date.now()
+                    }
+                    // Add to multiplayer state (limit to last 50 messages)
+                    setChatMessages(prev => [...(prev || []).slice(-49), newMessage])
                     setChatInput('')
                   }
                 }}
@@ -1486,9 +1356,7 @@ export default function Scene() {
               <button
                 onClick={() => {
                   setShowExitConfirm(false);
-                  if (me) {
-                    me.quit();
-                  }
+                  // me.quit() is not a valid Playroom function
                   setScores({ red: 0, blue: 0 }); // Reset local scores
                   leaveGame();
                 }}

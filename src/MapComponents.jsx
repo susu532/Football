@@ -16,7 +16,7 @@ export const MysteryShack = React.memo(function MysteryShack() {
     })
     return cloned
   }, [gltf.scene])
-  return React.createElement('primitive', { object: scene, position: [0, -10, 0], scale: 4 })
+  return React.createElement('primitive', { object: scene, position: [0, -8, 0], scale: 4 })
 })
 
 export default {

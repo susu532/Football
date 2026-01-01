@@ -38,6 +38,7 @@ export function usePlayroom() {
     velocity: [0, 0, 0] 
   })
   const [scores, setScores] = useMultiplayerState('scores', { red: 0, blue: 0 })
+  const [chatMessages, setChatMessages] = useMultiplayerState('chat', [])
   const isHostPlayer = useIsHost()
   
   // Helper to get my player object
@@ -45,11 +46,13 @@ export function usePlayroom() {
 
   return {
     isLaunched,
-    players,
-    ballState,
+    players: players || [],
+    ballState: ballState || { position: [0, 0.5, 0], velocity: [0, 0, 0] },
     setBallState,
-    scores,
+    scores: scores || { red: 0, blue: 0 },
     setScores,
+    chatMessages: chatMessages || [],
+    setChatMessages,
     isHost: isHostPlayer,
     me,
     // Expose raw Playroom functions if needed
