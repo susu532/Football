@@ -7,7 +7,7 @@ import useStore from './store'
 import { createWorld, stepWorld, getWorld, createSoccerBallBody, createPlayerBody, removeBody } from './physics'
 import * as CANNON from 'cannon-es'
 import { useSpring, a } from '@react-spring/three'
-import { useSpring, a } from '@react-spring/three'
+
 import { usePlayroom } from './usePlayroom'
 import { usePlayerState } from 'playroomkit'
 import TeamSelectPopup from './TeamSelectPopup'
