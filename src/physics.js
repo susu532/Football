@@ -16,7 +16,7 @@ const postMaterial = new CANNON.Material('post') // Goal posts and crossbar
 // Ball vs Ground - Natural grass-like rolling
 // Ball vs Ground - Natural grass-like rolling
 const ballGroundContact = new CANNON.ContactMaterial(ballMaterial, groundMaterial, {
-  friction: 0.6,           // Increased for stability (was 0.5)
+  friction: 0.8,           // Increased for faster stopping (was 0.5)
   restitution: 0.6,        // Bouncier grass (real soccer balls bounce well)
   contactEquationStiffness: 1e8,
   contactEquationRelaxation: 3,
@@ -117,13 +117,13 @@ export function createSoccerBallBody(position = [0, 0.5, 0]) {
     mass: 0.45,                    // Slightly heavier for stability
     position: new CANNON.Vec3(...position),
     material: ballMaterial,
-    linearDamping: 0.2,            // Reduced for natural rolling
-    angularDamping: 0.6,           // Increased to tame spinning (was 0.3)
+    linearDamping: 0.9,            // Increased for control (was 0.8)
+    angularDamping: 0.99,          // Increased to kill spin (was 0.95)
     fixedRotation: false,          // Ball can spin
   })
   
-  // Allow full rotation for natural spin
-  body.angularFactor = new CANNON.Vec3(1, 1, 1)
+  // Limit rotation on Y axis (horizontal spinning) while allowing X/Z rolling
+  body.angularFactor = new CANNON.Vec3(1, 0.2, 1)
   
   body.addShape(shape)
   
