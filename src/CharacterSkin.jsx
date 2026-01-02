@@ -19,6 +19,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   isRemote = false,
   invisible = false,
   giant = false,
+  onLocalInteraction = null,
   children 
 }, ref) {
   const groupRef = useRef()
@@ -349,6 +350,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
             ),
             bPos
           )
+          
+          if (onLocalInteraction) onLocalInteraction()
         }
       }
     }
@@ -412,8 +415,13 @@ const CharacterSkin = forwardRef(function CharacterSkin({
           
           ballBody.applyImpulse(impulse, impulsePoint)
           
-          // Trigger callback
-          if (onKick) onKick()
+          // Trigger callback with impulse data for network sync
+          if (onKick) {
+            onKick({
+              impulse: [impulse.x, impulse.y, impulse.z],
+              point: [impulsePoint.x, impulsePoint.y, impulsePoint.z]
+            })
+          }
           
           // Cooldown
           keys.current['f'] = false

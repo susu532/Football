@@ -376,11 +376,14 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   )
 })
 
-function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null, mobileInput = null, characterType = 'cat' }) {
+function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null, mobileInput = null, characterType = 'cat', onLocalInteraction = null }) {
   // Callback when player kicks the ball - send update to server
-  const handleKick = () => {
-    // Kick logic is local physics impulse, no network event needed here 
-    // as physics body update will be synced via position
+  const handleKick = (data) => {
+    if (data) {
+      // Send kick event to host (and others)
+      RPC.call('kick-ball', { ...data, playerId: me.id }, RPC.Mode.ALL)
+      if (onLocalInteraction) onLocalInteraction()
+    }
   }
   // Physics body for the player (to push the ball)
   const [body] = useState(() => createPlayerBody(spawnPosition))
@@ -479,6 +482,7 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
         isFreeLook={isFreeLook}
         mobileInput={mobileInput}
         characterType={characterType}
+        onLocalInteraction={onLocalInteraction}
       />
       {/* Name label follows player position */}
       {playerName && (
@@ -607,7 +611,7 @@ function SoccerBallWithPhysics({ ballBody, ballState, setBallState, isHost }) {
 // Single player model path for all players (cat model)
 const PLAYER_MODEL_PATH = '/models/cat.glb'
 
-function RemotePlayerWithPhysics({ player }) {
+function RemotePlayerWithPhysics({ player, ballBody }) {
   const [position] = usePlayerState(player, 'pos', [0, 1, 0])
   const [rotation] = usePlayerState(player, 'rot', 0)
   const [profile] = usePlayerState(player, 'profile', { name: 'Player', color: '#888', team: '', character: 'cat' })
@@ -645,6 +649,8 @@ function RemotePlayerWithPhysics({ player }) {
     targetRotation.current = rotation
   }, [position, rotation])
 
+  const prevPos = useRef(new THREE.Vector3(...position))
+
   // Smoothly interpolate towards target position
   useFrame((_, delta) => {
     if (groupRef.current) {
@@ -670,6 +676,37 @@ function RemotePlayerWithPhysics({ player }) {
           groupRef.current.position.y,
           groupRef.current.position.z
         )
+      }
+
+      // Dribble Logic (Host only effectively, as physics runs there)
+      if (ballBody) {
+         const currentPos = groupRef.current.position
+         const dx = currentPos.x - prevPos.current.x
+         const dz = currentPos.z - prevPos.current.z
+         // Calculate speed (units per second)
+         const speed = Math.sqrt(dx*dx + dz*dz) / (delta || 0.016)
+         
+         if (speed > 1.0) {
+           // Check distance to ball
+           const bPos = ballBody.position
+           const distToBall = Math.sqrt((bPos.x - currentPos.x)**2 + (bPos.z - currentPos.z)**2)
+           
+           // Interaction radius (Player 0.5 + Ball 0.22 + margin)
+           if (distToBall < 1.0) {
+              // Apply impulse
+              // Direction: Normalized velocity vector
+              const dirX = dx / ((speed * delta) || 0.001)
+              const dirZ = dz / ((speed * delta) || 0.001)
+              
+              const dribblePower = 0.8
+              ballBody.applyImpulse(
+                new CANNON.Vec3(dirX * dribblePower * delta * speed, 0, dirZ * dribblePower * delta * speed),
+                bPos
+              )
+           }
+         }
+         
+         prevPos.current.copy(currentPos)
       }
     }
   })
@@ -724,33 +761,7 @@ export default function Scene() {
     me 
   } = usePlayroom()
 
-  // RPC Listeners
-  useEffect(() => {
-    if (isLaunched) {
-      // Listen for goal celebrations
-      RPC.register('goal-scored', (data) => {
-        setCelebration({ team: data.team })
-        const audio = new Audio('/winner-game-sound-404167.mp3')
-        audio.volume = 0.03
-        audio.play().catch(e => console.error("Audio play failed:", e))
-        setTimeout(() => {
-          audio.pause()
-          audio.currentTime = 0
-        }, 3000)
-        setTimeout(() => setCelebration(null), 3000) // Sync to 3s
-        
-        // Reset local player position
-        setTimeout(() => {
-          if (playerRef.current) {
-            const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-            playerRef.current.position.set(...spawn)
-          }
-        }, 3000) // Sync to 3s
-      })
 
-      // RPC chat removed in favor of stable useMultiplayerState
-    }
-  }, [isLaunched, playerTeam])
 
   // Auto-scroll chat when messages change
   useEffect(() => {
@@ -785,6 +796,52 @@ export default function Scene() {
   const pitchSize = [30, 0.2, 20]
   const isFreeLook = useRef(false)
   const [ballAuthority, setBallAuthority] = useState(null) // Track which player has ball authority
+  const lastLocalInteraction = useRef(0)
+  
+  const handleLocalInteraction = useCallback(() => {
+    lastLocalInteraction.current = Date.now()
+  }, [])
+
+  // RPC Listeners
+  useEffect(() => {
+    if (isLaunched) {
+      // Listen for goal celebrations
+      RPC.register('goal-scored', (data) => {
+        setCelebration({ team: data.team })
+        const audio = new Audio('/winner-game-sound-404167.mp3')
+        audio.volume = 0.03
+        audio.play().catch(e => console.error("Audio play failed:", e))
+        setTimeout(() => {
+          audio.pause()
+          audio.currentTime = 0
+        }, 3000)
+        setTimeout(() => setCelebration(null), 3000) // Sync to 3s
+        
+        // Reset local player position
+        setTimeout(() => {
+          if (playerRef.current) {
+            const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
+            playerRef.current.position.set(...spawn)
+          }
+        }, 3000) // Sync to 3s
+      })
+
+      // Listen for kick events
+      RPC.register('kick-ball', (data) => {
+        if (!ballBody) return
+        
+        // Host always applies impulse (authoritative)
+        // Clients apply impulse for prediction (except the kicker, who already applied it locally)
+        if (isHost || data.playerId !== me.id) {
+          const impulse = new CANNON.Vec3(...data.impulse)
+          const point = new CANNON.Vec3(...data.point)
+          ballBody.applyImpulse(impulse, point)
+        }
+      })
+      
+      // RPC chat removed in favor of stable useMultiplayerState
+    }
+  }, [isLaunched, playerTeam, ballBody])
   
   // Connection quality tracking
   const [connectionQuality, setConnectionQuality] = useState('excellent')
@@ -890,6 +947,10 @@ export default function Scene() {
   useEffect(() => {
     if (ballBody && ballState) {
       if (!isHost) {
+        // If we recently interacted with the ball locally, skip sync to prevent jitter
+        // This allows client-side prediction to run smoothly until the host catches up
+        if (Date.now() - lastLocalInteraction.current < 250) return
+
         const dist = Math.sqrt(
           Math.pow(ballBody.position.x - ballState.position[0], 2) + 
           Math.pow(ballBody.position.y - ballState.position[1], 2) + 
@@ -1166,23 +1227,24 @@ export default function Scene() {
             />
             
             {/* Local Player */}
-            <LocalPlayerWithSync 
-              me={me}
-              playerRef={playerRef}
-              hasModel={hasModel}
-              playerName={playerName}
-              playerTeam={playerTeam}
-              teamColor={playerTeam === 'red' ? teamColors.red : teamColors.blue}
-              spawnPosition={playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]}
-              ballBody={ballBody}
-              powerUps={activePowerUps}
-              onCollectPowerUp={handleCollectPowerUp}
-              onPowerUpActive={handlePowerUpActive}
-              isFreeLook={isFreeLook}
-              mobileInput={mobileInput}
-              characterType={playerCharacter}
-              key={playerCharacter} // Force remount when character changes
-            />
+              <LocalPlayerWithSync 
+                me={me}
+                playerRef={playerRef}
+                hasModel={hasModel}
+                playerName={playerName}
+                playerTeam={playerTeam}
+                teamColor={playerTeam === 'red' ? teamColors.red : teamColors.blue}
+                spawnPosition={playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]}
+                ballBody={ballBody}
+                powerUps={activePowerUps}
+                onCollectPowerUp={handleCollectPowerUp}
+                onPowerUpActive={handlePowerUpActive}
+                isFreeLook={isFreeLook}
+                mobileInput={mobileInput}
+                characterType={playerCharacter}
+                onLocalInteraction={handleLocalInteraction}
+                key={playerCharacter} // Force remount when character changes
+              />
 
             
             {/* Remote Players */}
@@ -1190,6 +1252,7 @@ export default function Scene() {
               <RemotePlayerWithPhysics 
                 key={p.id} 
                 player={p}
+                ballBody={ballBody}
               />
             ))}
             
