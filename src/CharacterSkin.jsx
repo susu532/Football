@@ -1,4 +1,4 @@
-import React, { forwardRef, useRef, useEffect } from 'react'
+import React, { forwardRef, useRef, useEffect, useImperativeHandle } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
@@ -10,7 +10,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   onKick = null,
   powerUps = [],
   onCollectPowerUp = null,
-  onPowerUpActive = null,
   isFreeLook = null,
   mobileInput = null, // { move: {x, y}, jump: bool, kick: bool }
   characterType = 'cat',
@@ -18,9 +17,13 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   invisible = false,
   giant = false,
   onLocalInteraction = null,
+  possession = null, // Added
+  localPlayerId = null, // Added
   children 
 }, ref) {
   const groupRef = useRef()
+  
+  useImperativeHandle(ref, () => groupRef.current)
   
   // Determine model path based on character type
   console.log('CharacterSkin: characterType prop:', characterType)
@@ -189,10 +192,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
         if (dist < 1.5) { // Increased radius for easier collection
           onCollectPowerUp(p.id)
           
-          // Trigger UI indicator
-          if (onPowerUpActive) {
-            onPowerUpActive(p.type)
-          }
           
           // Apply Effect
           if (p.type === 'speed') {
@@ -284,8 +283,12 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
       while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
       
+      // Reduce turn speed when possessing the ball for more control
+      const isPossessing = possession === localPlayerId
+      const rotationSpeed = isPossessing ? 10 : 20
+      
       // Smoothly rotate
-      groupRef.current.rotation.y += rotDiff * Math.min(1, 20 * delta)
+      groupRef.current.rotation.y += rotDiff * Math.min(1, rotationSpeed * delta)
     }
     
     // Apply horizontal velocity with lerp for smooth movement
@@ -319,13 +322,13 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     
     // Power Kick with F key
     if (kickRequested) {
-      // We don't have ballBody here anymore. 
-      // Instead, we rely on the onKick callback to send the intent to the host.
-      // The host will then check distance and apply impulse.
-      // However, for better UX, we can still do a client-side range check if we have the ball position.
-      // But since we are moving to Host Authority, let's just send the RPC.
       
       if (onKick) {
+        const isPossessing = possession === localPlayerId
+        
+        // Use full power if possessing, otherwise a lower strength (poke kick)
+        const baseKickStrength = isPossessing ? 1.0 : 0.4
+        
         // We need to send the direction. We can use the player's forward vector.
         const rotation = groupRef.current.rotation.y
         const forwardX = Math.sin(rotation)
@@ -337,7 +340,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
         
         onKick({
           impulse: [kickDir.x * kickPower, kickDir.y * kickPower, kickDir.z * kickPower],
-          point: [groupRef.current.position.x, groupRef.current.position.y, groupRef.current.position.z]
+          point: [groupRef.current.position.x, groupRef.current.position.y, groupRef.current.position.z],
+          kickStrength: baseKickStrength // Send strength to host for scaling
         })
       }
       

@@ -33,21 +33,23 @@ export function usePlayroom() {
 
   // Game State Hooks
   const players = usePlayersList(true) // true = trigger re-render on state change
-  const [ballState, setBallState] = useMultiplayerState('ball', { 
-    position: [0, 0.5, 0], 
-    velocity: [0, 0, 0] 
+  const [ballState, setBallState] = useMultiplayerState('ball', {
+    position: [0, 2, 0], // Start ball higher
+    velocity: [0, 0, 0],
+    rotation: [0, 0, 0, 1] // Initial quaternion (identity)
   })
   const [scores, setScores] = useMultiplayerState('scores', { red: 0, blue: 0 })
   const [chatMessages, setChatMessages] = useMultiplayerState('chat', [])
+  const [possession, setPossession] = useMultiplayerState('possession', null) // New possession state
   const isHostPlayer = useIsHost()
-  
+
   // Helper to get my player object
   const me = myPlayer()
 
   return {
     isLaunched,
     players: players || [],
-    ballState: ballState || { position: [0, 0.5, 0], velocity: [0, 0, 0] },
+    ballState: ballState || { position: [0, 2, 0], velocity: [0, 0, 0] },
     setBallState,
     scores: scores || { red: 0, blue: 0 },
     setScores,
@@ -55,7 +57,7 @@ export function usePlayroom() {
     setChatMessages,
     isHost: isHostPlayer,
     me,
-    // Expose raw Playroom functions if needed
-    isHostFn: isHost
+    possession,
+    setPossession
   }
 }
