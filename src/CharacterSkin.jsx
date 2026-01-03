@@ -2,13 +2,11 @@ import React, { forwardRef, useRef, useEffect } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import * as CANNON from 'cannon-es'
 
 const CharacterSkin = forwardRef(function CharacterSkin({ 
   position = [0, 0, 0], 
   teamColor = '#888',
   remotePlayers = {},
-  ballBody = null,
   onKick = null,
   powerUps = [],
   onCollectPowerUp = null,
@@ -317,116 +315,34 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       }
     })
 
-    // Active Dribble: Push ball further when moving into it
-    if (ballBody) {
-      const pPos = groupRef.current.position
-      const bPos = ballBody.position
-      const dx = bPos.x - pPos.x
-      const dz = bPos.z - pPos.z
-      const dist = Math.sqrt(dx*dx + dz*dz)
-      
-      // Interaction radius (Player 0.5 + Ball 0.22 + margin)
-      if (dist < 1.0) {
-        // Calculate player speed
-        const speed = Math.sqrt(velocity.current.x**2 + velocity.current.z**2)
-        
-        if (speed > 1.0) {
-          // Player is moving fast enough to "dribble"
-          // Apply impulse in direction of PLAYER MODEL FACING
-          // User request: "make it follow the direction of the model"
-          
-          const dribblePower = 0.8 // Increased for better forward push (was 0.35)
-          const rotation = groupRef.current.rotation.y
-          
-          // Calculate forward vector from rotation
-          const forwardX = Math.sin(rotation)
-          const forwardZ = Math.cos(rotation)
-          
-          ballBody.applyImpulse(
-            new CANNON.Vec3(
-              forwardX * dribblePower * delta * speed, // Scale by speed for control
-              0,
-              forwardZ * dribblePower * delta * speed
-            ),
-            bPos
-          )
-          
-          if (onLocalInteraction) onLocalInteraction()
-        }
-      }
-    }
-
     // Jump logic moved to handleKeyDown
     
     // Power Kick with F key
-    if (kickRequested && ballBody) {
-      const playerPos = groupRef.current.position
-      const ballPos = ballBody.position
+    if (kickRequested) {
+      // We don't have ballBody here anymore. 
+      // Instead, we rely on the onKick callback to send the intent to the host.
+      // The host will then check distance and apply impulse.
+      // However, for better UX, we can still do a client-side range check if we have the ball position.
+      // But since we are moving to Host Authority, let's just send the RPC.
       
-      // Calculate distance to ball (on ground plane)
-      const dx = ballPos.x - playerPos.x
-      const dz = ballPos.z - playerPos.z
-      const distance = Math.sqrt(dx * dx + dz * dz)
-      
-      // Only kick if close enough (within 2.0 units)
-      const kickRange = 2.0
-      if (distance < kickRange) {
-        // 1. Check if player is roughly facing the ball (dot product)
-        const playerForward = new THREE.Vector3(0, 0, 1).applyAxisAngle(new THREE.Vector3(0, 1, 0), groupRef.current.rotation.y)
-        const toBall = new THREE.Vector3(dx, 0, dz).normalize()
-        const dot = playerForward.dot(toBall)
+      if (onKick) {
+        // We need to send the direction. We can use the player's forward vector.
+        const rotation = groupRef.current.rotation.y
+        const forwardX = Math.sin(rotation)
+        const forwardZ = Math.cos(rotation)
         
-        // Allow kick if facing within ~90 degrees (dot > 0)
-        if (dot > 0) {
-          // 2. Aiming: Use camera direction for precision aiming
-          const aimDir = new THREE.Vector3()
-          camera.getWorldDirection(aimDir)
-          aimDir.y = 0
-          aimDir.normalize()
-          
-          // Blend camera aim with direction to ball for natural feel
-          // If ball is to the side, we still want to kick it forward-ish but respecting physics
-          const kickDir = new THREE.Vector3().copy(aimDir).lerp(toBall, 0.3).normalize()
-          
-          // 3. Vertical Lift (Chip shot vs Power shot)
-          // Kick slightly up
-          kickDir.y = 0.4
-          kickDir.normalize()
-          
-          // 4. Power calculation
-          const basePower = 15 * effects.current.kick // Increased base power (was 12)
-          const randomVar = 0.95 + Math.random() * 0.1 // 0.95 - 1.05 variation (less random)
-          const kickPower = basePower * randomVar
-          
-          // 5. Apply Impulse
-          // Apply at a point slightly offset from center to create spin
-          // Hitting bottom-center creates backspin (lift)
-          const impulsePoint = new CANNON.Vec3(
-            ballPos.x, 
-            ballPos.y - 0.05, // Reduced offset for less spin
-            ballPos.z
-          )
-          
-          const impulse = new CANNON.Vec3(
-            kickDir.x * kickPower,
-            kickDir.y * kickPower,
-            kickDir.z * kickPower
-          )
-          
-          ballBody.applyImpulse(impulse, impulsePoint)
-          
-          // Trigger callback with impulse data for network sync
-          if (onKick) {
-            onKick({
-              impulse: [impulse.x, impulse.y, impulse.z],
-              point: [impulsePoint.x, impulsePoint.y, impulsePoint.z]
-            })
-          }
-          
-          // Cooldown
-          keys.current['f'] = false
-        }
+        // Calculate kick direction (slightly up)
+        const kickDir = new THREE.Vector3(forwardX, 0.5, forwardZ).normalize()
+        const kickPower = 25 * effects.current.kick
+        
+        onKick({
+          impulse: [kickDir.x * kickPower, kickDir.y * kickPower, kickDir.z * kickPower],
+          point: [groupRef.current.position.x, groupRef.current.position.y, groupRef.current.position.z]
+        })
       }
+      
+      // Cooldown
+      keys.current['f'] = false
     }
     
     // Apply gravity

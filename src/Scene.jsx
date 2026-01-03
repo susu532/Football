@@ -4,8 +4,7 @@ import { Html, Sparkles, Stars, Loader, useGLTF, RoundedBox } from '@react-three
 import * as THREE from 'three'
 import CharacterSkin from './CharacterSkin'
 import useStore from './store'
-import { createWorld, stepWorld, getWorld, createSoccerBallBody, createPlayerBody, removeBody } from './physics'
-import * as CANNON from 'cannon-es'
+import { Physics, RigidBody, CuboidCollider, CylinderCollider, CapsuleCollider, useRapier } from '@react-three/rapier'
 import { useSpring, a } from '@react-spring/three'
 
 import { usePlayroom } from './usePlayroom'
@@ -152,13 +151,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
 
 
 
-function Skybox() {
-  // Simple color background, can be replaced with textures
-  useThree(({ scene }) => {
-    scene.background = new THREE.Color('#050510')
-  })
-  return null
-}
+
 
 function BlueSky() {
   useThree(({ scene }) => {
@@ -196,10 +189,65 @@ function BlueSky() {
 
 
 
-// Soccer Pitch (Stadium Look)
+// Rapier Arena (Host Only)
+function RapierArena() {
+  const wallHeight = 10
+  const wallThickness = 2
+  const pitchWidth = 30
+  const pitchDepth = 20
+  const goalWidth = 6
+  
+  return (
+    <RigidBody type="fixed" friction={0.2} restitution={0.6}>
+       {/* Ground */}
+       <CuboidCollider args={[30/2, 0.5/2, 20/2]} position={[0, -0.5/2, 0]} friction={1.0} restitution={0.6} />
+       
+       {/* Walls */}
+       {/* Top Wall */}
+       <CuboidCollider args={[(pitchWidth + wallThickness * 2)/2, wallHeight/2, wallThickness/2]} position={[0, wallHeight/2, -pitchDepth/2 - wallThickness/2]} />
+       {/* Bottom Wall */}
+       <CuboidCollider args={[(pitchWidth + wallThickness * 2)/2, wallHeight/2, wallThickness/2]} position={[0, wallHeight/2, pitchDepth/2 + wallThickness/2]} />
+       
+       {/* Left Side Walls */}
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[-pitchWidth/2 - wallThickness/2, wallHeight/2, -6.5]} />
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[-pitchWidth/2 - wallThickness/2, wallHeight/2, 6.5]} />
+       
+       {/* Right Side Walls */}
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[pitchWidth/2 + wallThickness/2, wallHeight/2, -6.5]} />
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[pitchWidth/2 + wallThickness/2, wallHeight/2, 6.5]} />
+       
+       {/* Goal Back Walls */}
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, (goalWidth+2)/2]} position={[-13 - wallThickness, wallHeight/2, 0]} />
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, (goalWidth+2)/2]} position={[13 + wallThickness, wallHeight/2, 0]} />
+       
+       {/* Goal Posts */}
+       <CylinderCollider args={[2, 0.06]} position={[-10.8, 2, -2.5]} restitution={0.8} />
+       <CylinderCollider args={[2, 0.06]} position={[-10.8, 2, 2.5]} restitution={0.8} />
+       <CylinderCollider args={[2, 0.06]} position={[10.8, 2, -2.5]} restitution={0.8} />
+       <CylinderCollider args={[2, 0.06]} position={[10.8, 2, 2.5]} restitution={0.8} />
+       
+       {/* Crossbars */}
+       <CylinderCollider args={[3, 0.06]} position={[-10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={0.8} />
+       <CylinderCollider args={[3, 0.06]} position={[10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={0.8} />
+       
+       {/* Arena Roof */}
+       <CuboidCollider args={[pitchWidth/2, 0.1, pitchDepth/2]} position={[0, wallHeight, 0]} />
+
+        {/* Custom Walls */}
+        <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[13, 0, -2.4]} />
+        <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[-13, 0, -2.4]} />
+        <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[13, 0, 2.4]} />
+        <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[-13, 0, 2.4]} />
+        <CuboidCollider args={[5/2, 9/2, 5.5/2]} position={[10.8, 8.7, 0]} />
+        <CuboidCollider args={[5/2, 9/2, 5.5/2]} position={[-10.8, 8.7, 0]} />
+    </RigidBody>
+  )
+}
+
+// Soccer Pitch (Visuals Only)
 function SoccerPitch({
   size = [30, 0.2, 20],
-  wallHeight = 10, // Doubled height
+  wallHeight = 10,
   wallThickness = 0.4,
 }) {
   // Pitch
@@ -355,6 +403,21 @@ function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColor = '#e
 const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0], radius = 0.22 }, ref) {
   const { scene } = useGLTF('/models/soccer_ball.glb')
   
+  const [spring, api] = useSpring(() => ({
+    scale: 5,
+    config: { tension: 400, friction: 10 }
+  }))
+
+  useEffect(() => {
+    const unsubscribe = RPC.register('ball-kicked', () => {
+      api.start({
+        from: { scale: 7 },
+        to: { scale: 5 }
+      })
+    })
+    return () => unsubscribe()
+  }, [api])
+
   const clonedBall = React.useMemo(() => {
     const cloned = scene.clone()
     cloned.traverse((child) => {
@@ -367,16 +430,16 @@ const SoccerBall = React.forwardRef(function SoccerBall({ position = [0, 0.25, 0
   }, [scene])
 
   return (
-    <primitive 
+    <a.primitive 
       ref={ref}
       object={clonedBall} 
       position={position} 
-      scale={5} // Scale to match physics diameter (0.44)
+      scale={spring.scale} 
     />
   )
 })
 
-function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], ballBody = null, powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null, mobileInput = null, characterType = 'cat', onLocalInteraction = null }) {
+function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], powerUps = [], onCollectPowerUp = null, onPowerUpActive = null, isFreeLook = null, mobileInput = null, characterType = 'cat', onLocalInteraction = null, isHost }) {
   // Callback when player kicks the ball - send update to server
   const handleKick = (data) => {
     if (data) {
@@ -385,30 +448,20 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
       if (onLocalInteraction) onLocalInteraction()
     }
   }
-  // Physics body for the player (to push the ball)
-  const [body] = useState(() => createPlayerBody(spawnPosition))
-  
-  useEffect(() => {
-    const world = getWorld()
-    world.addBody(body)
-    return () => world.removeBody(body)
-  }, [body])
-
-  // Sync physics body with player position
-  useFrame(() => {
-    if (playerRef.current && body) {
-      // Update physics body to match player position (Kinematic)
-      const pos = playerRef.current.position
-      body.position.set(pos.x, pos.y, pos.z)
-    }
-  })
 
   // Send player movement to Playroom
   const lastUpdate = useRef(0)
+  const playerRigidBodyRef = useRef()
   
   useFrame((state) => {
     if (!me || !playerRef.current) return
     
+    // Sync kinematic body to visual position (Host Only)
+    if (isHost && playerRigidBodyRef.current) {
+      playerRigidBodyRef.current.setNextKinematicTranslation(playerRef.current.position)
+      playerRigidBodyRef.current.setNextKinematicRotation(playerRef.current.quaternion)
+    }
+
     // Throttle updates to ~30 times per second (every 33ms)
     const now = state.clock.getElapsedTime()
     if (now - lastUpdate.current < 0.033) return
@@ -425,12 +478,6 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
     me.setState('rot', rot, false)
     me.setState('invisible', invisible, false)
     me.setState('giant', giant, false)
-    
-    // Sync profile (reliable) - only if changed? 
-    // Actually setState checks for changes internally usually, but let's be safe
-    // We can just set it once or check diff. 
-    // For now, let's assume profile doesn't change every frame.
-    // We should probably do this in a useEffect when props change.
   })
 
   // Sync profile when it changes
@@ -445,19 +492,6 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
     }
   }, [me, playerName, playerTeam, teamColor, characterType])
 
-  // Update physics body radius dynamically
-  useFrame(() => {
-    const giant = playerRef.current?.userData?.giant || false
-    if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 4.0 : 0.9
-      if (body.shapes[0].radius !== targetRadius) {
-        body.shapes[0].radius = targetRadius
-        body.updateBoundingRadius()
-      }
-    }
-  })
-
-  // Create a separate ref for the name label that follows the player
   const labelRef = useRef()
   
   useFrame(() => {
@@ -466,15 +500,13 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
     }
   })
 
-  // Render local player with CharacterSkin (new GLB models)
-  return (
+  const Visuals = (
     <group>
       <CharacterSkin 
         ref={playerRef} 
         position={spawnPosition} 
         teamColor={teamColor} 
-        remotePlayers={{}} // Not needed for local skin logic?
-        ballBody={ballBody} 
+        remotePlayers={{}} 
         onKick={handleKick}
         powerUps={powerUps}
         onCollectPowerUp={onCollectPowerUp}
@@ -484,7 +516,6 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
         characterType={characterType}
         onLocalInteraction={onLocalInteraction}
       />
-      {/* Name label follows player position */}
       {playerName && (
         <group ref={labelRef}>
           <Html position={[0, 2.2, 0]} center distanceFactor={8}>
@@ -494,116 +525,116 @@ function LocalPlayerWithSync({ me, playerRef, hasModel, playerName = '', playerT
       )}
     </group>
   )
+
+  if (isHost) {
+      return (
+          <RigidBody ref={playerRigidBodyRef} type="kinematicPosition">
+              <CapsuleCollider args={[0.5, 0.5]} position={[0, 1, 0]} />
+              {Visuals}
+          </RigidBody>
+      )
+  }
+
+  return Visuals
 }
 
-function GoalDetector({ ballBody, onGoal }) {
+const RapierBall = React.forwardRef(function RapierBall({ setBallState, onGoal, players }, ref) {
+  const lastUpdate = useRef(0)
   const lastGoalTime = useRef(0)
-  
-  useFrame((state) => {
-    if (ballBody) {
-      const { x, y, z } = ballBody.position
-      const now = state.clock.getElapsedTime()
-      
-      // Cooldown of 5 seconds to prevent multiple triggers during the respawn delay
-      if (now - lastGoalTime.current < 5) return
 
-      // New specs: position=[-11.2, 0, 0], args=[0.2, 6, 4.6]
-      if (Math.abs(x) > 11.1 && Math.abs(z) < 2.3 && y < 4) {
-        const teamScored = x > 0 ? 'red' : 'blue'
+  useFrame((state) => {
+    if (!ref.current) return
+    
+    const now = state.clock.getElapsedTime()
+    const translation = ref.current.translation()
+    const linvel = ref.current.linvel()
+
+    // Soft Dribble Logic (Host Only)
+    // If a player is close and moving, give the ball a tiny nudge
+    players.forEach(player => {
+      const playerPos = player.getState('pos')
+      if (playerPos) {
+        const dx = translation.x - playerPos[0]
+        const dz = translation.z - playerPos[2]
+        const distSq = dx*dx + dz*dz
+        
+        if (distSq < 2.25) { // 1.5m radius
+          const dist = Math.sqrt(distSq)
+          // Direction from player to ball
+          const nudgeDir = { x: dx / dist, z: dz / dist }
+          // Apply a small force if the ball is relatively still or moving away slowly
+          const nudgePower = 0.5
+          ref.current.applyImpulse({ x: nudgeDir.x * nudgePower, y: 0, z: nudgeDir.z * nudgePower }, true)
+        }
+      }
+    })
+    
+    // Sync to Playroom
+    if (now - lastUpdate.current > 0.025) { // 40Hz
+      lastUpdate.current = now
+      
+      // Only send if moving
+      if (Math.abs(linvel.x) > 0.01 || Math.abs(linvel.y) > 0.01 || Math.abs(linvel.z) > 0.01) {
+         setBallState({
+            position: [translation.x, translation.y, translation.z],
+            velocity: [linvel.x, linvel.y, linvel.z]
+         }, false) // unreliable
+      }
+    }
+
+    // Goal Detection
+    if (now - lastGoalTime.current > 5) {
+      if (Math.abs(translation.x) > 11.3 && Math.abs(translation.z) < 2.3 && translation.y < 4) {
+        const teamScored = translation.x > 0 ? 'red' : 'blue'
         lastGoalTime.current = now
         onGoal(teamScored)
-        // Immediate reset removed to allow ball to stay in net visually
       }
     }
+    
+    // Limit angular velocity
+    const angvel = ref.current.angvel()
+    const maxAv = 15.0
+    const avSq = angvel.x**2 + angvel.y**2 + angvel.z**2
+    if (avSq > maxAv**2) {
+        const scale = maxAv / Math.sqrt(avSq)
+        ref.current.setAngvel({ x: angvel.x * scale, y: angvel.y * scale, z: angvel.z * scale }, true)
+    }
   })
-  return null
-}
 
-function SoccerBallWithPhysics({ ballBody, ballState, setBallState, isHost }) {
-  const meshRef = useRef()
+  return (
+    <RigidBody 
+      ref={ref} 
+      colliders="ball" 
+      restitution={0.7} 
+      friction={0.5} 
+      linearDamping={0.5} 
+      angularDamping={0.5} 
+      mass={0.5}
+      position={[0, 2, 0]}
+      ccd
+    >
+      <SoccerBall />
+    </RigidBody>
+  )
+})
+
+function SyncedBall({ ballState }) {
+  const ref = useRef()
   
-  // Sync mesh with physics
   useFrame(() => {
-    if (meshRef.current && ballBody) {
-      meshRef.current.position.copy(ballBody.position)
-      meshRef.current.quaternion.copy(ballBody.quaternion)
+    if (ref.current && ballState) {
+      // Simple interpolation or snapping
+      ref.current.position.lerp(new THREE.Vector3(...ballState.position), 0.2)
+      // If we had rotation in state, we'd sync that too. For now, let it be or compute rolling.
+      // Visual only.
     }
   })
 
-  // Host sends ball state to server with throttling
-  const lastBallUpdate = useRef(0)
-  
-  useFrame((state, delta) => {
-    if (isHost) {
-      const now = state.clock.getElapsedTime()
-      if (now - lastBallUpdate.current < 0.025) return // 40 Hz (25ms)
-      lastBallUpdate.current = now
-
-      if (ballBody) {
-        // Limit angular velocity (spin)
-        const maxAv = 15.0 
-        const avSq = ballBody.angularVelocity.x**2 + ballBody.angularVelocity.y**2 + ballBody.angularVelocity.z**2
-        if (avSq > maxAv**2) {
-           const scale = maxAv / Math.sqrt(avSq)
-           ballBody.angularVelocity.x *= scale
-           ballBody.angularVelocity.y *= scale
-           ballBody.angularVelocity.z *= scale
-        }
-
-        const ballVelocity = Math.sqrt(
-          ballBody.velocity.x ** 2 +
-          ballBody.velocity.y ** 2 +
-          ballBody.velocity.z ** 2
-        )
-
-        // Only send update if ball is moving significantly (threshold: 0.1 units/sec)
-        const velocityThreshold = 0.1
-
-        if (ballVelocity > velocityThreshold) {
-          const ballData = {
-            position: [ballBody.position.x, ballBody.position.y, ballBody.position.z],
-            velocity: [ballBody.velocity.x, ballBody.velocity.y, ballBody.velocity.z],
-          }
-          setBallState(ballData, false) // unreliable
-        }
-      }
-    } else {
-      // Client Sync Logic
-      if (ballBody && ballState) {
-        // Interpolate or snap
-        const dist = Math.sqrt(
-          Math.pow(ballBody.position.x - ballState.position[0], 2) + 
-          Math.pow(ballBody.position.y - ballState.position[1], 2) + 
-          Math.pow(ballBody.position.z - ballState.position[2], 2)
-        )
-        if (dist > 2.0) { 
-          // Snap if too far
-          ballBody.position.set(...ballState.position)
-          ballBody.velocity.set(...ballState.velocity)
-        } else {
-           // Apply velocity from state to keep physics active but guided
-           // This is a simple way to keep it in sync without jittery position setting
-           // However, for precise sports games, position lerping might be better.
-           // Let's try soft position correction + velocity
-           
-           // Simple approach: Snap position if far, otherwise let physics run but nudge velocity?
-           // Actually, standard approach:
-           // ballBody.position.lerp(target, 0.1) -> Cannon bodies don't have lerp.
-           // We can set velocity to move towards target.
-           
-           // For now, let's stick to the previous logic: Snap if far. 
-           // But we should also update velocity to match host so prediction is accurate.
-           ballBody.velocity.set(...ballState.velocity)
-           
-           // Maybe slight position correction?
-           ballBody.position.x += (ballState.position[0] - ballBody.position.x) * 0.1
-           ballBody.position.y += (ballState.position[1] - ballBody.position.y) * 0.1
-           ballBody.position.z += (ballState.position[2] - ballBody.position.z) * 0.1
-        }
-      }
-    }
-  })
-  return <SoccerBall ref={meshRef} />
+  return (
+    <group ref={ref}>
+      <SoccerBall />
+    </group>
+  )
 }
 
 
@@ -611,7 +642,7 @@ function SoccerBallWithPhysics({ ballBody, ballState, setBallState, isHost }) {
 // Single player model path for all players (cat model)
 const PLAYER_MODEL_PATH = '/models/cat.glb'
 
-function RemotePlayerWithPhysics({ player, ballBody }) {
+function RemotePlayerWithPhysics({ player, isHost }) {
   const [position] = usePlayerState(player, 'pos', [0, 1, 0])
   const [rotation] = usePlayerState(player, 'rot', 0)
   const [profile] = usePlayerState(player, 'profile', { name: 'Player', color: '#888', team: '', character: 'cat' })
@@ -620,98 +651,44 @@ function RemotePlayerWithPhysics({ player, ballBody }) {
 
   const { name: playerName, color, team, character } = profile
 
-  // Physics body for remote player
-  const [body] = useState(() => createPlayerBody(position))
   const groupRef = useRef()
   const targetPosition = useRef(new THREE.Vector3(...position))
   const targetRotation = useRef(rotation)
   
-  // Update physics body radius for remote players
-  useEffect(() => {
-    if (body && body.shapes.length > 0) {
-      const targetRadius = giant ? 4.0 : 0.9
-      if (body.shapes[0].radius !== targetRadius) {
-        body.shapes[0].radius = targetRadius
-        body.updateBoundingRadius()
-      }
-    }
-  }, [body, giant])
-  
-  useEffect(() => {
-    const world = getWorld()
-    world.addBody(body)
-    return () => world.removeBody(body)
-  }, [body])
-
   // Update target when new position comes in
   useEffect(() => {
     targetPosition.current.set(position[0], position[1], position[2])
     targetRotation.current = rotation
   }, [position, rotation])
 
-  const prevPos = useRef(new THREE.Vector3(...position))
-
   // Smoothly interpolate towards target position
   useFrame((_, delta) => {
     if (groupRef.current) {
-      // Use damp for time-based smoothing (independent of frame rate)
-      // Lambda 20 gives a snappier but still smooth feel
       const lambda = 20
       
       groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetPosition.current.x, lambda, delta)
       groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetPosition.current.y, lambda, delta)
       groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetPosition.current.z, lambda, delta)
       
-      // Smooth rotation (handle wrap-around)
       let rotDiff = targetRotation.current - groupRef.current.rotation.y
       while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
       while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
       
       groupRef.current.rotation.y += rotDiff * Math.min(1, lambda * delta)
-      
-      // Sync physics body with visual position
-      if (body) {
-        body.position.set(
-          groupRef.current.position.x,
-          groupRef.current.position.y,
-          groupRef.current.position.z
-        )
-      }
-
-      // Dribble Logic (Host only effectively, as physics runs there)
-      if (ballBody) {
-         const currentPos = groupRef.current.position
-         const dx = currentPos.x - prevPos.current.x
-         const dz = currentPos.z - prevPos.current.z
-         // Calculate speed (units per second)
-         const speed = Math.sqrt(dx*dx + dz*dz) / (delta || 0.016)
-         
-         if (speed > 1.0) {
-           // Check distance to ball
-           const bPos = ballBody.position
-           const distToBall = Math.sqrt((bPos.x - currentPos.x)**2 + (bPos.z - currentPos.z)**2)
-           
-           // Interaction radius (Player 0.5 + Ball 0.22 + margin)
-           if (distToBall < 1.0) {
-              // Apply impulse
-              // Direction: Normalized velocity vector
-              const dirX = dx / ((speed * delta) || 0.001)
-              const dirZ = dz / ((speed * delta) || 0.001)
-              
-              const dribblePower = 0.8
-              ballBody.applyImpulse(
-                new CANNON.Vec3(dirX * dribblePower * delta * speed, 0, dirZ * dribblePower * delta * speed),
-                bPos
-              )
-           }
-         }
-         
-         prevPos.current.copy(currentPos)
-      }
     }
   })
+  
+  // Host-side physics sync
+  const rigidBodyRef = useRef()
+  useFrame(() => {
+      if (isHost && rigidBodyRef.current && groupRef.current) {
+          // Sync kinematic body to visual position
+          rigidBodyRef.current.setNextKinematicTranslation(groupRef.current.position)
+          rigidBodyRef.current.setNextKinematicRotation(groupRef.current.quaternion)
+      }
+  })
 
-  return (
+  const Visuals = (
     <group ref={groupRef} position={[position[0], position[1], position[2]]}>
       <CharacterSkin 
         characterType={character}
@@ -719,7 +696,7 @@ function RemotePlayerWithPhysics({ player, ballBody }) {
         isRemote={true}
         invisible={invisible}
         giant={giant}
-        key={character} // Force remount on character change
+        key={character} 
       />
       {playerName && !invisible && (
         <Html key={`label-${playerName}`} position={[0, 2.2, 0]} center distanceFactor={8}>
@@ -728,9 +705,39 @@ function RemotePlayerWithPhysics({ player, ballBody }) {
       )}
     </group>
   )
+
+  if (isHost) {
+      return (
+          <RigidBody ref={rigidBodyRef} type="kinematicPosition">
+              <CapsuleCollider args={[0.5, 0.5]} position={[0, 1, 0]} />
+              {Visuals}
+          </RigidBody>
+      )
+  }
+
+  return Visuals
 }
 
 
+
+function PhysicsWrapper({ children, isHost }) {
+  if (isHost) {
+    return <Physics gravity={[0, -20, 0]}>{children}</Physics>
+  }
+  return <>{children}</>
+}
+
+function GameSkybox() {
+  useThree(({ scene }) => {
+    scene.background = new THREE.Color('#050510')
+  })
+  return (
+    <>
+      <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+      <Sparkles count={200} scale={[30, 10, 20]} size={2} speed={0.2} opacity={0.2} />
+    </>
+  )
+}
 
 export default function Scene() {
   // Get player state from store - MUST BE AT TOP
@@ -779,12 +786,12 @@ export default function Scene() {
   const playerRef = useRef()
   const targetRef = useRef() // Camera target
   const [hasModel, setHasModel] = useState(false)
-  // const [socket, setSocket] = useState(null) // Deprecated
   const [playerId, setPlayerId] = useState(null)
-  // const [remotePlayers, setRemotePlayers] = useState({}) // Replaced by usePlayroom
-  const [ballBody] = useState(() => createSoccerBallBody())
-  // const [scores, setScores] = useState({ red: 0, blue: 0 }) // Replaced by usePlayroom
-  // const chatMessages = [] // Replaced by usePlayroom
+  
+  // Rapier Physics State
+  // We don't need to maintain ballBody state in React state anymore, 
+  // Rapier handles it internally or via refs in RapierBall.
+  
   const [chatInput, setChatInput] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(true)
   const [celebration, setCelebration] = useState(null) // { team: 'red' | 'blue' }
@@ -797,6 +804,32 @@ export default function Scene() {
   const isFreeLook = useRef(false)
   const [ballAuthority, setBallAuthority] = useState(null) // Track which player has ball authority
   const lastLocalInteraction = useRef(0)
+  const ballRigidBodyRef = useRef()
+
+  // RPC Listeners
+  useEffect(() => {
+    if (isHost) {
+      const unsubscribeKick = RPC.register('kick-ball', (data, caller) => {
+        if (ballRigidBodyRef.current) {
+          const { impulse, point } = data
+          
+          // Distance check on host for fairness
+          const ballPos = ballRigidBodyRef.current.translation()
+          const playerState = caller.getState('pos') || [0, 0, 0]
+          const dx = ballPos.x - playerState[0]
+          const dz = ballPos.z - playerState[2]
+          const dist = Math.sqrt(dx*dx + dz*dz)
+          
+          if (dist < 3.0) { // Allow some margin for latency
+            ballRigidBodyRef.current.applyImpulse(new THREE.Vector3(...impulse), true)
+            // Broadcast kick event for visual feedback
+            RPC.call('ball-kicked', {}, RPC.Mode.ALL)
+          }
+        }
+      })
+      return () => unsubscribeKick()
+    }
+  }, [isHost])
   
   const handleLocalInteraction = useCallback(() => {
     lastLocalInteraction.current = Date.now()
@@ -826,22 +859,8 @@ export default function Scene() {
         }, 3000) // Sync to 3s
       })
 
-      // Listen for kick events
-      RPC.register('kick-ball', (data) => {
-        if (!ballBody) return
-        
-        // Host always applies impulse (authoritative)
-        // Clients apply impulse for prediction (except the kicker, who already applied it locally)
-        if (isHost || data.playerId !== me.id) {
-          const impulse = new CANNON.Vec3(...data.impulse)
-          const point = new CANNON.Vec3(...data.point)
-          ballBody.applyImpulse(impulse, point)
-        }
-      })
-      
-      // RPC chat removed in favor of stable useMultiplayerState
     }
-  }, [isLaunched, playerTeam, ballBody])
+  }, [isLaunched, playerTeam])
   
   // Connection quality tracking
   const [connectionQuality, setConnectionQuality] = useState('excellent')
@@ -943,49 +962,27 @@ export default function Scene() {
     blue: '#3742fa'
   }
 
-  // Sync ball physics with Playroom state
-  useEffect(() => {
-    if (ballBody && ballState) {
-      if (!isHost) {
-        // If we recently interacted with the ball locally, skip sync to prevent jitter
-        // This allows client-side prediction to run smoothly until the host catches up
-        if (Date.now() - lastLocalInteraction.current < 250) return
 
-        const dist = Math.sqrt(
-          Math.pow(ballBody.position.x - ballState.position[0], 2) + 
-          Math.pow(ballBody.position.y - ballState.position[1], 2) + 
-          Math.pow(ballBody.position.z - ballState.position[2], 2)
-        )
-        if (dist > 2.0) { 
-          ballBody.position.set(...ballState.position)
-          ballBody.velocity.set(...ballState.velocity)
-        } else {
-           ballBody.velocity.set(...ballState.velocity)
-        }
-      }
-    }
-  }, [ballBody, ballState, isHost])
 
-  // Handle goal scored
+  // Goal Handler
   const handleGoal = (team) => {
     if (isHost) {
       const newScores = { ...scores }
       newScores[team]++
       setScores(newScores)
       
-      // Broadcast goal to all clients via RPC
       RPC.call('goal-scored', { team }, RPC.Mode.ALL)
       
       // Reset ball after delay
       setTimeout(() => {
-        // 1. Reset physics body (Host only)
-        if (ballBody) {
-          ballBody.position.set(0, 2, 0)
-          ballBody.velocity.set(0, 0, 0)
-          ballBody.angularVelocity.set(0, 0, 0)
+        if (ballRigidBodyRef.current) {
+          ballRigidBodyRef.current.setTranslation({ x: 0, y: 2, z: 0 }, true)
+          ballRigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
+          ballRigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true)
+          
+          // Sync state to all clients
+          setBallState({ position: [0, 2, 0], velocity: [0, 0, 0] }, true)
         }
-        // 2. Sync state to all clients
-        setBallState({ position: [0, 2, 0], velocity: [0, 0, 0] }, true)
       }, 3000)
     }
   }
@@ -995,13 +992,7 @@ export default function Scene() {
       prevScoresRef.current = { ...scores }
   }, [scores])
 
-  useEffect(() => {
-    const world = createWorld()
-    world.addBody(ballBody)
-    return () => {
-      world.removeBody(ballBody)
-    }
-  }, [ballBody])
+
 
   if (!hasJoined) {
     return <TeamSelectPopup defaultName={me?.getProfile()?.name} />
@@ -1181,78 +1172,60 @@ export default function Scene() {
         </div>
       )}
 
-      {/* 3D Canvas */}
-      <Canvas shadows camera={{ position: [0, 8, 18], fov: 60 }} gl={{ outputColorSpace: THREE.SRGBColorSpace }}>
+      <Canvas shadows camera={{ position: [0, 8, 12], fov: 45 }} dpr={[1, 2]}>
+        <Suspense fallback={null}>
+          <PhysicsWrapper isHost={isHost}>
+             <GameSkybox />
+             <ambientLight intensity={0.7} />
+             <directionalLight 
+               position={[10, 20, 10]} 
+               intensity={1.2} 
+               castShadow 
+               shadow-mapSize={[shadowMapSize, shadowMapSize]}
+               shadow-camera-left={-20}
+               shadow-camera-right={20}
+               shadow-camera-top={20}
+               shadow-camera-bottom={-20}
+             />
+             
+             {isHost && <RapierArena />}
+             <SoccerPitch />
+             <MapComponents.MysteryShack />
+             
+             {isHost ? (
+               <RapierBall setBallState={setBallState} onGoal={handleGoal} ref={ballRigidBodyRef} players={players} />
+             ) : (
+               <SyncedBall ballState={ballState} />
+             )}
 
-          <Suspense fallback={null}>
-            <fog attach="fog" args={['#050510', 10, 50]} />
-            <PhysicsHandler />
-            {isHost && (
-              <GoalDetector 
-                ballBody={ballBody} 
-                setScores={setScores} 
-                onGoal={handleGoal}
-              />
-            )}
-            
-            <ambientLight intensity={0.2} />
-            <hemisphereLight intensity={0.3} groundColor="#000000" skyColor="#1a1a2e" />
-            <pointLight position={[10, 10, 10]} intensity={0.5} castShadow />
-            <directionalLight 
-              position={[-20, 30, 20]} 
-              intensity={1.5} 
-              color="#aaccff" 
-              castShadow 
-              shadow-mapSize={[2048, 2048]}
-              shadow-camera-left={-30}
-              shadow-camera-right={30}
-              shadow-camera-top={30}
-              shadow-camera-bottom={-30}
-            />
-            <Skybox />
-            <MapComponents.MysteryShack />
-            <Sparkles count={300} scale={[40, 20, 40]} size={3} speed={0.3} color="#aaccff" />
-            <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-            
-            
-            <SoccerPitch size={pitchSize} />
-            <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor={teamColors.red} />
-            <SoccerGoal position={[11.2, 0, 0]} rotation={[0, -Math.PI, 0]} netColor={teamColors.blue} />
-            
-            {/* Ball with Physics and Sync */}
-            <SoccerBallWithPhysics 
-              ballBody={ballBody} 
-              setBallState={setBallState}
-              isHost={isHost}
-            />
-            
-            {/* Local Player */}
-              <LocalPlayerWithSync 
-                me={me}
-                playerRef={playerRef}
-                hasModel={hasModel}
-                playerName={playerName}
-                playerTeam={playerTeam}
-                teamColor={playerTeam === 'red' ? teamColors.red : teamColors.blue}
-                spawnPosition={playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]}
-                ballBody={ballBody}
-                powerUps={activePowerUps}
-                onCollectPowerUp={handleCollectPowerUp}
-                onPowerUpActive={handlePowerUpActive}
-                isFreeLook={isFreeLook}
-                mobileInput={mobileInput}
-                characterType={playerCharacter}
-                onLocalInteraction={handleLocalInteraction}
-                key={playerCharacter} // Force remount when character changes
-              />
+             <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0 , 0]} netColor="#ff4444" />
+             <SoccerGoal position={[11.2, 0, 0]} rotation={[0, -Math.PI , 0]} netColor="#4444ff" />
 
+             {me && (
+               <LocalPlayerWithSync
+                 me={me}
+                 playerRef={playerRef}
+                 playerName={playerName}
+                 playerTeam={playerTeam}
+                 teamColor={playerTeam === 'red' ? '#ff4444' : '#4488ff'}
+                 characterType={playerCharacter}
+                 isHost={isHost}
+                 powerUps={activePowerUps}
+                 onCollectPowerUp={handleCollectPowerUp}
+                 onPowerUpActive={handlePowerUpActive}
+                 isFreeLook={isFreeLook}
+                 mobileInput={mobileInput}
+                 onLocalInteraction={handleLocalInteraction}
+                 key={playerCharacter}
+               />
+             )}
             
             {/* Remote Players */}
             {remotePlayers.map((p) => (
               <RemotePlayerWithPhysics 
                 key={p.id} 
                 player={p}
-                ballBody={ballBody}
+                isHost={isHost}
               />
             ))}
             
@@ -1264,7 +1237,8 @@ export default function Scene() {
                 type={Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === p.type)} 
               />
             ))}
-          </Suspense>
+          </PhysicsWrapper>
+        </Suspense>
         </Canvas>
         <Loader />
         
