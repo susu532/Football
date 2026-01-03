@@ -22,7 +22,10 @@
     "socket.io": "^4.8.1",
     "socket.io-client": "^4.8.1",
     "three": "^0.159.0",
-    "zustand": "4.4.0"
+    "zustand": "^5.0.0"
+  },
+  "overrides": {
+    "camera-controls": "2.9.0"
   },
   "devDependencies": {
     "@testing-library/jest-dom": "^6.6.3",
