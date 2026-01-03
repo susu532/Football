@@ -5,7 +5,7 @@ import { useGLTF } from '@react-three/drei'
 
 
 export const MysteryShack = React.memo(function MysteryShack() {
-  const gltf = useGLTF('/models/gravity_falls.glb')
+  const gltf = useGLTF('/models/gravity_falls.glb', true)
   const scene = React.useMemo(() => {
     const cloned = gltf.scene.clone()
     cloned.traverse((child) => {
@@ -19,6 +19,3 @@ export const MysteryShack = React.memo(function MysteryShack() {
   return React.createElement('primitive', { object: scene, position: [0, -8, 0], scale: 4 })
 })
 
-export default {
-  MysteryShack
-}

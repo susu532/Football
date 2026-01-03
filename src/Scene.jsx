@@ -14,7 +14,7 @@ import TeamSelectPopup from './TeamSelectPopup'
 import { PhysicsHandler } from './GameLogic'
 import { PowerUp, POWER_UP_TYPES } from './PowerUp'
 import MobileControls from './MobileControls'
-import MapComponents from './MapComponents'
+import * as MapComponents from './MapComponents'
 
 // Small Soccer placeholder - replace with real widget/SDK integration
 function openSoccerPlaceholder() {
