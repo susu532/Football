@@ -9,8 +9,8 @@ import { RPC, usePlayerState } from 'playroomkit'
 import { SoccerBall } from './Ball'
 
 // Constants
-const BALL_MASS = 0.45
-const BALL_RESTITUTION = 0.8
+const BALL_MASS = 2.0
+const BALL_RESTITUTION = 0.01
 const BALL_FRICTION = 0.5
 const BALL_DAMPING = 1.2
 const SYNC_RATE = 1 / 30 // 30Hz
