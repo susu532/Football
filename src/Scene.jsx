@@ -12,7 +12,7 @@ import TeamSelectPopup from './TeamSelectPopup'
 import { PowerUp, POWER_UP_TYPES } from './PowerUp'
 import MobileControls from './MobileControls'
 import * as MapComponents from './MapComponents'
-import { SoccerBall, RapierBall, SyncedBall } from './Ball'
+import { SoccerBall, HostBall, ClientBall } from './Ball'
 import { LocalPlayerWithSync, RemotePlayerWithPhysics } from './PlayerSync'
 import { RapierArena, SoccerPitch, SoccerGoal, GameSkybox } from './Environment'
 
@@ -278,7 +278,7 @@ export default function Scene() {
              }
 
              // CRITICAL FIX: Ensure ball is dynamic before applying impulse
-             ballRigidBodyRef.current.setBodyType(1, true)
+             ballRigidBodyRef.current.setBodyType(0, true)
 
              // Apply impulse: scale based on kickStrength from client
              const scaledImpulse = new THREE.Vector3(...impulse).multiplyScalar(kickStrength)
@@ -645,9 +645,9 @@ export default function Scene() {
              <MapComponents.MysteryShack />
              
              {isHost ? (
-               <RapierBall setBallState={setBallState} onGoal={handleGoal} ref={ballRigidBodyRef} players={players} possession={possession} setPossession={setPossession} />
+               <HostBall setBallState={setBallState} onGoal={handleGoal} ref={ballRigidBodyRef} players={players} possession={possession} setPossession={setPossession} />
              ) : (
-               <SyncedBall ballState={ballState} />
+               <ClientBall ballState={ballState} />
              )}
 
              <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0 , 0]} netColor="#ff4444" />
