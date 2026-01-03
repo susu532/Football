@@ -115,11 +115,11 @@ html,
 /* Content - Interactive Form */
 .magic-content {
   flex: 1;
-  padding: 50px;
+  padding: 10px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 10px;
 }
 
 .magic-title {
@@ -385,7 +385,7 @@ html,
   }
 
   .magic-content {
-    padding: 30px;
+    padding: 10px;
   }
 
   .magic-title {
