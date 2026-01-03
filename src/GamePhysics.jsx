@@ -12,7 +12,7 @@ import { SoccerBall } from './Ball'
 const BALL_MASS = 0.45
 const BALL_RESTITUTION = 0.8
 const BALL_FRICTION = 0.5
-const BALL_DAMPING = 0.3
+const BALL_DAMPING = 1.2
 const SYNC_RATE = 1 / 30 // 30Hz
 const GOAL_COOLDOWN = 5 // seconds
 
@@ -39,7 +39,7 @@ export function HostBallController(props) {
       const dz = ballPos.z - position[2]
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
-      if (dist < 2.0) {
+      if (dist < 2.5) {
         // Apply kick impulse
         rigidBodyRef.current.applyImpulse(
           { x: impulse[0], y: impulse[1], z: impulse[2] },
@@ -191,7 +191,7 @@ export function HostArena() {
   return (
     <RigidBody type="fixed" friction={0.2} restitution={0.6}>
       {/* Ground */}
-      <CuboidCollider args={[pitchWidth / 2, 0.25, pitchDepth / 2]} position={[0, -0.25, 0]} friction={1.0} />
+      <CuboidCollider args={[pitchWidth / 2, 0.25, pitchDepth / 2]} position={[0, -0.25, 0]} friction={2.0} />
 
       {/* Back walls (Z axis) */}
       <CuboidCollider 
