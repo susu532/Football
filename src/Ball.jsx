@@ -10,7 +10,7 @@ import { useSpring, a } from '@react-spring/three'
 import { RPC } from 'playroomkit'
 
 // Soccer Ball Visual Component (shared by host and client)
-export const SoccerBall = React.forwardRef(function SoccerBall({ radius = 0.22 }, ref) {
+export function SoccerBall({ radius = 0.22, ref }) {
   const { scene } = useGLTF('/models/soccer_ball.glb')
   
   const [spring, api] = useSpring(() => ({
@@ -46,11 +46,11 @@ export const SoccerBall = React.forwardRef(function SoccerBall({ radius = 0.22 }
       scale={spring.scale} 
     />
   )
-})
+}
 
 // ClientBallVisual - Visual-only ball with smooth interpolation
 // Receives snapshots from host, predicts using velocity
-export const ClientBallVisual = React.forwardRef(function ClientBallVisual({ ballState }, ref) {
+export function ClientBallVisual({ ballState, ref }) {
   const groupRef = useRef()
   const targetPos = useRef(new THREE.Vector3(0, 2, 0))
   const targetRot = useRef(new THREE.Quaternion())
@@ -105,7 +105,7 @@ export const ClientBallVisual = React.forwardRef(function ClientBallVisual({ bal
       <SoccerBall />
     </group>
   )
-})
+}
 
 // Re-export for backward compatibility during transition
 export { ClientBallVisual as ClientBall }

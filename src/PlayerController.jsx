@@ -17,7 +17,7 @@ const GROUND_Y = 0.1
 const MAX_JUMPS = 2
 
 // PlayerController: Handles local player input => sends to host + local prediction
-export const PlayerController = React.forwardRef(function PlayerController(props, ref) {
+export function PlayerController(props) {
   const { 
     me,
     isHost,
@@ -29,7 +29,8 @@ export const PlayerController = React.forwardRef(function PlayerController(props
     powerUps = [],
     onCollectPowerUp = null,
     isFreeLook = null,
-    onLocalInteraction = null
+    onLocalInteraction = null,
+    ref
   } = props
 
   const groupRef = useRef()
@@ -242,6 +243,6 @@ export const PlayerController = React.forwardRef(function PlayerController(props
       />
     </group>
   )
-})
+}
 
 export default PlayerController

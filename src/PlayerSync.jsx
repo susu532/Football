@@ -11,7 +11,7 @@ import CharacterSkin from './CharacterSkin'
 import { PlayerController } from './PlayerController'
 
 // LocalPlayer - Wraps PlayerController for the local player
-export const LocalPlayer = React.forwardRef(function LocalPlayer(props, ref) {
+export function LocalPlayer(props) {
   const { 
     me, 
     isHost,
@@ -23,7 +23,8 @@ export const LocalPlayer = React.forwardRef(function LocalPlayer(props, ref) {
     onCollectPowerUp = null, 
     isFreeLook = null, 
     characterType = 'cat',
-    onLocalInteraction = null
+    onLocalInteraction = null,
+    ref
   } = props
   
   const controllerRef = useRef()
@@ -63,11 +64,11 @@ export const LocalPlayer = React.forwardRef(function LocalPlayer(props, ref) {
       )}
     </group>
   )
-})
+}
 
 // ClientPlayerVisual - Visual-only remote player with smooth interpolation
-export const ClientPlayerVisual = React.forwardRef(function ClientPlayerVisual(props, ref) {
-  const { player } = props
+export function ClientPlayerVisual(props) {
+  const { player, ref } = props
   const groupRef = useRef()
 
   useImperativeHandle(ref, () => groupRef.current)
@@ -145,7 +146,7 @@ export const ClientPlayerVisual = React.forwardRef(function ClientPlayerVisual(p
       )}
     </group>
   )
-})
+}
 
 // Re-export for backward compatibility
 export { LocalPlayer as LocalPlayerWithSync }

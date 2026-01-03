@@ -2,19 +2,20 @@
 // All movement logic has been moved to PlayerController.jsx
 // This component handles: model loading, team colors, visual effects (invisible/giant)
 
-import React, { forwardRef, useMemo, useRef } from 'react'
+import React, { useMemo, useRef } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const CharacterSkin = forwardRef(function CharacterSkin({ 
+const CharacterSkin = function CharacterSkin({ 
   teamColor = '#888',
   characterType = 'cat',
   isRemote = false,
   invisible = false,
   giant = false,
-  children 
-}, ref) {
+  children,
+  ref
+}) {
   const groupRef = useRef()
   
   // Forward ref to the group
@@ -88,6 +89,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       {children}
     </group>
   )
-})
+}
 
 export default CharacterSkin

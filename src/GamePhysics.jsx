@@ -1,10 +1,10 @@
 // GamePhysics.jsx - Host-only physics world controller
 // Contains all Rapier physics bodies and handles ball+player collisions
 
-import React, { useRef, useEffect, useCallback, forwardRef, useImperativeHandle } from 'react'
+import React, { useRef, useEffect, useCallback, useImperativeHandle } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
-import { Physics, RigidBody, CuboidCollider, CylinderCollider, BallCollider } from '@react-three/rapier'
+import { Physics as RapierPhysics, RigidBody, CuboidCollider, CylinderCollider, BallCollider } from '@react-three/rapier'
 import { RPC, usePlayerState } from 'playroomkit'
 import { SoccerBall } from './Ball'
 
@@ -17,8 +17,8 @@ const SYNC_RATE = 1 / 30 // 30Hz
 const GOAL_COOLDOWN = 5 // seconds
 
 // HostBallController - Dynamic ball with collision-based kicks
-export const HostBallController = forwardRef(function HostBallController(props, ref) {
-  const { setBallState, onGoal, players } = props
+export function HostBallController(props) {
+  const { setBallState, onGoal, players, ref } = props
   const rigidBodyRef = useRef()
   const lastSyncTime = useRef(0)
   const lastGoalTime = useRef(0)
@@ -127,7 +127,7 @@ export const HostBallController = forwardRef(function HostBallController(props, 
       <SoccerBall />
     </RigidBody>
   )
-})
+}
 
 // HostPlayerBody - Kinematic body for each player (for ball collision)
 export function HostPlayerBody({ player, localPlayerRef, isLocalPlayer }) {
@@ -252,7 +252,7 @@ export function GamePhysics({
   if (!isHost) return null
 
   return (
-    <Physics gravity={[0, -20, 0]}>
+    <RapierPhysics gravity={[0, -20, 0]}>
       <HostArena />
       <HostBallController 
         ref={ballRef}
@@ -268,7 +268,7 @@ export function GamePhysics({
           isLocalPlayer={me && player.id === me.id}
         />
       ))}
-    </Physics>
+    </RapierPhysics>
   )
 }
 
