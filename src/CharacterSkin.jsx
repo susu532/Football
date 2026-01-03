@@ -314,9 +314,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
         const pushDir = new THREE.Vector3(dx, 0, dz).normalize()
         const pushForce = (minDist - dist) / delta // Push out of collision
         
-        // Apply push to next position (prevent overlap)
-        nextX += pushDir.x * (minDist - dist) * 0.5
-        nextZ += pushDir.z * (minDist - dist) * 0.5
       }
     })
 
@@ -329,35 +326,27 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       const dist = Math.sqrt(dx*dx + dz*dz)
       
       // Interaction radius (Player 0.5 + Ball 0.22 + margin)
-      if (dist < 1.5) {
+      if (dist < 1.0) {
         // Calculate player speed
         const speed = Math.sqrt(velocity.current.x**2 + velocity.current.z**2)
         
-        if (speed > 0.1) {
+        if (speed > 1.0) {
           // Player is moving fast enough to "dribble"
-          // Apply impulse in direction of PLAYER MOVEMENT (Velocity)
-          // This feels more natural than facing direction, especially when strafing
+          // Apply impulse in direction of PLAYER MODEL FACING
+          // User request: "make it follow the direction of the model"
           
-          const dribblePower = 0.8 // Local power can stay lower as physics body also pushes 
+          const dribblePower = 0.8 // Increased for better forward push (was 0.35)
+          const rotation = groupRef.current.rotation.y
           
-          // Use velocity for direction
-          let dirX = velocity.current.x
-          let dirZ = velocity.current.z
-          const len = Math.sqrt(dirX*dirX + dirZ*dirZ)
-          if (len > 0) {
-            dirX /= len
-            dirZ /= len
-          } else {
-            // Fallback to rotation if velocity is zero (shouldn't happen if speed > 1)
-            dirX = Math.sin(groupRef.current.rotation.y)
-            dirZ = Math.cos(groupRef.current.rotation.y)
-          }
+          // Calculate forward vector from rotation
+          const forwardX = Math.sin(rotation)
+          const forwardZ = Math.cos(rotation)
           
           ballBody.applyImpulse(
             new CANNON.Vec3(
-              dirX * dribblePower * delta * speed, 
+              forwardX * dribblePower * delta * speed, // Scale by speed for control
               0,
-              dirZ * dribblePower * delta * speed
+              forwardZ * dribblePower * delta * speed
             ),
             bPos
           )

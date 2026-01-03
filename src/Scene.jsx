@@ -686,20 +686,19 @@ function RemotePlayerWithPhysics({ player, ballBody }) {
          // Calculate speed (units per second)
          const speed = Math.sqrt(dx*dx + dz*dz) / (delta || 0.016)
          
-         if (speed > 0.1) {
+         if (speed > 1.0) {
            // Check distance to ball
            const bPos = ballBody.position
            const distToBall = Math.sqrt((bPos.x - currentPos.x)**2 + (bPos.z - currentPos.z)**2)
            
            // Interaction radius (Player 0.5 + Ball 0.22 + margin)
-           // Increased to 1.5 to be more forgiving for remote players
-           if (distToBall < 1.5) {
+           if (distToBall < 1.0) {
               // Apply impulse
               // Direction: Normalized velocity vector
               const dirX = dx / ((speed * delta) || 0.001)
               const dirZ = dz / ((speed * delta) || 0.001)
               
-              const dribblePower = 2.0 // Super boosted for remote players (was 1.5)
+              const dribblePower = 0.8
               ballBody.applyImpulse(
                 new CANNON.Vec3(dirX * dribblePower * delta * speed, 0, dirZ * dribblePower * delta * speed),
                 bPos
