@@ -145,7 +145,7 @@ export function PlayerController(props) {
       const forwardX = Math.sin(rotation)
       const forwardZ = Math.cos(rotation)
       const kickDir = new THREE.Vector3(forwardX, 0.5, forwardZ).normalize()
-      const kickPower = 50 * effects.current.kick
+      const kickPower = 65 * effects.current.kick
       
       RPC.call('player-kick', {
         playerId: me.id,
