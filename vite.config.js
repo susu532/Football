@@ -14,7 +14,6 @@ export default defineConfig({
             if (id.includes('three')) return 'vendor-three'
             if (id.includes('@react-three/drei')) return 'vendor-drei'
             if (id.includes('@react-three/fiber')) return 'vendor-fiber'
-            if (id.includes('playroomkit')) return 'vendor-playroom'
             if (id.includes('react') || id.includes('react-dom') || id.includes('scheduler')) return 'vendor-react'
             return 'vendor-others'
           }
