@@ -1,12 +1,10 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect } from 'react'
 import { 
   insertCoin, 
-  onPlayerJoin, 
   useMultiplayerState, 
   usePlayersList, 
   useIsHost, 
-  myPlayer, 
-  isHost
+  myPlayer
 } from 'playroomkit'
 
 export function usePlayroom() {
@@ -40,7 +38,6 @@ export function usePlayroom() {
   })
   const [scores, setScores] = useMultiplayerState('scores', { red: 0, blue: 0 })
   const [chatMessages, setChatMessages] = useMultiplayerState('chat', [])
-  const [possession, setPossession] = useMultiplayerState('possession', null) // New possession state
   const isHostPlayer = useIsHost()
 
   // Helper to get my player object
@@ -56,8 +53,6 @@ export function usePlayroom() {
     chatMessages: chatMessages || [],
     setChatMessages,
     isHost: isHostPlayer,
-    me,
-    possession,
-    setPossession
+    me
   }
 }

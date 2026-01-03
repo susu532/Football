@@ -7,7 +7,7 @@ import { RPC, usePlayerState } from 'playroomkit'
 import CharacterSkin from './CharacterSkin'
 
 export const LocalPlayerWithSync = React.forwardRef(function LocalPlayerWithSync(props, ref) {
-  const { me, playerRef, hasModel, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], powerUps = [], onCollectPowerUp = null, isFreeLook = null, mobileInput = null, characterType = 'cat', onLocalInteraction = null, isHost, possession } = props
+  const { me, playerRef, playerName = '', playerTeam = '', teamColor = '#888', spawnPosition = [0, 1, 0], powerUps = [], onCollectPowerUp = null, isFreeLook = null, mobileInput = null, characterType = 'cat', onLocalInteraction = null, isHost } = props
   const rigidBodyRef = useRef()
 
   useImperativeHandle(ref, () => rigidBodyRef.current)
@@ -19,7 +19,6 @@ export const LocalPlayerWithSync = React.forwardRef(function LocalPlayerWithSync
   }
 
   const lastUpdate = useRef(0)
-  const playerRigidBodyRef = useRef()
   
   useFrame((state) => {
     if (!me || !playerRef.current) return
@@ -77,7 +76,6 @@ export const LocalPlayerWithSync = React.forwardRef(function LocalPlayerWithSync
         mobileInput={mobileInput}
         characterType={characterType}
         onLocalInteraction={onLocalInteraction}
-        possession={possession}
         localPlayerId={me.id}
       />
       {playerName && (

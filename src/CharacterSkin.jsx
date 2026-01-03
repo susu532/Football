@@ -17,8 +17,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   invisible = false,
   giant = false,
   onLocalInteraction = null,
-  possession = null, // Added
-  localPlayerId = null, // Added
   children 
 }, ref) {
   const groupRef = useRef()
@@ -26,14 +24,10 @@ const CharacterSkin = forwardRef(function CharacterSkin({
   useImperativeHandle(ref, () => groupRef.current)
   
   // Determine model path based on character type
-  console.log('CharacterSkin: characterType prop:', characterType)
   const PLAYER_MODEL_PATH = characterType === 'cat' ? '/models/cat.glb' : '/models/low_poly_car.glb'
   
   // Character scaling: cat uses 0.01, car uses 0.15
   const characterScale = characterType === 'cat' ? 0.01 : 0.0015
-  
-  // Position offset to match cat height (car may need different base position)
-  const positionOffset = characterType === 'car' ? [0, 0, 0] : [0, 0, 0]
    
   // Power-up effects state
   const effects = useRef({
@@ -90,17 +84,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     }
   })
 
-  // Expose position via ref
-  useEffect(() => {
-    if (ref) {
-      if (typeof ref === 'function') {
-        ref(groupRef.current)
-      } else {
-        ref.current = groupRef.current
-      }
-    }
-  }, [ref])
-  
   // Handle keyboard input and movement
   const keys = useRef({})
   const velocity = useRef(new THREE.Vector3())
@@ -283,9 +266,7 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
       while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
       
-      // Reduce turn speed when possessing the ball for more control
-      const isPossessing = possession === localPlayerId
-      const rotationSpeed = isPossessing ? 10 : 20
+      const rotationSpeed = 20
       
       // Smoothly rotate
       groupRef.current.rotation.y += rotDiff * Math.min(1, rotationSpeed * delta)
@@ -312,9 +293,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       
       if (dist < minDist) {
         // Collision detected - push back
-        const pushDir = new THREE.Vector3(dx, 0, dz).normalize()
-        const pushForce = (minDist - dist) / delta // Push out of collision
-        
       }
     })
 
@@ -324,10 +302,8 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     if (kickRequested) {
       
       if (onKick) {
-        const isPossessing = possession === localPlayerId
-        
-        // Use full power if possessing, otherwise a lower strength (poke kick)
-        const baseKickStrength = isPossessing ? 1.0 : 0.4
+        // Use full power for all kicks now
+        const baseKickStrength = 1.0
         
         // We need to send the direction. We can use the player's forward vector.
         const rotation = groupRef.current.rotation.y
@@ -366,8 +342,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
     }
     
     // Bounds checking
-    const pitchWidth = 30
-    const pitchDepth = 20
     const wallMargin = 0.3 // Player radius
     
     // Main pitch limits (x=±15, z=±10)
@@ -419,7 +393,6 @@ const CharacterSkin = forwardRef(function CharacterSkin({
       <primitive 
         object={clonedScene} 
         scale={characterScale} 
-        position={[positionOffset[0], positionOffset[1], positionOffset[2]]} 
       />
       {children}
     </group>

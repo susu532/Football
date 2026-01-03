@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useImperativeHandle, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
-import { RigidBody, useRapier } from '@react-three/rapier'
+import { RigidBody } from '@react-three/rapier'
 import { useSpring, a } from '@react-spring/three'
 import { RPC } from 'playroomkit'
 
@@ -47,11 +47,10 @@ export const SoccerBall = React.forwardRef(function SoccerBall({ radius = 0.22 }
 
 // Host Ball: Handles physics simulation, possession, and goal detection
 export const HostBall = React.forwardRef(function HostBall(props, ref) {
-  const { setBallState, onGoal, players, possession, setPossession } = props
+  const { setBallState, onGoal, players } = props
   const rigidBodyRef = useRef()
   const lastUpdate = useRef(0)
   const lastGoalTime = useRef(0)
-  const currentBodyType = useRef(null)
   
   useImperativeHandle(ref, () => rigidBodyRef.current)
 
@@ -63,90 +62,18 @@ export const HostBall = React.forwardRef(function HostBall(props, ref) {
     const linvel = rigidBodyRef.current.linvel()
     const rotation = rigidBodyRef.current.rotation()
 
-    // 1. Possession Logic
-    let closestPlayerId = null
-    let minDistanceSq = 9.0 // 3.0m range
-    let closestPlayerPos = null
-    let closestPlayerRot = null
-    let closestPlayerEffects = null
-
-    players.forEach(player => {
-      const playerPos = player.getState('pos')
-      if (playerPos && playerPos[1] < 1.0) { // On ground
-        const dx = translation.x - playerPos[0]
-        const dz = translation.z - playerPos[2]
-        const distSq = dx * dx + dz * dz
-        
-        if (distSq < minDistanceSq) {
-          minDistanceSq = distSq
-          closestPlayerId = player.id
-          closestPlayerPos = playerPos
-          closestPlayerRot = player.getState('rot')
-          closestPlayerEffects = { giant: player.getState('giant') }
-        }
-      }
-    })
-
-    const possessionRange = closestPlayerEffects?.giant ? 2.5 : 1.0
-    if (minDistanceSq < possessionRange * possessionRange && closestPlayerId) {
-      const dx = closestPlayerPos[0] - translation.x
-      const dz = closestPlayerPos[2] - translation.z
-      const angleToBall = Math.atan2(-dx, -dz)
-      let angleDiff = angleToBall - closestPlayerRot
-      while (angleDiff > Math.PI) angleDiff -= Math.PI * 2
-      while (angleDiff < -Math.PI) angleDiff += Math.PI * 2
-      
-      if (Math.abs(angleDiff) < Math.PI / 2.5) {
-        if (possession !== closestPlayerId) setPossession(closestPlayerId, true)
-      }
-    } else if (possession !== null) {
-      setPossession(null, true)
-    }
-
-    // 2. Dribbling Logic
-    if (possession !== null) {
-      if (currentBodyType.current !== 3) {
-        rigidBodyRef.current.setBodyType(3, true) // KinematicPosition
-        currentBodyType.current = 3
-      }
-      
-      const possessingPlayer = players.find(p => p.id === possession)
-      if (possessingPlayer) {
-        const pPos = possessingPlayer.getState('pos')
-        const pRot = possessingPlayer.getState('rot')
-        if (pPos && pRot !== undefined) {
-          const targetX = pPos[0] + Math.sin(pRot) * 0.5
-          const targetZ = pPos[2] + Math.cos(pRot) * 0.5
-          const targetY = pPos[1] + 0.1 + Math.sin(now * 10) * 0.05
-          
-          const target = new THREE.Vector3(targetX, targetY, targetZ)
-          const currentPos = new THREE.Vector3(translation.x, translation.y, translation.z)
-          currentPos.lerp(target, 1 - Math.exp(-15 * state.delta))
-          rigidBodyRef.current.setNextKinematicTranslation(currentPos)
-        }
-      } else {
-        setPossession(null, true)
-      }
-    } else {
-      if (currentBodyType.current !== 0) {
-        rigidBodyRef.current.setBodyType(0, true) // Dynamic
-        currentBodyType.current = 0
-      }
-    }
-
-    // 3. Goal Detection
+    // 1. Goal Detection
     if (now - lastGoalTime.current > 5) {
       if (Math.abs(translation.x) > 11.3 && Math.abs(translation.z) < 2.3 && translation.y < 4) {
-        if (possession !== null) setPossession(null, true)
         lastGoalTime.current = now
         onGoal(translation.x > 0 ? 'red' : 'blue')
       }
     }
 
-    // 4. Sync State (Throttled to ~30Hz)
+    // 2. Sync State (Throttled to ~30Hz)
     if (now - lastUpdate.current > 0.033) {
       lastUpdate.current = now
-      const isMoving = Math.abs(linvel.x) > 0.01 || Math.abs(linvel.y) > 0.01 || Math.abs(linvel.z) > 0.01 || possession !== null
+      const isMoving = Math.abs(linvel.x) > 0.01 || Math.abs(linvel.y) > 0.01 || Math.abs(linvel.z) > 0.01
       
       if (isMoving || now - lastUpdate.current > 1.0) { // Sync at least every second
         setBallState({
@@ -154,11 +81,11 @@ export const HostBall = React.forwardRef(function HostBall(props, ref) {
           velocity: [linvel.x, linvel.y, linvel.z],
           rotation: [rotation.x, rotation.y, rotation.z, rotation.w],
           timestamp: Date.now()
-        }, possession !== null) // Reliable sync during possession
+        }, false)
       }
     }
 
-    // 5. Limit Angular Velocity
+    // 3. Limit Angular Velocity
     const angvel = rigidBodyRef.current.angvel()
     const maxAv = 15.0
     const avSq = angvel.x**2 + angvel.y**2 + angvel.z**2

@@ -1,5 +1,5 @@
-import React, { useRef, useEffect, useState, Suspense, useCallback, lazy } from 'react'
-import { Canvas, useFrame, useThree, extend } from '@react-three/fiber'
+import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
+import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, Loader } from '@react-three/drei'
 import * as THREE from 'three'
 import CharacterSkin from './CharacterSkin'
@@ -19,18 +19,6 @@ import { RapierArena, SoccerPitch, SoccerGoal, GameSkybox } from './Environment'
 
 
 const CSS_ANIMATIONS = `
-  @keyframes confettiFall {
-    0% { transform: translateY(0) rotate(0deg); opacity: 1; }
-    100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-  }
-  @keyframes goalPulse {
-    0% { transform: scale(1); }
-    100% { transform: scale(1.1); }
-  }
-  @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
-  }
   @keyframes popIn {
     from { transform: scale(0.8); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
@@ -215,9 +203,7 @@ export default function Scene() {
     chatMessages,
     setChatMessages,
     isHost, 
-    me,
-    possession, // Added
-    setPossession // Added
+    me
   } = usePlayroom()
 
 
@@ -248,8 +234,6 @@ export default function Scene() {
   const [activePowerUps, setActivePowerUps] = useState([])
   const chatRef = useRef(null)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
-  const prevScoresRef = useRef({ red: 0, blue: 0 })
-  const pitchSize = [30, 0.2, 20]
   const isFreeLook = useRef(false)
   const lastLocalInteraction = useRef(0)
   const ballRigidBodyRef = useRef()
@@ -261,22 +245,14 @@ export default function Scene() {
         if (ballRigidBodyRef.current) {
           const { impulse, point, kickStrength } = data
           
-          // CRITICAL: Check if the player is the possessor or close enough to kick
-          const isPossessor = possession === caller.id
-          
           const ballPos = ballRigidBodyRef.current.translation()
           const playerState = caller.getState('pos') || [0, 0, 0]
           const dx = ballPos.x - playerState[0]
           const dz = ballPos.z - playerState[2]
           const dist = Math.sqrt(dx*dx + dz*dz)
           
-          // Allow kick only if possessing or very close (scramble kick)
-          if (isPossessor || dist < 1.5) {
-             // Release possession if they were holding it
-             if (possession === caller.id) {
-               setPossession(null, true)
-             }
-
+          // Allow kick only if very close
+          if (dist < 1.5) {
              // CRITICAL FIX: Ensure ball is dynamic before applying impulse
              ballRigidBodyRef.current.setBodyType(0, true)
 
@@ -286,7 +262,6 @@ export default function Scene() {
              ballRigidBodyRef.current.applyImpulse(scaledImpulse, true)
 
              // Force a reliable, immediate state sync so all clients see the exact new velocity/position/rotation
-             // This is critical for preventing desync on high-velocity events like a kick
              const newLinvel = ballRigidBodyRef.current.linvel()
              const newTranslation = ballRigidBodyRef.current.translation()
              const newRot = ballRigidBodyRef.current.rotation()
@@ -303,7 +278,7 @@ export default function Scene() {
       })
       return () => unsubscribeKick()
     }
-  }, [isHost, possession, setPossession]) // Dependency on possession and setPossession
+  }, [isHost])
   
   const handleLocalInteraction = useCallback(() => {
     lastLocalInteraction.current = Date.now()
@@ -340,7 +315,6 @@ export default function Scene() {
   const [connectionQuality, setConnectionQuality] = useState('excellent')
   const [ping, setPing] = useState(0)
   const [showConnectionWarning, setShowConnectionWarning] = useState(false)
-  const lastPingTime = useRef(0)
   
   // Helper function for connection quality color
   const getConnectionQualityColor = (quality) => {
@@ -416,19 +390,9 @@ export default function Scene() {
 
     return () => clearInterval(interval)
   }, [hasJoined])
-
   const handleCollectPowerUp = (id) => {
     setActivePowerUps(prev => prev.filter(p => p.id !== id))
   }
-
-  
-  // Team colors
-  const teamColors = {
-    red: '#ff4757',
-    blue: '#3742fa'
-  }
-
-
 
   // Goal Handler
   const handleGoal = (team) => {
@@ -456,11 +420,6 @@ export default function Scene() {
       }, 3000)
     }
   }
-
-  // Handle score updates (Visuals only, logic moved to RPC)
-  useEffect(() => {
-      prevScoresRef.current = { ...scores }
-  }, [scores])
 
 
 
@@ -645,7 +604,7 @@ export default function Scene() {
              <MapComponents.MysteryShack />
              
              {isHost ? (
-               <HostBall setBallState={setBallState} onGoal={handleGoal} ref={ballRigidBodyRef} players={players} possession={possession} setPossession={setPossession} />
+               <HostBall setBallState={setBallState} onGoal={handleGoal} ref={ballRigidBodyRef} players={players} />
              ) : (
                <ClientBall ballState={ballState} />
              )}
@@ -667,7 +626,6 @@ export default function Scene() {
                   isFreeLook={isFreeLook}
                   mobileInput={mobileInput}
                   onLocalInteraction={handleLocalInteraction}
-                  possession={possession} // Added
                   key={playerCharacter}
                 />
              )}
