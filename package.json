@@ -34,7 +34,7 @@
     "baseline-browser-mapping": "^2.9.11",
     "jsdom": "^25.0.1",
     "vite": "^6.0.0",
-    "vitest": "^2.1.8"
+    "vitest": "^3.0.0"
   },
   "vitest": {
     "environment": "jsdom"
