@@ -3,8 +3,9 @@
 
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Loader } from '@react-three/drei'
+import { Html, Loader, ContactShadows } from '@react-three/drei'
 import * as THREE from 'three'
+import { EffectComposer, Bloom } from '@react-three/postprocessing'
 
 import { useColyseus } from './useColyseus.jsx'
 import useStore from './store'
@@ -566,12 +567,18 @@ export default function Scene() {
             position={[10, 20, 10]}
             intensity={1.2}
             castShadow
-            shadow-mapSize={[shadowMapSize, shadowMapSize]}
+            shadow-mapSize={[2048, 2048]}
             shadow-camera-left={-20}
             shadow-camera-right={20}
             shadow-camera-top={20}
             shadow-camera-bottom={-20}
           />
+          
+          <ContactShadows resolution={1024} scale={50} blur={2} opacity={0.5} far={10} color="#000000" />
+          
+          <EffectComposer disableNormalPass multisampling={8}>
+            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} />
+          </EffectComposer>
 
           <SoccerPitch />
           <MapComponents.MysteryShack />

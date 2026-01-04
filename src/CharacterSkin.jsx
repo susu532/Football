@@ -43,10 +43,18 @@ const CharacterSkin = function CharacterSkin({
           child.material.transparent = false
           child.material.opacity = 1.0
           child.material.side = THREE.FrontSide
+          child.material.roughness = 0.4
+          child.material.metalness = 0.3
+          child.material.envMapIntensity = 1.0
           child.material.needsUpdate = true
         }
         child.castShadow = true
         child.receiveShadow = true
+        
+        // Smooth shading
+        if (child.geometry) {
+          child.geometry.computeVertexNormals()
+        }
       }
     })
     return cloned
