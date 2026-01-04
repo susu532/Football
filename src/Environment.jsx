@@ -125,24 +125,21 @@ export function SoccerPitch({
       </mesh>
 
       <RoundedBox args={[size[0] + wallThickness*2, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, -size[2]/2 - wallThickness/2]} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
       </RoundedBox>
       <RoundedBox args={[size[0] + wallThickness*2, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, size[2]/2 + wallThickness/2]} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
       </RoundedBox>
       
       <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
       </RoundedBox>
       
       <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
-        <meshPhysicalMaterial color="#88ccff" roughness={0.1} metalness={0.1} transmission={0.6} thickness={0.5} transparent opacity={0.3} />
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
       </RoundedBox>
       
-      <mesh position={[0, wallHeight, 0]} rotation={[-Math.PI/2, 0, 0]} receiveShadow>
-        <planeGeometry args={[size[0] + 2, size[2] + 2]} />
-        <meshBasicMaterial color="#88ccff" transparent opacity={0.1} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
+
     </group>
   )
 }
