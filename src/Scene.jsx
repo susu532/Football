@@ -245,6 +245,10 @@ export default function Scene() {
     const unsubscribe = RPC.register('game-over', (data) => {
       setGameOverData(data)
       
+      const audio = new Audio('/endgame.mp3')
+      audio.volume = 0.05
+      audio.play().catch(e => console.error("Audio play failed:", e))
+      
       // Reset local player position immediately
       if (playerRef.current) {
         const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
@@ -254,6 +258,8 @@ export default function Scene() {
       // Clear overlay after 5 seconds
       setTimeout(() => {
         setGameOverData(null)
+        audio.pause()
+        audio.currentTime = 0
       }, 5000)
     })
 
@@ -666,9 +672,9 @@ export default function Scene() {
             boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,71,87,0.2)',
             textAlign: 'center',
             maxWidth: '400px',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
+            
+          
+    
             width: '90%',
             animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
           }}>
