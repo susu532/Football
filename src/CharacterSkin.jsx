@@ -55,31 +55,33 @@ const CharacterSkin = function CharacterSkin({
     return cloned
   }, [scene, teamColor])
   
-  // Handle visual effects (giant scaling, invisibility)
+  // Handle visual effects (invisibility)
+  React.useEffect(() => {
+    if (!ref || !ref.current) return
+    const targetOpacity = invisible ? 0.2 : 1.0
+    ref.current.traverse((child) => {
+      if (child.isMesh && child.material) {
+        const isTransparent = targetOpacity < 0.99
+        child.material.transparent = isTransparent
+        child.material.depthWrite = !isTransparent
+        child.material.opacity = targetOpacity
+        child.material.needsUpdate = true
+      }
+    })
+  }, [invisible, ref])
+
+  // Handle visual effects (giant scaling)
   useFrame((_, delta) => {
     if (!ref || !ref.current) return
     
     // Apply giant scaling effect
     const targetScale = giant ? 6.0 : 1.0
-    ref.current.scale.lerp(
-      new THREE.Vector3(targetScale, targetScale, targetScale), 
-      0.1
-    )
-    
-    // Apply invisibility effect
-    const targetOpacity = invisible ? 0.2 : 1.0
-    ref.current.traverse((child) => {
-      if (child.isMesh && child.material) {
-        const isTransparent = targetOpacity < 0.99 || child.material.opacity < 0.99
-        child.material.transparent = isTransparent
-        child.material.depthWrite = !isTransparent
-        child.material.opacity = THREE.MathUtils.lerp(
-          child.material.opacity, 
-          targetOpacity, 
-          0.1
-        )
-      }
-    })
+    if (Math.abs(ref.current.scale.x - targetScale) > 0.01) {
+      ref.current.scale.lerp(
+        new THREE.Vector3(targetScale, targetScale, targetScale), 
+        0.1
+      )
+    }
   })
   
   return (

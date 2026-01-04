@@ -132,8 +132,16 @@ export function ClientPlayerVisual(props) {
     groupRef.current.rotation.y += rotDiff * Math.min(1, lambda * delta)
   })
 
+  // Initialize position on mount to avoid flying in from origin
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.position.set(x, y, z)
+      groupRef.current.rotation.y = rotY
+    }
+  }, [])
+
   return (
-    <group ref={groupRef} position={[x, y, z]}>
+    <group ref={groupRef}>
       <CharacterSkin 
         characterType={character}
         teamColor={teamColor}

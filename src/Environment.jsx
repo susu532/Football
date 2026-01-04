@@ -62,64 +62,64 @@ export function SoccerPitch({
         <boxGeometry args={size} />
         <meshStandardMaterial color="#3a9d23" roughness={1} />
       </mesh>
-      <mesh position={[0, 0.102, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[0, 0.11, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[0.1, 20]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
       
-      <mesh position={[0, 0.102, -10]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[0, 0.11, -10]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[30, 0.1]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[0, 0.102, 10]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[0, 0.11, 10]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[30, 0.1]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[-15, 0.102, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[-15, 0.11, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[0.1, 20]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[15, 0.102, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[15, 0.11, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[0.1, 20]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
 
-      <mesh position={[-13, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[-13, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[4, 10]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.2} />
       </mesh>
-      <mesh position={[-11, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[-11, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <ringGeometry args={[0, 0.1, 4, 1, 0, Math.PI*2]} />
         <meshStandardMaterial color="#fff" />
       </mesh>
 
-      <mesh position={[13, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[13, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[4, 10]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.2} />
       </mesh>
-      <mesh position={[11, 0.02, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[11, 0.105, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <ringGeometry args={[0, 0.1, 4, 1, 0, Math.PI*2]} />
         <meshStandardMaterial color="#fff" />
       </mesh>
 
-      <mesh position={[0, 0.101, 0]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[0, 0.108, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <ringGeometry args={[2.5, 2.7, 32]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
       
-      <mesh position={[-size[0]/2 + 1, 0.02, -size[2]/2 + 1]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[-size[0]/2 + 1, 0.105, -size[2]/2 + 1]} rotation={[-Math.PI/2, 0, 0]}>
         <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[size[0]/2 - 1, 0.02, -size[2]/2 + 1]} rotation={[-Math.PI/2, 0, Math.PI/2]}>
+      <mesh position={[size[0]/2 - 1, 0.105, -size[2]/2 + 1]} rotation={[-Math.PI/2, 0, Math.PI/2]}>
         <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[size[0]/2 - 1, 0.02, size[2]/2 - 1]} rotation={[-Math.PI/2, 0, Math.PI]}>
+      <mesh position={[size[0]/2 - 1, 0.105, size[2]/2 - 1]} rotation={[-Math.PI/2, 0, Math.PI]}>
         <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[-size[0]/2 + 1, 0.02, size[2]/2 - 1]} rotation={[-Math.PI/2, 0, -Math.PI/2]}>
+      <mesh position={[-size[0]/2 + 1, 0.105, size[2]/2 - 1]} rotation={[-Math.PI/2, 0, -Math.PI/2]}>
         <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>

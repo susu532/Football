@@ -164,9 +164,11 @@ export function PlayerController(props) {
     // Apply physics (local prediction)
     const speed = MOVE_SPEED * effects.current.speed
     
-    // Smooth horizontal velocity
-    velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, moveDir.x * speed, 0.15)
-    velocity.current.z = THREE.MathUtils.lerp(velocity.current.z, moveDir.z * speed, 0.15)
+    // Smooth horizontal velocity - frame-rate independent
+    // Lambda 21.36 matches the server's 0.3 lerp at 60Hz
+    const lerpAlpha = 1 - Math.exp(-21.36 * delta)
+    velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, moveDir.x * speed, lerpAlpha)
+    velocity.current.z = THREE.MathUtils.lerp(velocity.current.z, moveDir.z * speed, lerpAlpha)
     
     // Apply gravity
     verticalVelocity.current -= GRAVITY * delta
@@ -210,13 +212,10 @@ export function PlayerController(props) {
       const error = serverPos.clone().sub(groupRef.current.position)
       
       // Only reconcile if error is significant (allow for latency drift)
-      // Since we don't have full rollback, we must tolerate the difference between
-      // current client time and received server time (RTT/2).
-      // At 8m/s, 100ms latency = 0.8m difference.
       const errorMagnitude = error.length()
-      if (errorMagnitude > 2.0 && errorMagnitude < 5) {
-        // Soft correction
-        groupRef.current.position.add(error.multiplyScalar(0.05))
+      if (errorMagnitude > 1.0 && errorMagnitude < 5) {
+        // Soft correction - faster than before
+        groupRef.current.position.add(error.multiplyScalar(0.1))
       } else if (errorMagnitude >= 5) {
         // Snap to server position if way off (teleport/lag spike)
         groupRef.current.position.copy(serverPos)

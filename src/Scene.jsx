@@ -3,7 +3,7 @@
 
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Loader, ContactShadows } from '@react-three/drei'
+import { Html, Loader } from '@react-three/drei'
 import * as THREE from 'three'
 
 
@@ -556,7 +556,18 @@ export default function Scene() {
       </div>
 
       {/* 3D Canvas */}
-      <Canvas shadows camera={{ position: [0, 8, 12], fov: 45 }} dpr={[1, 2]}>
+      <Canvas 
+        shadows 
+        camera={{ position: [0, 8, 12], fov: 45 }} 
+        dpr={[1, 2]}
+        gl={{ 
+          antialias: true, 
+          stencil: false, 
+          depth: true, 
+          powerPreference: 'high-performance',
+          alpha: false
+        }}
+      >
         <Suspense fallback={null}>
           {/* No client-side physics - server handles all physics */}
 
@@ -574,7 +585,7 @@ export default function Scene() {
             shadow-camera-bottom={-20}
           />
           
-          <ContactShadows resolution={1024} scale={35} blur={2} opacity={0.4} far={5} color="#000000" />
+
           
 
 
