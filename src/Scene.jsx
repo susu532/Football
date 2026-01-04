@@ -202,6 +202,15 @@ export default function Scene() {
   const [gameOverData, setGameOverData] = useState(null)
   const [collectedEmoji, setCollectedEmoji] = useState(null)
 
+  // Stable player props
+  const spawnPosition = React.useMemo(() => (
+    playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
+  ), [playerTeam])
+
+  const teamColor = React.useMemo(() => (
+    playerTeam === 'red' ? '#ff4444' : '#4488ff'
+  ), [playerTeam])
+
   // Inject CSS animations
   useEffect(() => {
     const style = document.createElement('style')
@@ -567,7 +576,7 @@ export default function Scene() {
           powerPreference: 'high-performance',
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 1.0
+          toneMappingExposure: 0.7
         }}
       >
         <Suspense fallback={null}>
@@ -575,11 +584,11 @@ export default function Scene() {
 
           {/* Visuals (rendered for all) */}
           <GameSkybox />
-          <Environment preset="city" />
-          <ambientLight intensity={0.3} />
+          <Environment preset="city" environmentIntensity={0.5} />
+          <ambientLight intensity={0.15} />
           <directionalLight
             position={[10, 20, 10]}
-            intensity={0.8}
+            intensity={0.5}
             castShadow
             shadow-mapSize={[shadowMapSize, shadowMapSize]}
             shadow-camera-left={-20}
@@ -611,9 +620,9 @@ export default function Scene() {
               sendKick={sendKick}
               playerName={playerName}
               playerTeam={playerTeam}
-              teamColor={playerTeam === 'red' ? '#ff4444' : '#4488ff'}
+              teamColor={teamColor}
               characterType={playerCharacter}
-              spawnPosition={playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]}
+              spawnPosition={spawnPosition}
               powerUps={activePowerUps}
               onCollectPowerUp={handleCollectPowerUp}
               isFreeLook={isFreeLook}

@@ -38,20 +38,24 @@ export function PlayerController(props) {
   const groupRef = useRef()
   const { camera } = useThree()
   
-  // Physics state (for prediction)
-  const physicsPosition = useRef(new THREE.Vector3(spawnPosition[0], spawnPosition[1], spawnPosition[2]))
+  // Physics state (Predicted state)
+  const physicsPosition = useRef(new THREE.Vector3(...spawnPosition))
   const velocity = useRef(new THREE.Vector3())
   const verticalVelocity = useRef(0)
   const isOnGround = useRef(true)
   const jumpCount = useRef(0)
+  const prevJump = useRef(false) // For edge detection
 
   // Initialize position
+  const lastSpawnRef = useRef('')
   useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.position.set(spawnPosition[0], spawnPosition[1], spawnPosition[2])
-      physicsPosition.current.set(spawnPosition[0], spawnPosition[1], spawnPosition[2])
+    const spawnKey = JSON.stringify(spawnPosition)
+    if (groupRef.current && spawnKey !== lastSpawnRef.current) {
+      groupRef.current.position.set(...spawnPosition)
+      physicsPosition.current.set(...spawnPosition)
+      lastSpawnRef.current = spawnKey
     }
-  }, [])
+  }, [spawnPosition])
   
   // Power-up effects
   const effects = useRef({
@@ -66,7 +70,10 @@ export function PlayerController(props) {
   const lastInputTime = useRef(0)
   const inputSequence = useRef(0)
 
-  useImperativeHandle(ref, () => groupRef.current)
+  useImperativeHandle(ref, () => ({
+    get position() { return groupRef.current?.position || new THREE.Vector3() },
+    get rotation() { return groupRef.current?.rotation || new THREE.Euler() }
+  }))
 
   // Initialize input manager
   useEffect(() => {
@@ -109,7 +116,7 @@ export function PlayerController(props) {
   }, [powerUps, onCollectPowerUp])
 
   useFrame((state, delta) => {
-    if (!groupRef.current || !me) return
+    if (!groupRef.current) return
 
     const now = state.clock.getElapsedTime()
     const input = InputManager.getInput()
@@ -133,53 +140,38 @@ export function PlayerController(props) {
       moveDir.normalize()
     }
 
-    // Handle jump
-    if (input.jump) {
+    // Handle jump (with edge detection to match server)
+    if (input.jump && !prevJump.current && jumpCount.current < MAX_JUMPS) {
       const baseJumpForce = JUMP_FORCE * effects.current.jump
-      
-      if (isOnGround.current) {
-        verticalVelocity.current = baseJumpForce
-        isOnGround.current = false
-        jumpCount.current = 1
-      } else if (jumpCount.current < MAX_JUMPS) {
-        verticalVelocity.current = baseJumpForce * DOUBLE_JUMP_MULTIPLIER
-        jumpCount.current++
-      }
+      verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
+      jumpCount.current++
+      isOnGround.current = false
     }
+    prevJump.current = input.jump
 
     // Handle kick - send to server
     if (input.kick && sendKick) {
       if (onLocalInteraction) onLocalInteraction()
       
-      // Calculate kick direction
       const rotation = groupRef.current.rotation.y
       const forwardX = Math.sin(rotation)
       const forwardZ = Math.cos(rotation)
       const kickDir = new THREE.Vector3(forwardX, 0.5, forwardZ).normalize()
       const kickPower = 65 * effects.current.kick
       
-      // Add a portion of player's current velocity to the kick
-      const impulseX = kickDir.x * kickPower + velocity.current.x * 2
-      const impulseY = kickDir.y * kickPower
-      const impulseZ = kickDir.z * kickPower + velocity.current.z * 2
-      
       sendKick({
-        impulseX,
-        impulseY,
-        impulseZ
+        impulseX: kickDir.x * kickPower + velocity.current.x * 2,
+        impulseY: kickDir.y * kickPower,
+        impulseZ: kickDir.z * kickPower + velocity.current.z * 2
       })
     }
 
     // Apply physics (local prediction)
     const speed = MOVE_SPEED * effects.current.speed
-    
-    // Smooth horizontal velocity - frame-rate independent
-    // Lambda 21.36 matches the server's 0.3 lerp at 60Hz
     const lerpAlpha = 1 - Math.exp(-21.36 * delta)
     velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, moveDir.x * speed, lerpAlpha)
     velocity.current.z = THREE.MathUtils.lerp(velocity.current.z, moveDir.z * speed, lerpAlpha)
     
-    // Apply gravity
     verticalVelocity.current -= GRAVITY * delta
 
     // Calculate new physics position
@@ -195,7 +187,7 @@ export function PlayerController(props) {
       jumpCount.current = 0
     }
 
-    // Bounds checking (arena limits)
+    // Bounds checking
     const wallMargin = 0.3
     newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
     newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
@@ -204,6 +196,7 @@ export function PlayerController(props) {
     physicsPosition.current.set(newX, newY, newZ)
 
     // Visual Interpolation (Smooth Glide)
+    // The visual model glides toward the predicted physics position
     const visualLambda = 25
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
     groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
@@ -244,7 +237,7 @@ export function PlayerController(props) {
     // Check power-up collisions
     checkPowerUpCollision(physicsPosition.current)
 
-    // Send input to server (throttled at 30Hz)
+    // Send input to server (throttled at 60Hz)
     if (now - lastInputTime.current >= INPUT_SEND_RATE && sendInput) {
       lastInputTime.current = now
       inputSequence.current++

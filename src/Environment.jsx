@@ -61,10 +61,10 @@ export function SoccerPitch({
       <mesh position={[0, 0, 0]} receiveShadow>
         <boxGeometry args={size} />
         <meshPhysicalMaterial 
-          color="#2d7a1b" 
-          roughness={0.8} 
-          metalness={0.05}
-          envMapIntensity={0.5}
+          color="#1a4a10" 
+          roughness={0.9} 
+          metalness={0.02}
+          envMapIntensity={0.2}
         />
       </mesh>
       <mesh position={[0, 0.11, 0]} rotation={[-Math.PI/2, 0, 0]}>
@@ -177,8 +177,9 @@ export function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColo
             child.material.transparent = true
             child.material.opacity = 0.7
           } else {
-            child.material.roughness = 0.5
-            child.material.metalness = 0.5
+            child.material.roughness = 0.8
+            child.material.metalness = 0.2
+            child.material.envMapIntensity = 0.2
           }
           child.material.needsUpdate = true
         }
