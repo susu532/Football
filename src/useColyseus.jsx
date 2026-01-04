@@ -90,85 +90,55 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setMySessionId(joinedRoom.sessionId)
       setIsConnected(true)
 
-      // State change listeners
-      console.log("Room joined, state:", joinedRoom.state)
-      if (!joinedRoom.state.players) {
-        console.error("State.players is undefined! Schema mismatch?")
-        return
-      }
+      // Unified State Sync Fallback
+      // Since schema methods (onAdd, onChange) are failing due to prototype issues,
+      // we use the room's onStateChange which is always available and reliable.
+      joinedRoom.onStateChange((state) => {
+        if (!state) return
 
-      joinedRoom.state.players.onAdd((player, sessionId) => {
-        setPlayers(prev => {
-          const updated = [...prev.filter(p => p.sessionId !== sessionId), {
-            sessionId,
-            id: sessionId,
-            x: player.x,
-            y: player.y,
-            z: player.z,
-            vx: player.vx,
-            vy: player.vy,
-            vz: player.vz,
-            rotY: player.rotY,
-            name: player.name,
-            team: player.team,
-            character: player.character,
-            invisible: player.invisible,
-            giant: player.giant,
-            getState: (key) => player[key],
-            setState: () => {} // No-op, state is server-controlled
-          }]
-          return updated
-        })
+        // 1. Sync Players
+        if (state.players) {
+          const currentPlayers = []
+          state.players.forEach((player, sessionId) => {
+            currentPlayers.push({
+              sessionId,
+              id: sessionId,
+              x: player.x,
+              y: player.y,
+              z: player.z,
+              vx: player.vx,
+              vy: player.vy,
+              vz: player.vz,
+              rotY: player.rotY,
+              name: player.name,
+              team: player.team,
+              character: player.character,
+              invisible: player.invisible,
+              giant: player.giant,
+              getState: (key) => player[key],
+              setState: () => {}
+            })
+          })
+          setPlayers(currentPlayers)
+        }
 
-        // Listen for property changes
-        player.onChange(() => {
-          setPlayers(prev => prev.map(p => {
-            if (p.sessionId === sessionId) {
-              return {
-                ...p,
-                x: player.x,
-                y: player.y,
-                z: player.z,
-                vx: player.vx,
-                vy: player.vy,
-                vz: player.vz,
-                rotY: player.rotY,
-                name: player.name,
-                team: player.team,
-                character: player.character,
-                invisible: player.invisible,
-                giant: player.giant
-              }
-            }
-            return p
-          }))
-        })
-      })
+        // 2. Sync Ball
+        if (state.ball) {
+          setBallState({
+            x: state.ball.x,
+            y: state.ball.y,
+            z: state.ball.z,
+            vx: state.ball.vx,
+            vy: state.ball.vy,
+            vz: state.ball.vz,
+            rx: state.ball.rx,
+            ry: state.ball.ry,
+            rz: state.ball.rz,
+            rw: state.ball.rw
+          })
+        }
 
-      joinedRoom.state.players.onRemove((player, sessionId) => {
-        setPlayers(prev => prev.filter(p => p.sessionId !== sessionId))
-      })
-
-      // Ball state
-      joinedRoom.state.ball.onChange(() => {
-        const ball = joinedRoom.state.ball
-        setBallState({
-          x: ball.x,
-          y: ball.y,
-          z: ball.z,
-          vx: ball.vx,
-          vy: ball.vy,
-          vz: ball.vz,
-          rx: ball.rx,
-          ry: ball.ry,
-          rz: ball.rz,
-          rw: ball.rw
-        })
-      })
-
-      // Game state
-      joinedRoom.state.onChange(() => {
-        const state = joinedRoom.state
+        // 3. Sync Game Info
         setScores({ red: state.redScore, blue: state.blueScore })
         setGamePhase(state.gamePhase)
         setGameTimer(state.timer)
