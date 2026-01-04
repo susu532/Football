@@ -151,14 +151,35 @@ export function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColo
     const cloned = scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
+        // Smooth shading
+        if (child.geometry) {
+          child.geometry.computeVertexNormals()
+        }
+
+        // Material fixes
+        if (child.material) {
+          child.material = child.material.clone()
+          // Ensure textures are filtered well
+          if (child.material.map) {
+            child.material.map.anisotropy = 16
+            child.material.map.minFilter = THREE.LinearMipmapLinearFilter
+            child.material.map.magFilter = THREE.LinearFilter
+            child.material.map.needsUpdate = true
+          }
+          
+          if (child.name.toLowerCase().includes('net')) {
+            child.material.color.set(netColor)
+            child.material.transparent = true
+            child.material.opacity = 0.7
+          } else {
+            child.material.roughness = 0.5
+            child.material.metalness = 0.5
+          }
+          child.material.needsUpdate = true
+        }
+
         child.castShadow = true
         child.receiveShadow = true
-        if (child.name.toLowerCase().includes('net')) {
-          child.material = child.material.clone()
-          child.material.color.set(netColor)
-          child.material.transparent = true
-          child.material.opacity = 0.7
-        }
       }
     })
     return cloned

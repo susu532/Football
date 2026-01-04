@@ -35,6 +35,15 @@ const CharacterSkin = function CharacterSkin({
         if (child.material) {
           child.material = child.material.clone()
           child.material.color = new THREE.Color(teamColor)
+          
+          // Ensure textures are filtered well
+          if (child.material.map) {
+            child.material.map.anisotropy = 16
+            child.material.map.minFilter = THREE.LinearMipmapLinearFilter
+            child.material.map.magFilter = THREE.LinearFilter
+            child.material.map.needsUpdate = true
+          }
+
           child.material.transparent = false
           child.material.opacity = 1.0
           child.material.side = THREE.FrontSide
