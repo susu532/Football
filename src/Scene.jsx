@@ -567,7 +567,7 @@ export default function Scene() {
             position={[10, 20, 10]}
             intensity={1.2}
             castShadow
-            shadow-mapSize={[2048, 2048]}
+            shadow-mapSize={[shadowMapSize, shadowMapSize]}
             shadow-camera-left={-20}
             shadow-camera-right={20}
             shadow-camera-top={20}

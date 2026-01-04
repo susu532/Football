@@ -286,5 +286,3 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     onMessage
   }
 }
-
-export default useColyseus

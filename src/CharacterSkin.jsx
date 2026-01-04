@@ -15,11 +15,6 @@ const CharacterSkin = function CharacterSkin({
   children,
   ref
 }) {
-  const groupRef = useRef()
-  
-  // Forward ref to the group
-  React.useImperativeHandle(ref, () => groupRef.current)
-  
   // Determine model path based on character type
   const MODEL_PATH = characterType === 'cat' 
     ? '/models/cat.glb' 
@@ -62,18 +57,18 @@ const CharacterSkin = function CharacterSkin({
   
   // Handle visual effects (giant scaling, invisibility)
   useFrame((_, delta) => {
-    if (!groupRef.current) return
+    if (!ref || !ref.current) return
     
     // Apply giant scaling effect
     const targetScale = giant ? 6.0 : 1.0
-    groupRef.current.scale.lerp(
+    ref.current.scale.lerp(
       new THREE.Vector3(targetScale, targetScale, targetScale), 
       0.1
     )
     
     // Apply invisibility effect
     const targetOpacity = invisible ? 0.2 : 1.0
-    groupRef.current.traverse((child) => {
+    ref.current.traverse((child) => {
       if (child.isMesh && child.material) {
         const isTransparent = targetOpacity < 0.99 || child.material.opacity < 0.99
         child.material.transparent = isTransparent
@@ -88,7 +83,7 @@ const CharacterSkin = function CharacterSkin({
   })
   
   return (
-    <group ref={groupRef}>
+    <group ref={ref}>
       <primitive 
         object={clonedScene} 
         scale={characterScale} 
