@@ -247,9 +247,90 @@ export function GamePhysics({
   localPlayerRef,
   setBallState, 
   onGoal,
-  ballRef 
+  ballRef,
+  gameState,
+  setGameState,
+  gameTimer,
+  setGameTimer,
+  setScores,
+  scores
 }) {
   if (!isHost) return null
+
+  // Timer logic
+  const lastTimerUpdate = useRef(0)
+  useFrame((state) => {
+    if (gameState !== 'playing') return
+
+    const now = state.clock.getElapsedTime()
+    if (now - lastTimerUpdate.current >= 1) {
+      lastTimerUpdate.current = now
+      const nextTimer = Math.max(0, gameTimer - 1)
+      setGameTimer(nextTimer)
+      
+      if (nextTimer === 0) {
+        setGameState('ended')
+        
+        // Determine winner
+        let winner = 'draw'
+        if (scores.red > scores.blue) winner = 'red'
+        else if (scores.blue > scores.red) winner = 'blue'
+        
+        // Broadcast game over
+        RPC.call('game-over', { 
+          winner, 
+          scores: { red: scores.red, blue: scores.blue } 
+        }, RPC.Mode.ALL)
+        
+        // Reset positions immediately
+        resetGamePositions()
+      }
+    }
+  })
+
+  // Game control RPCs
+  useEffect(() => {
+    const unsubStart = RPC.register('start-game', () => {
+      resetGame()
+      setGameState('playing')
+    })
+
+    const unsubEnd = RPC.register('end-game', () => {
+      setGameState('ended')
+    })
+
+    const unsubReset = RPC.register('reset-game-request', () => {
+      resetGame()
+    })
+
+    return () => {
+      unsubStart()
+      unsubEnd()
+      unsubReset()
+    }
+  }, [setGameState, setGameTimer, setBallState])
+
+  const resetGamePositions = useCallback(() => {
+    // Reset ball
+    if (ballRef.current) {
+      ballRef.current.setTranslation({ x: 0, y: 2, z: 0 }, true)
+      ballRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
+      ballRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true)
+    }
+
+    // Notify all clients to reset player positions
+    RPC.call('game-reset', {}, RPC.Mode.ALL)
+  }, [ballRef])
+
+  const resetGame = useCallback(() => {
+    // Reset scores
+    setScores({ red: 0, blue: 0 })
+    
+    // Reset timer
+    setGameTimer(300)
+    
+    resetGamePositions()
+  }, [setGameTimer, resetGamePositions])
 
   return (
     <RapierPhysics gravity={[0, -20, 0]}>

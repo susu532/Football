@@ -37,6 +37,8 @@ export function usePlayroom() {
     rotation: [0, 0, 0, 1] // Initial quaternion (identity)
   })
   const [scores, setScores] = useMultiplayerState('scores', { red: 0, blue: 0 })
+  const [gameState, setGameState] = useMultiplayerState('gameState', 'waiting')
+  const [gameTimer, setGameTimer] = useMultiplayerState('gameTimer', 300)
   const isHostPlayer = useIsHost()
 
   // Helper to get my player object
@@ -49,6 +51,10 @@ export function usePlayroom() {
     setBallState,
     scores: scores || { red: 0, blue: 0 },
     setScores,
+    gameState: gameState || 'waiting',
+    setGameState,
+    gameTimer: gameTimer || 300,
+    setGameTimer,
     isHost: isHostPlayer,
     me
   }

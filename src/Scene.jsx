@@ -13,6 +13,7 @@ import useStore from './store'
 import TeamSelectPopup from './TeamSelectPopup'
 import { PowerUp, POWER_UP_TYPES } from './PowerUp'
 import MobileControls from './MobileControls'
+import InputManager from './InputManager'
 import * as MapComponents from './MapComponents'
 import Chat from './Chat'
 
@@ -146,6 +147,10 @@ export default function Scene() {
     setBallState,
     scores,
     setScores,
+    gameState,
+    setGameState,
+    gameTimer,
+    setGameTimer,
     isHost,
     me
   } = usePlayroom()
@@ -177,6 +182,15 @@ export default function Scene() {
   const [connectionQuality] = useState('excellent')
   const [ping] = useState(0)
   const [showConnectionWarning] = useState(false)
+  const [gameOverData, setGameOverData] = useState(null)
+
+  // Inject CSS animations
+  useEffect(() => {
+    const style = document.createElement('style')
+    style.textContent = CSS_ANIMATIONS
+    document.head.appendChild(style)
+    return () => document.head.removeChild(style)
+  }, [])
 
 
 
@@ -205,6 +219,42 @@ export default function Scene() {
           playerRef.current.position.set(...spawn)
         }
       }, 3000)
+    })
+
+    return () => unsubscribe()
+  }, [isLaunched, playerTeam])
+
+  // Game reset listener
+  useEffect(() => {
+    if (!isLaunched) return
+
+    const unsubscribe = RPC.register('game-reset', () => {
+      if (playerRef.current) {
+        const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
+        playerRef.current.position.set(...spawn)
+      }
+    })
+
+    return () => unsubscribe()
+  }, [isLaunched, playerTeam])
+
+  // Game over RPC listener
+  useEffect(() => {
+    if (!isLaunched) return
+
+    const unsubscribe = RPC.register('game-over', (data) => {
+      setGameOverData(data)
+      
+      // Reset local player position immediately
+      if (playerRef.current) {
+        const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
+        playerRef.current.position.set(...spawn)
+      }
+
+      // Clear overlay after 5 seconds
+      setTimeout(() => {
+        setGameOverData(null)
+      }, 5000)
     })
 
     return () => unsubscribe()
@@ -306,16 +356,13 @@ export default function Scene() {
     }, 3000)
   }, [isHost, scores, setScores, setBallState])
 
-  // Team select screen
-  if (!hasJoined) {
-    return <TeamSelectPopup defaultName={me?.getProfile()?.name} />
-  }
-
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
-      <style>{CSS_ANIMATIONS}</style>
-
-      {/* Connection Status */}
+      {!hasJoined ? (
+        <TeamSelectPopup key="team-select-popup" defaultName={me?.getProfile()?.name} />
+      ) : (
+        <div className="game-content-wrapper" style={{ width: '100%', height: '100%' }}>
+          {/* Connection Status */}
       <div style={{
         position: 'absolute',
         top: '20px',
@@ -424,7 +471,7 @@ export default function Scene() {
         </button>
       </div>
 
-      {/* Scoreboard */}
+      {/* Scoreboard & Timer */}
       <div style={{
         position: 'absolute',
         top: '20px',
@@ -432,35 +479,74 @@ export default function Scene() {
         transform: 'translateX(-50%)',
         zIndex: 9999,
         display: 'flex',
-        gap: '20px',
-        background: 'rgba(0,0,0,0.6)',
-        padding: '10px 30px',
-        borderRadius: '20px',
-        border: '1px solid rgba(255,255,255,0.1)',
-        backdropFilter: 'blur(10px)'
+        flexDirection: 'column',
+        alignItems: 'center',
+        gap: '10px'
       }}>
-        <div style={{ color: '#ff4757', fontSize: '32px', fontWeight: 'bold' }}>{scores.red}</div>
-        <div style={{ color: 'white', fontSize: '32px', fontWeight: 'bold' }}>-</div>
-        <div style={{ color: '#3742fa', fontSize: '32px', fontWeight: 'bold' }}>{scores.blue}</div>
-      </div>
-
-      {/* Goal Celebration */}
-      {celebration && (
         <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 10000,
-          fontSize: '80px',
-          fontWeight: 'bold',
-          color: celebration.team === 'red' ? '#ff4757' : '#3742fa',
-          textShadow: '0 0 20px rgba(255,255,255,0.8)',
-          animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          display: 'flex',
+          gap: '20px',
+          background: 'rgba(0,0,0,0.6)',
+          padding: '10px 30px',
+          borderRadius: '20px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          backdropFilter: 'blur(10px)',
+          alignItems: 'center'
         }}>
-          GOAL!
+          <div style={{ color: '#ff4757', fontSize: '32px', fontWeight: 'bold' }}>{scores?.red ?? 0}</div>
+          <div style={{ 
+            color: 'white', 
+            fontSize: '24px', 
+            fontWeight: 'bold',
+            minWidth: '80px',
+            textAlign: 'center',
+            fontFamily: 'monospace'
+          }}>
+            {Math.floor((gameTimer || 300) / 60)}:{((gameTimer || 300) % 60).toString().padStart(2, '0')}
+          </div>
+          <div style={{ color: '#3742fa', fontSize: '32px', fontWeight: 'bold' }}>{scores?.blue ?? 0}</div>
         </div>
-      )}
+
+        {/* Host Controls */}
+        {isHost && (
+          <div style={{ display: 'flex', gap: '10px' }}>
+            {gameState !== 'playing' ? (
+              <button
+                onClick={() => RPC.call('start-game', {}, RPC.Mode.HOST)}
+                style={{
+                  background: '#2ecc71',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(46, 204, 113, 0.3)'
+                }}
+              >
+                START GAME
+              </button>
+            ) : (
+              <button
+                onClick={() => RPC.call('end-game', {}, RPC.Mode.HOST)}
+                style={{
+                  background: '#e74c3c',
+                  color: 'white',
+                  border: 'none',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  fontWeight: 'bold',
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 15px rgba(231, 76, 60, 0.3)'
+                }}
+              >
+                END GAME
+              </button>
+            )}
+            
+          </div>
+        )}
+      </div>
 
       {/* 3D Canvas */}
       <Canvas shadows camera={{ position: [0, 8, 12], fov: 45 }} dpr={[1, 2]}>
@@ -474,6 +560,12 @@ export default function Scene() {
             setBallState={setBallState}
             onGoal={handleGoal}
             ballRef={ballRigidBodyRef}
+            gameState={gameState}
+            setGameState={setGameState}
+            gameTimer={gameTimer}
+            setGameTimer={setGameTimer}
+            setScores={setScores}
+            scores={scores}
           />
 
           {/* Visuals (rendered for all) */}
@@ -535,7 +627,6 @@ export default function Scene() {
           ))}
         </Suspense>
       </Canvas>
-      <Loader />
 
       {/* Mobile Controls */}
       {hasJoined && (
@@ -575,6 +666,9 @@ export default function Scene() {
             boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,71,87,0.2)',
             textAlign: 'center',
             maxWidth: '400px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
             width: '90%',
             animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
           }}>
@@ -649,6 +743,85 @@ export default function Scene() {
           </div>
         </div>
       )}
+
+      {/* Overlays (Goal & Game Over) */}
+      {celebration && (
+        <div style={{
+          position: 'absolute',
+          top: '50%',
+          left: '50%',
+          transform: 'translate(-50%, -50%)',
+          zIndex: 10000,
+          fontSize: '80px',
+          fontWeight: 'bold',
+          color: celebration.team === 'red' ? '#ff4757' : '#3742fa',
+          textShadow: '0 0 20px rgba(255,255,255,0.8)',
+          animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+        }}>
+          GOAL!
+        </div>
+      )}
+
+      {gameOverData && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          zIndex: 30000,
+          background: 'rgba(0,0,0,0.85)',
+          backdropFilter: 'blur(15px)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          animation: 'fadeIn 0.5s ease-out'
+        }}>
+          <h1 style={{ 
+            fontSize: '80px', 
+            margin: '0 0 20px 0', 
+            fontWeight: '900',
+            textShadow: '0 0 30px rgba(255,255,255,0.3)'
+          }}>
+            END GAME!
+          </h1>
+          
+          <div style={{
+            fontSize: '48px',
+            fontWeight: 'bold',
+            color: gameOverData.winner === 'red' ? '#ff4757' : (gameOverData.winner === 'blue' ? '#3742fa' : '#ffffff'),
+            marginBottom: '40px',
+            textTransform: 'uppercase',
+            letterSpacing: '4px'
+          }}>
+            {gameOverData.winner === 'draw' ? "IT'S A DRAW!" : `${gameOverData.winner.toUpperCase()} TEAM WINS!`}
+          </div>
+
+          <div style={{
+            display: 'flex',
+            gap: '60px',
+            background: 'rgba(255,255,255,0.1)',
+            padding: '30px 60px',
+            borderRadius: '30px',
+            border: '1px solid rgba(255,255,255,0.2)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+          }}>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#ff4757', fontSize: '24px', marginBottom: '10px' }}>RED</div>
+              <div style={{ fontSize: '64px', fontWeight: '900' }}>{gameOverData.scores.red}</div>
+            </div>
+            <div style={{ fontSize: '64px', fontWeight: '900', opacity: 0.5 }}>-</div>
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ color: '#3742fa', fontSize: '24px', marginBottom: '10px' }}>BLUE</div>
+              <div style={{ fontSize: '64px', fontWeight: '900' }}>{gameOverData.scores.blue}</div>
+            </div>
+          </div>
+        </div>
+      )}
+      </div>
+    )}
     </div>
   )
 }
