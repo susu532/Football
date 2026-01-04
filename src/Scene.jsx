@@ -223,7 +223,7 @@ export default function Scene() {
   useEffect(() => {
     if (gameOverData) {
       const audio = new Audio('/endgame.mp3')
-      audio.volume = 0.50
+      audio.volume = 0.90
       audio.play().catch(e => console.error("Endgame audio failed:", e))
     }
   }, [gameOverData])
