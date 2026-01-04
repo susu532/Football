@@ -8,6 +8,7 @@ import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
 const CharacterSkin = function CharacterSkin({ 
+  player,
   teamColor = '#888',
   characterType = 'cat',
   invisible = false,
@@ -15,6 +16,10 @@ const CharacterSkin = function CharacterSkin({
   children,
   ref
 }) {
+  // Use proxy values if player is provided, otherwise fallback to props
+  const isInvisible = player ? player.invisible : invisible
+  const isGiant = player ? player.giant : giant
+
   // Determine model path based on character type
   const MODEL_PATH = characterType === 'cat' 
     ? '/models/cat.glb' 
@@ -66,26 +71,32 @@ const CharacterSkin = function CharacterSkin({
   }, [scene, teamColor])
   
   // Handle visual effects (invisibility)
-  React.useEffect(() => {
+  useFrame(() => {
     if (!ref || !ref.current) return
-    const targetOpacity = invisible ? 0.2 : 1.0
+    const currentIsInvisible = player ? player.invisible : invisible
+    const targetOpacity = currentIsInvisible ? 0.2 : 1.0
+    
+    // Only update if opacity changed significantly
     ref.current.traverse((child) => {
       if (child.isMesh && child.material) {
-        const isTransparent = targetOpacity < 0.99
-        child.material.transparent = isTransparent
-        child.material.depthWrite = !isTransparent
-        child.material.opacity = targetOpacity
-        child.material.needsUpdate = true
+        if (Math.abs(child.material.opacity - targetOpacity) > 0.01) {
+          const isTransparent = targetOpacity < 0.99
+          child.material.transparent = isTransparent
+          child.material.depthWrite = !isTransparent
+          child.material.opacity = targetOpacity
+          child.material.needsUpdate = true
+        }
       }
     })
-  }, [invisible, ref])
+  })
 
   // Handle visual effects (giant scaling)
   useFrame((_, delta) => {
     if (!ref || !ref.current) return
     
     // Apply giant scaling effect
-    const targetScale = giant ? 6.0 : 1.0
+    const currentIsGiant = player ? player.giant : giant
+    const targetScale = currentIsGiant ? 6.0 : 1.0
     if (Math.abs(ref.current.scale.x - targetScale) > 0.01) {
       ref.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale), 

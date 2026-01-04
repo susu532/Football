@@ -84,20 +84,6 @@ export function ClientBallVisual({ ballState, onKickMessage, ref }) {
   
   useImperativeHandle(ref, () => groupRef.current)
 
-  // Update targets when new snapshot arrives
-  useEffect(() => {
-    if (ballState) {
-      targetPos.current.set(ballState.x, ballState.y, ballState.z)
-      velocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
-      
-      if (ballState.rx !== undefined) {
-        targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
-      }
-      
-      lastUpdateTime.current = Date.now()
-    }
-  }, [ballState])
-
   // Listen for kick message for visual feedback and prediction
   useEffect(() => {
     if (onKickMessage) {
@@ -107,11 +93,8 @@ export function ClientBallVisual({ ballState, onKickMessage, ref }) {
           kickFeedback.current()
         }
 
-        // Prediction: If we kicked it, or if we want to predict others' kicks
-        // We can apply a temporary visual impulse to the ball
-        // This makes it feel instant even before the server snapshot arrives
+        // Prediction: Apply a temporary visual impulse
         if (data.impulse) {
-           // Mass is 3.0 on server, so dv = impulse / 3.0
            velocity.current.x += data.impulse.x / 3.0
            velocity.current.y += data.impulse.y / 3.0
            velocity.current.z += data.impulse.z / 3.0
@@ -122,9 +105,16 @@ export function ClientBallVisual({ ballState, onKickMessage, ref }) {
   }, [onKickMessage])
 
   useFrame((state, delta) => {
-    if (!groupRef.current) return
+    if (!groupRef.current || !ballState) return
 
-    // 1. Prediction: Advance target position using velocity
+    // 1. Sync targets from proxy
+    targetPos.current.set(ballState.x, ballState.y, ballState.z)
+    velocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
+    if (ballState.rx !== undefined) {
+      targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
+    }
+
+    // 2. Prediction: Advance target position using velocity
     // Helps smooth out the gap between snapshots
     targetPos.current.addScaledVector(velocity.current, delta)
     

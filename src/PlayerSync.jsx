@@ -76,67 +76,46 @@ export function ClientPlayerVisual(props) {
 
   useImperativeHandle(ref, () => groupRef.current)
   
-  // Get remote player state from network (now from player object directly)
-  const { 
-    x = 0, y = 1, z = 0, 
-    rotY = 0, 
-    name = 'Player', 
-    team = '', 
-    character = 'cat',
-    invisible = false,
-    giant = false
-  } = player
-
-  const teamColor = team === 'red' ? '#ff4444' : team === 'blue' ? '#4488ff' : '#888'
-
-  // Interpolation targets
-  const targetPosition = useRef(new THREE.Vector3(x, y, z))
-  const targetRotation = useRef(rotY)
-  
-  // Update targets when new data arrives
-  useEffect(() => {
-    targetPosition.current.set(x, y, z)
-    targetRotation.current = rotY
-  }, [x, y, z, rotY])
+  const teamColor = player.team === 'red' ? '#ff4444' : player.team === 'blue' ? '#4488ff' : '#888'
 
   // Smooth interpolation each frame
   useFrame((_, delta) => {
-    if (!groupRef.current) return
+    if (!groupRef.current || !player) return
     
     const lambda = 20 // Interpolation speed
     
-    // Position interpolation
+    // Position interpolation - read directly from Colyseus proxy
     groupRef.current.position.x = THREE.MathUtils.damp(
       groupRef.current.position.x, 
-      targetPosition.current.x, 
+      player.x, 
       lambda, 
       delta
     )
     groupRef.current.position.y = THREE.MathUtils.damp(
       groupRef.current.position.y, 
-      targetPosition.current.y, 
+      player.y, 
       lambda, 
       delta
     )
     groupRef.current.position.z = THREE.MathUtils.damp(
       groupRef.current.position.z, 
-      targetPosition.current.z, 
+      player.z, 
       lambda, 
       delta
     )
     
     // Rotation interpolation (handle wrapping)
-    let rotDiff = targetRotation.current - groupRef.current.rotation.y
+    let rotDiff = player.rotY - groupRef.current.rotation.y
     while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
     while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
     groupRef.current.rotation.y += rotDiff * Math.min(1, lambda * delta)
   })
 
-  // Initialize position on mount to avoid flying in from origin
+  // Initialize position on mount
   useEffect(() => {
-    if (groupRef.current) {
-      groupRef.current.position.set(x, y, z)
-      groupRef.current.rotation.y = rotY
+    if (groupRef.current && player) {
+      groupRef.current.position.set(player.x, player.y, player.z)
+      groupRef.current.rotation.y = player.rotY
     }
   }, [])
 

@@ -90,59 +90,22 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setMySessionId(joinedRoom.sessionId)
       setIsConnected(true)
 
-      // Unified State Sync Fallback
-      // Since schema methods (onAdd, onChange) are failing due to prototype issues,
-      // we use the room's onStateChange which is always available and reliable.
+      // Granular State Sync
+      // We use onAdd/onRemove to maintain a stable list of player proxies.
+      // This avoids full Scene re-renders on every position update.
+      joinedRoom.state.players.onAdd((player, sessionId) => {
+        setPlayers(prev => [...prev, player])
+      })
+
+      joinedRoom.state.players.onRemove((player, sessionId) => {
+        setPlayers(prev => prev.filter(p => p.sessionId !== sessionId))
+      })
+
+      // Ball and Game Info are also synced via the state proxy
+      setBallState(joinedRoom.state.ball)
+      
       joinedRoom.onStateChange((state) => {
         if (!state) return
-
-        // 1. Sync Players
-        if (state.players) {
-          const currentPlayers = []
-          state.players.forEach((player, sessionId) => {
-            currentPlayers.push({
-              sessionId,
-              id: sessionId,
-              x: player.x,
-              y: player.y,
-              z: player.z,
-              vx: player.vx,
-              vy: player.vy,
-              vz: player.vz,
-              rotY: player.rotY,
-              name: player.name,
-              team: player.team,
-              character: player.character,
-              invisible: player.invisible,
-              giant: player.giant
-            })
-          })
-          
-          // Use a simple check to avoid redundant state updates
-          setPlayers(prev => {
-            if (prev.length !== currentPlayers.length) return currentPlayers
-            // For now, we update every time to ensure sync, but we could do a deep compare
-            return currentPlayers
-          })
-        }
-
-        // 2. Sync Ball
-        if (state.ball) {
-          setBallState({
-            x: state.ball.x,
-            y: state.ball.y,
-            z: state.ball.z,
-            vx: state.ball.vx,
-            vy: state.ball.vy,
-            vz: state.ball.vz,
-            rx: state.ball.rx,
-            ry: state.ball.ry,
-            rz: state.ball.rz,
-            rw: state.ball.rw
-          })
-        }
-
-        // 3. Sync Game Info
         setScores({ red: state.redScore, blue: state.blueScore })
         setGamePhase(state.gamePhase)
         setGameTimer(state.timer)
