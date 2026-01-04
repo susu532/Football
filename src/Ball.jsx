@@ -10,7 +10,7 @@ import { useSpring, a } from '@react-spring/three'
 import { RPC } from 'playroomkit'
 
 // Soccer Ball Visual Component (shared by host and client)
-export function SoccerBall({ radius = 0.22, ref }) {
+export function SoccerBall({ radius = 0.8, ref }) {
   const { scene } = useGLTF('/models/soccer_ball.glb')
   
   const [spring, api] = useSpring(() => ({
@@ -81,7 +81,7 @@ export function ClientBallVisual({ ballState, ref }) {
     targetPos.current.addScaledVector(velocity.current, delta)
     
     // Apply simple gravity to prediction
-    if (targetPos.current.y > 0.22) {
+    if (targetPos.current.y > 0.8) {
       velocity.current.y -= 20 * delta
     }
 
@@ -91,8 +91,8 @@ export function ClientBallVisual({ ballState, ref }) {
     groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-10 * delta))
     
     // 3. Simple floor collision for visual prediction
-    if (groupRef.current.position.y < 0.22) {
-      groupRef.current.position.y = 0.22
+    if (groupRef.current.position.y < 0.8) {
+      groupRef.current.position.y = 0.8
       velocity.current.y = Math.abs(velocity.current.y) * 0.5 // Bounce
     }
 

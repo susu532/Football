@@ -10,9 +10,9 @@ import { SoccerBall } from './Ball'
 
 // Constants
 const BALL_MASS = 3.0
-const BALL_RESTITUTION = 1.0
+const BALL_RESTITUTION = 0.75
 const BALL_FRICTION = 0.5
-const BALL_DAMPING = 1.2
+const BALL_DAMPING = 1.5
 const SYNC_RATE = 1 / 30 // 30Hz
 const GOAL_COOLDOWN = 5 // seconds
 
@@ -39,12 +39,16 @@ export function HostBallController(props) {
       const dz = ballPos.z - position[2]
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
-      if (dist < 2.5) {
-        // Apply kick impulse
-        rigidBodyRef.current.applyImpulse(
-          { x: impulse[0], y: impulse[1], z: impulse[2] },
-          true
-        )
+      if (dist < 1.5) {
+        // Apply kick impulse at the ball's center
+        // We add a slight upward bias to the impulse to make it feel more natural
+        const refinedImpulse = { 
+          x: impulse[0], 
+          y: impulse[1] + 2, // Slight upward lift
+          z: impulse[2] 
+        }
+        
+        rigidBodyRef.current.applyImpulse(refinedImpulse, true)
 
         // Broadcast visual feedback
         RPC.call('ball-kicked', {}, RPC.Mode.ALL)
@@ -113,7 +117,7 @@ export function HostBallController(props) {
   return (
     <RigidBody
       ref={rigidBodyRef}
-      colliders="ball"
+      colliders={false}
       restitution={BALL_RESTITUTION}
       friction={BALL_FRICTION}
       linearDamping={BALL_DAMPING}
@@ -124,6 +128,7 @@ export function HostBallController(props) {
       ccd
       name="ball"
     >
+      <BallCollider args={[0.8]} />
       <SoccerBall />
     </RigidBody>
   )
@@ -175,7 +180,7 @@ export function HostPlayerBody({ player, localPlayerRef, isLocalPlayer }) {
       colliders={false}
       name={`player-${player.id}`}
     >
-      <CuboidCollider args={[0.4, 0.8, 0.4]} position={[0, 0.8, 0]} />
+      <CuboidCollider args={[0.1, 0.1, 0.1]} position={[0, 0.8, 0]} />
     </RigidBody>
   )
 }
