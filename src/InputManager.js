@@ -13,16 +13,19 @@ class InputManagerClass {
   init() {
     if (this.isInitialized || typeof window === 'undefined') return
     
-    window.addEventListener('keydown', this.handleKeyDown.bind(this))
-    window.addEventListener('keyup', this.handleKeyUp.bind(this))
+    this._onKeyDown = this.handleKeyDown.bind(this)
+    this._onKeyUp = this.handleKeyUp.bind(this)
+    
+    window.addEventListener('keydown', this._onKeyDown)
+    window.addEventListener('keyup', this._onKeyUp)
     this.isInitialized = true
   }
 
   destroy() {
     if (!this.isInitialized || typeof window === 'undefined') return
     
-    window.removeEventListener('keydown', this.handleKeyDown.bind(this))
-    window.removeEventListener('keyup', this.handleKeyUp.bind(this))
+    window.removeEventListener('keydown', this._onKeyDown)
+    window.removeEventListener('keyup', this._onKeyUp)
     this.isInitialized = false
   }
 

@@ -47,9 +47,10 @@ const CharacterSkin = function CharacterSkin({
           child.material.transparent = false
           child.material.opacity = 1.0
           child.material.side = THREE.FrontSide
-          child.material.roughness = 0.4
-          child.material.metalness = 0.3
-          child.material.envMapIntensity = 0.5
+          child.material.roughness = 0.6
+          child.material.metalness = 0.1
+          child.material.envMapIntensity = 0.4
+          child.material.flatShading = false
           child.material.needsUpdate = true
         }
         child.castShadow = true

@@ -3,7 +3,7 @@
 
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Loader } from '@react-three/drei'
+import { Html, Loader, Environment } from '@react-three/drei'
 import * as THREE from 'three'
 
 
@@ -565,7 +565,9 @@ export default function Scene() {
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
-          alpha: false
+          alpha: false,
+          toneMapping: THREE.ACESFilmicToneMapping,
+          toneMappingExposure: 1.0
         }}
       >
         <Suspense fallback={null}>
@@ -573,10 +575,11 @@ export default function Scene() {
 
           {/* Visuals (rendered for all) */}
           <GameSkybox />
-          <ambientLight intensity={0.8} />
+          <Environment preset="city" />
+          <ambientLight intensity={0.3} />
           <directionalLight
             position={[10, 20, 10]}
-            intensity={1.0}
+            intensity={0.8}
             castShadow
             shadow-mapSize={[shadowMapSize, shadowMapSize]}
             shadow-camera-left={-20}

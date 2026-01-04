@@ -49,9 +49,10 @@ export function SoccerBall({ radius = 0.8, ref, onKickFeedback }) {
             child.material.map.magFilter = THREE.LinearFilter
             child.material.map.needsUpdate = true
           }
-          child.material.roughness = 0.4
-          child.material.metalness = 0.3
+          child.material.roughness = 0.6
+          child.material.metalness = 0.1
           child.material.envMapIntensity = 0.5
+          child.material.flatShading = false
           child.material.needsUpdate = true
         }
 

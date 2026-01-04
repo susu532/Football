@@ -60,7 +60,12 @@ export function SoccerPitch({
     <group>
       <mesh position={[0, 0, 0]} receiveShadow>
         <boxGeometry args={size} />
-        <meshStandardMaterial color="#3a9d23" roughness={1} />
+        <meshPhysicalMaterial 
+          color="#2d7a1b" 
+          roughness={0.8} 
+          metalness={0.05}
+          envMapIntensity={0.5}
+        />
       </mesh>
       <mesh position={[0, 0.11, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[0.1, 20]} />

@@ -39,10 +39,19 @@ export function PlayerController(props) {
   const { camera } = useThree()
   
   // Physics state (for prediction)
+  const physicsPosition = useRef(new THREE.Vector3(spawnPosition[0], spawnPosition[1], spawnPosition[2]))
   const velocity = useRef(new THREE.Vector3())
   const verticalVelocity = useRef(0)
   const isOnGround = useRef(true)
   const jumpCount = useRef(0)
+
+  // Initialize position
+  useEffect(() => {
+    if (groupRef.current) {
+      groupRef.current.position.set(spawnPosition[0], spawnPosition[1], spawnPosition[2])
+      physicsPosition.current.set(spawnPosition[0], spawnPosition[1], spawnPosition[2])
+    }
+  }, [])
   
   // Power-up effects
   const effects = useRef({
@@ -173,10 +182,10 @@ export function PlayerController(props) {
     // Apply gravity
     verticalVelocity.current -= GRAVITY * delta
 
-    // Calculate new position
-    let newX = groupRef.current.position.x + velocity.current.x * delta
-    let newY = groupRef.current.position.y + verticalVelocity.current * delta
-    let newZ = groupRef.current.position.z + velocity.current.z * delta
+    // Calculate new physics position
+    let newX = physicsPosition.current.x + velocity.current.x * delta
+    let newY = physicsPosition.current.y + verticalVelocity.current * delta
+    let newZ = physicsPosition.current.z + velocity.current.z * delta
 
     // Ground check
     if (newY <= GROUND_Y) {
@@ -191,8 +200,14 @@ export function PlayerController(props) {
     newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
     newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
 
-    // Apply position (local prediction)
-    groupRef.current.position.set(newX, newY, newZ)
+    // Update physics position
+    physicsPosition.current.set(newX, newY, newZ)
+
+    // Visual Interpolation (Smooth Glide)
+    const visualLambda = 25
+    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
+    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
+    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)
 
     // Rotate player to face camera direction (strafe mode)
     if (!isFreeLook || !isFreeLook.current) {
@@ -206,19 +221,19 @@ export function PlayerController(props) {
       groupRef.current.rotation.y += rotDiff * Math.min(1, 20 * delta)
     }
 
-    // Server reconciliation (smooth correction)
+    // Server reconciliation (smooth correction of physics position)
     if (serverState) {
       const serverPos = new THREE.Vector3(serverState.x, serverState.y, serverState.z)
-      const error = serverPos.clone().sub(groupRef.current.position)
+      const error = serverPos.clone().sub(physicsPosition.current)
       
-      // Only reconcile if error is significant (allow for latency drift)
       const errorMagnitude = error.length()
-      if (errorMagnitude > 1.0 && errorMagnitude < 5) {
-        // Soft correction - faster than before
-        groupRef.current.position.add(error.multiplyScalar(0.1))
+      if (errorMagnitude > 0.1 && errorMagnitude < 5) {
+        // Soft correction of physics position - frame-rate independent
+        const correctionAlpha = 1 - Math.exp(-5 * delta)
+        physicsPosition.current.add(error.multiplyScalar(correctionAlpha))
       } else if (errorMagnitude >= 5) {
-        // Snap to server position if way off (teleport/lag spike)
-        groupRef.current.position.copy(serverPos)
+        // Snap physics position if way off
+        physicsPosition.current.copy(serverPos)
       }
     }
 
@@ -227,7 +242,7 @@ export function PlayerController(props) {
     groupRef.current.userData.giant = effects.current.giant
 
     // Check power-up collisions
-    checkPowerUpCollision(groupRef.current.position)
+    checkPowerUpCollision(physicsPosition.current)
 
     // Send input to server (throttled at 30Hz)
     if (now - lastInputTime.current >= INPUT_SEND_RATE && sendInput) {
@@ -235,8 +250,8 @@ export function PlayerController(props) {
       inputSequence.current++
       
       sendInput({
-        moveX: velocity.current.x / speed,
-        moveZ: velocity.current.z / speed,
+        x: moveDir.x,
+        z: moveDir.z,
         jump: input.jump,
         rotY: groupRef.current.rotation.y,
         seq: inputSequence.current
@@ -245,7 +260,7 @@ export function PlayerController(props) {
   })
 
   return (
-    <group ref={groupRef} position={spawnPosition}>
+    <group ref={groupRef}>
       <CharacterSkin
         teamColor={teamColor}
         characterType={characterType}
