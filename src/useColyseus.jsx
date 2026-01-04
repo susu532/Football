@@ -90,6 +90,12 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setIsConnected(true)
 
       // State change listeners
+      console.log("Room joined, state:", joinedRoom.state)
+      if (!joinedRoom.state.players) {
+        console.error("State.players is undefined! Schema mismatch?")
+        return
+      }
+
       joinedRoom.state.players.onAdd((player, sessionId) => {
         setPlayers(prev => {
           const updated = [...prev.filter(p => p.sessionId !== sessionId), {
