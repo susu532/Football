@@ -12,7 +12,6 @@ export default defineConfig({
           'vendor-r3f': ['@react-three/fiber', '@react-three/drei'],
           'vendor-rapier': ['@dimforge/rapier3d-compat'],
           'vendor-physics-core': ['@react-three/rapier', 'cannon-es'],
-          'vendor-playroom': ['playroomkit'],
           'vendor-react-core': ['react', 'react-dom', 'zustand'],
         }
       }
