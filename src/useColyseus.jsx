@@ -144,6 +144,33 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
         setGameTimer(state.timer)
       })
 
+      // Message Handlers
+      joinedRoom.onMessage('player-joined', (message) => {
+        console.log('Player joined:', message)
+      })
+
+      joinedRoom.onMessage('player-left', (message) => {
+        console.log('Player left:', message)
+      })
+
+      joinedRoom.onMessage('goal-scored', (message) => {
+        console.log('Goal scored:', message)
+        // You can add UI toast or sound here
+      })
+
+      joinedRoom.onMessage('game-over', (message) => {
+        console.log('Game Over:', message)
+      })
+
+      joinedRoom.onMessage('game-reset', (message) => {
+        console.log('Game Reset:', message)
+      })
+
+      joinedRoom.onMessage('chat-message', (message) => {
+        // Chat is handled by Chat.jsx listening to this, but we can log it
+        // Or we can expose a global chat state if needed
+      })
+
       return joinedRoom
     } catch (error) {
       console.error('Failed to join room:', error)

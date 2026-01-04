@@ -2,7 +2,7 @@ import { Room } from 'colyseus'
 import RAPIER from '@dimforge/rapier3d-compat'
 import { GameState, PlayerState } from '../schema/GameState.js'
 
-const PHYSICS_TICK_RATE = 1000 / 45 // 45Hz
+const PHYSICS_TICK_RATE = 1000 / 60 // 60Hz
 const STATE_SYNC_RATE = 1000 / 30   // 30Hz
 const GOAL_COOLDOWN = 5000          // 5 seconds
 
