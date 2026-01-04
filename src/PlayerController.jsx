@@ -14,7 +14,7 @@ const DOUBLE_JUMP_MULTIPLIER = 0.8
 const GRAVITY = 20
 const GROUND_Y = 0.1
 const MAX_JUMPS = 2
-const INPUT_SEND_RATE = 1 / 60 // 60Hz
+const INPUT_SEND_RATE = 1 / 30 // 30Hz
 
 // PlayerController: Handles local player input => sends to server + local prediction
 export function PlayerController(props) {
@@ -168,9 +168,9 @@ export function PlayerController(props) {
 
     // Apply physics (local prediction)
     const speed = MOVE_SPEED * effects.current.speed
-    const lerpAlpha = 1 - Math.exp(-21.36 * delta)
-    velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, moveDir.x * speed, lerpAlpha)
-    velocity.current.z = THREE.MathUtils.lerp(velocity.current.z, moveDir.z * speed, lerpAlpha)
+    // Direct velocity (snappy movement) - matches server
+    velocity.current.x = moveDir.x * speed
+    velocity.current.z = moveDir.z * speed
     
     verticalVelocity.current -= GRAVITY * delta
 
