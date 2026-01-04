@@ -219,6 +219,15 @@ export default function Scene() {
     return () => document.head.removeChild(style)
   }, [])
 
+  // Endgame sound effect
+  useEffect(() => {
+    if (gameOverData) {
+      const audio = new Audio('/endgame.mp3')
+      audio.volume = 0.10
+      audio.play().catch(e => console.error("Endgame audio failed:", e))
+    }
+  }, [gameOverData])
+
   // Auto-join room when team select completes
   useEffect(() => {
     if (hasJoined && isLaunched && !isConnected) {
@@ -266,10 +275,6 @@ export default function Scene() {
 
     const unsubOver = onMessage('game-over', (data) => {
       setGameOverData(data)
-      
-      const audio = new Audio('/endgame.mp3')
-      audio.volume = 0.05
-      audio.play().catch(e => console.error("Audio play failed:", e))
       
       if (playerRef.current) {
         const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
