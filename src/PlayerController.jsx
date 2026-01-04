@@ -209,12 +209,16 @@ export function PlayerController(props) {
       const serverPos = new THREE.Vector3(serverState.x, serverState.y, serverState.z)
       const error = serverPos.clone().sub(groupRef.current.position)
       
-      // Only reconcile if error is significant but not too large (snap if > threshold)
+      // Only reconcile if error is significant (allow for latency drift)
+      // Since we don't have full rollback, we must tolerate the difference between
+      // current client time and received server time (RTT/2).
+      // At 8m/s, 100ms latency = 0.8m difference.
       const errorMagnitude = error.length()
-      if (errorMagnitude > 0.1 && errorMagnitude < 5) {
-        groupRef.current.position.add(error.multiplyScalar(0.2))
+      if (errorMagnitude > 2.0 && errorMagnitude < 5) {
+        // Soft correction
+        groupRef.current.position.add(error.multiplyScalar(0.05))
       } else if (errorMagnitude >= 5) {
-        // Snap to server position
+        // Snap to server position if way off (teleport/lag spike)
         groupRef.current.position.copy(serverPos)
       }
     }
