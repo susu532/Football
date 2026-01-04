@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
 import { Client } from 'colyseus.js'
-import { GameState } from './schema/GameState'
+import { GameState } from './schema/GameState.js'
 
 // Context for sharing room across components
 const ColyseusContext = createContext(null)
@@ -90,28 +90,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setMySessionId(joinedRoom.sessionId)
       setIsConnected(true)
 
-      // Granular State Sync
-      // We use onAdd/onRemove to maintain a stable list of player proxies.
-      // This avoids full Scene re-renders on every position update.
-      joinedRoom.state.players.onAdd((player, sessionId) => {
-        setPlayers(prev => [...prev, player])
-      })
-
-      joinedRoom.state.players.onRemove((player, sessionId) => {
-        setPlayers(prev => prev.filter(p => p.sessionId !== sessionId))
-      })
-
-      // Ball and Game Info are also synced via the state proxy
-      setBallState(joinedRoom.state.ball)
-      
-      joinedRoom.onStateChange((state) => {
-        if (!state) return
-        setScores({ red: state.redScore, blue: state.blueScore })
-        setGamePhase(state.gamePhase)
-        setGameTimer(state.timer)
-      })
-
-      // Message Handlers
+      // 1. Register Message Handlers FIRST
       joinedRoom.onMessage('player-joined', (message) => {
         console.log('Player joined:', message)
       })
@@ -122,7 +101,6 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
       joinedRoom.onMessage('goal-scored', (message) => {
         console.log('Goal scored:', message)
-        // You can add UI toast or sound here
       })
 
       joinedRoom.onMessage('game-over', (message) => {
@@ -134,8 +112,46 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       })
 
       joinedRoom.onMessage('chat-message', (message) => {
-        // Chat is handled by Chat.jsx listening to this, but we can log it
-        // Or we can expose a global chat state if needed
+        // Handled by Chat.jsx
+      })
+
+      // 2. Defensive State Sync
+      // We use onStateChange as a fallback because onAdd/onRemove can sometimes 
+      // fail if the schema prototype is lost during bundling/HMR.
+      joinedRoom.onStateChange((state) => {
+        if (!state) return
+
+        // Sync Players List (Efficiently)
+        if (state.players) {
+          const playerIds = []
+          state.players.forEach((p, id) => {
+            p.sessionId = id // Ensure sessionId is available on the proxy
+            playerIds.push(id)
+          })
+
+          setPlayers(prev => {
+            const prevIds = prev.map(p => p.sessionId)
+            const hasChanged = playerIds.length !== prevIds.length || 
+                               !playerIds.every(id => prevIds.includes(id))
+            
+            if (hasChanged) {
+              const newPlayers = []
+              state.players.forEach((p) => newPlayers.push(p))
+              return newPlayers
+            }
+            return prev
+          })
+        }
+
+        // Sync Ball Proxy
+        if (state.ball && ballState !== state.ball) {
+          setBallState(state.ball)
+        }
+
+        // Sync Game Info
+        setScores({ red: state.redScore, blue: state.blueScore })
+        setGamePhase(state.gamePhase)
+        setGameTimer(state.timer)
       })
 
       return joinedRoom

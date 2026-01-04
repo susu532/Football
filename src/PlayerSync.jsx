@@ -122,15 +122,16 @@ export function ClientPlayerVisual(props) {
   return (
     <group ref={groupRef}>
       <CharacterSkin 
-        characterType={character}
+        player={player}
+        characterType={player.character}
         teamColor={teamColor}
         isRemote={true}
-        invisible={invisible}
-        giant={giant}
+        invisible={player.invisible}
+        giant={player.giant}
       />
-      {name && !invisible && (
+      {player.name && !player.invisible && (
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>
-          <div className={`player-name-label ${team}`}>{name}</div>
+          <div className={`player-name-label ${player.team}`}>{player.name}</div>
         </Html>
       )}
     </group>
