@@ -9,6 +9,7 @@
     "test": "vitest --run"
   },
   "dependencies": {
+    "@colyseus/schema": "^3.0.76",
     "@dimforge/rapier3d-compat": "^0.19.3",
     "@react-spring/three": "^10.0.3",
     "@react-three/drei": "^10.7.7",
