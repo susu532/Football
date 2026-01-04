@@ -1,10 +1,9 @@
-// PlayerController.jsx - Local player physics controller
-// Handles input processing, sends to host, and applies local prediction
+// PlayerController.jsx - Local player physics controller with Colyseus networking
+// Handles input processing, sends inputs to server, and applies local prediction
 
 import React, { useRef, useEffect, useImperativeHandle, useCallback } from 'react'
 import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
-import { RPC } from 'playroomkit'
 import InputManager from './InputManager'
 import CharacterSkin from './CharacterSkin'
 
@@ -15,11 +14,14 @@ const DOUBLE_JUMP_MULTIPLIER = 0.8
 const GRAVITY = 20
 const GROUND_Y = 0.1
 const MAX_JUMPS = 2
+const INPUT_SEND_RATE = 1 / 30 // 30Hz
 
-// PlayerController: Handles local player input => sends to host + local prediction
+// PlayerController: Handles local player input => sends to server + local prediction
 export function PlayerController(props) {
   const { 
     me,
+    sendInput,
+    sendKick,
     playerName = '',
     playerTeam = '',
     teamColor = '#888',
@@ -29,13 +31,14 @@ export function PlayerController(props) {
     onCollectPowerUp = null,
     isFreeLook = null,
     onLocalInteraction = null,
+    serverState = null, // Server state for reconciliation
     ref
   } = props
 
   const groupRef = useRef()
   const { camera } = useThree()
   
-  // Physics state
+  // Physics state (for prediction)
   const velocity = useRef(new THREE.Vector3())
   const verticalVelocity = useRef(0)
   const isOnGround = useRef(true)
@@ -50,9 +53,9 @@ export function PlayerController(props) {
     giant: false
   })
 
-  // Sync throttle
-  const lastSyncTime = useRef(0)
-  const SYNC_RATE = 1 / 30 // 30Hz
+  // Input throttle
+  const lastInputTime = useRef(0)
+  const inputSequence = useRef(0)
 
   useImperativeHandle(ref, () => groupRef.current)
 
@@ -74,7 +77,7 @@ export function PlayerController(props) {
       if (dist < 1.5) {
         onCollectPowerUp(p.id, p.type)
         
-        // Apply effect
+        // Apply effect locally
         const effectDuration = 15000
         if (p.type === 'speed') {
           effects.current.speed = 2.0
@@ -135,9 +138,9 @@ export function PlayerController(props) {
       }
     }
 
-    // Handle kick - send RPC to host
-    if (input.kick && onLocalInteraction) {
-      onLocalInteraction()
+    // Handle kick - send to server
+    if (input.kick && sendKick) {
+      if (onLocalInteraction) onLocalInteraction()
       
       // Calculate kick direction
       const rotation = groupRef.current.rotation.y
@@ -146,19 +149,19 @@ export function PlayerController(props) {
       const kickDir = new THREE.Vector3(forwardX, 0.5, forwardZ).normalize()
       const kickPower = 65 * effects.current.kick
       
-      // Add a portion of player's current velocity to the kick for more dynamic feel
+      // Add a portion of player's current velocity to the kick
       const impulseX = kickDir.x * kickPower + velocity.current.x * 2
       const impulseY = kickDir.y * kickPower
       const impulseZ = kickDir.z * kickPower + velocity.current.z * 2
       
-      RPC.call('player-kick', {
-        playerId: me.id,
-        impulse: [impulseX, impulseY, impulseZ],
-        position: [groupRef.current.position.x, groupRef.current.position.y, groupRef.current.position.z]
-      }, RPC.Mode.ALL)
+      sendKick({
+        impulseX,
+        impulseY,
+        impulseZ
+      })
     }
 
-    // Apply physics
+    // Apply physics (local prediction)
     const speed = MOVE_SPEED * effects.current.speed
     
     // Smooth horizontal velocity
@@ -186,7 +189,7 @@ export function PlayerController(props) {
     newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
     newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
 
-    // Apply position
+    // Apply position (local prediction)
     groupRef.current.position.set(newX, newY, newZ)
 
     // Rotate player to face camera direction (strafe mode)
@@ -201,6 +204,21 @@ export function PlayerController(props) {
       groupRef.current.rotation.y += rotDiff * Math.min(1, 20 * delta)
     }
 
+    // Server reconciliation (smooth correction)
+    if (serverState) {
+      const serverPos = new THREE.Vector3(serverState.x, serverState.y, serverState.z)
+      const error = serverPos.clone().sub(groupRef.current.position)
+      
+      // Only reconcile if error is significant but not too large (snap if > threshold)
+      const errorMagnitude = error.length()
+      if (errorMagnitude > 0.1 && errorMagnitude < 5) {
+        groupRef.current.position.add(error.multiplyScalar(0.2))
+      } else if (errorMagnitude >= 5) {
+        // Snap to server position
+        groupRef.current.position.copy(serverPos)
+      }
+    }
+
     // Update userData for effects sync
     groupRef.current.userData.invisible = effects.current.invisible
     groupRef.current.userData.giant = effects.current.giant
@@ -208,33 +226,20 @@ export function PlayerController(props) {
     // Check power-up collisions
     checkPowerUpCollision(groupRef.current.position)
 
-    // Sync position to network (throttled to 30Hz)
-    if (now - lastSyncTime.current >= SYNC_RATE) {
-      lastSyncTime.current = now
+    // Send input to server (throttled at 30Hz)
+    if (now - lastInputTime.current >= INPUT_SEND_RATE && sendInput) {
+      lastInputTime.current = now
+      inputSequence.current++
       
-      me.setState('pos', [
-        groupRef.current.position.x,
-        groupRef.current.position.y,
-        groupRef.current.position.z
-      ], false)
-      me.setState('rot', groupRef.current.rotation.y, false)
-      me.setState('vel', [velocity.current.x, verticalVelocity.current, velocity.current.z], false)
-      me.setState('invisible', effects.current.invisible, false)
-      me.setState('giant', effects.current.giant, false)
+      sendInput({
+        moveX: velocity.current.x / speed,
+        moveZ: velocity.current.z / speed,
+        jump: input.jump,
+        rotY: groupRef.current.rotation.y,
+        seq: inputSequence.current
+      })
     }
   })
-
-  // Set initial profile
-  useEffect(() => {
-    if (me) {
-      me.setState('profile', {
-        name: playerName,
-        team: playerTeam,
-        color: teamColor,
-        character: characterType
-      }, true)
-    }
-  }, [me, playerName, playerTeam, teamColor, characterType])
 
   return (
     <group ref={groupRef} position={spawnPosition}>

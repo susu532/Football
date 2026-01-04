@@ -1,12 +1,11 @@
-// PlayerSync.jsx - Refactored with clean host/client separation
-// Host: Uses PlayerController for local player physics
-// Client: Uses ClientPlayerVisual for remote player interpolation
+// PlayerSync.jsx - Player visual components for Colyseus
+// LocalPlayer: Wraps PlayerController with name label
+// ClientPlayerVisual: Remote player with smooth interpolation
 
 import React, { useRef, useEffect, useImperativeHandle } from 'react'
 import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
-import { usePlayerState } from 'playroomkit'
 import CharacterSkin from './CharacterSkin'
 import { PlayerController } from './PlayerController'
 
@@ -14,7 +13,8 @@ import { PlayerController } from './PlayerController'
 export function LocalPlayer(props) {
   const { 
     me, 
-    isHost,
+    sendInput,
+    sendKick,
     playerName = '', 
     playerTeam = '', 
     teamColor = '#888', 
@@ -24,6 +24,7 @@ export function LocalPlayer(props) {
     isFreeLook = null, 
     characterType = 'cat',
     onLocalInteraction = null,
+    serverState = null,
     ref
   } = props
   
@@ -44,7 +45,8 @@ export function LocalPlayer(props) {
       <PlayerController
         ref={controllerRef}
         me={me}
-        isHost={isHost}
+        sendInput={sendInput}
+        sendKick={sendKick}
         playerName={playerName}
         playerTeam={playerTeam}
         teamColor={teamColor}
@@ -54,6 +56,7 @@ export function LocalPlayer(props) {
         isFreeLook={isFreeLook}
         characterType={characterType}
         onLocalInteraction={onLocalInteraction}
+        serverState={serverState}
       />
       {playerName && (
         <group ref={labelRef}>
@@ -73,29 +76,28 @@ export function ClientPlayerVisual(props) {
 
   useImperativeHandle(ref, () => groupRef.current)
   
-  // Get remote player state from network
-  const [position] = usePlayerState(player, 'pos', [0, 1, 0])
-  const [rotation] = usePlayerState(player, 'rot', 0)
-  const [profile] = usePlayerState(player, 'profile', { 
-    name: 'Player', 
-    color: '#888', 
-    team: '', 
-    character: 'cat' 
-  })
-  const [invisible] = usePlayerState(player, 'invisible', false)
-  const [giant] = usePlayerState(player, 'giant', false)
+  // Get remote player state from network (now from player object directly)
+  const { 
+    x = 0, y = 1, z = 0, 
+    rotY = 0, 
+    name = 'Player', 
+    team = '', 
+    character = 'cat',
+    invisible = false,
+    giant = false
+  } = player
 
-  const { name: playerName, color, team, character } = profile
+  const teamColor = team === 'red' ? '#ff4444' : team === 'blue' ? '#4488ff' : '#888'
 
   // Interpolation targets
-  const targetPosition = useRef(new THREE.Vector3(...position))
-  const targetRotation = useRef(rotation)
+  const targetPosition = useRef(new THREE.Vector3(x, y, z))
+  const targetRotation = useRef(rotY)
   
   // Update targets when new data arrives
   useEffect(() => {
-    targetPosition.current.set(position[0], position[1], position[2])
-    targetRotation.current = rotation
-  }, [position, rotation])
+    targetPosition.current.set(x, y, z)
+    targetRotation.current = rotY
+  }, [x, y, z, rotY])
 
   // Smooth interpolation each frame
   useFrame((_, delta) => {
@@ -131,20 +133,19 @@ export function ClientPlayerVisual(props) {
   })
 
   return (
-    <group ref={groupRef} position={position}>
+    <group ref={groupRef} position={[x, y, z]}>
       <CharacterSkin 
         characterType={character}
-        teamColor={color}
+        teamColor={teamColor}
         isRemote={true}
         invisible={invisible}
         giant={giant}
       />
-      {playerName && !invisible && (
+      {name && !invisible && (
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>
-          <div className={`player-name-label ${team}`}>{playerName}</div>
+          <div className={`player-name-label ${team}`}>{name}</div>
         </Html>
       )}
     </group>
   )
 }
-

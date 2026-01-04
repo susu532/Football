@@ -1,13 +1,12 @@
-// Scene.jsx - Main game scene with refactored physics architecture
-// Host-authority pattern: GamePhysics runs on host, clients interpolate
+// Scene.jsx - Main game scene with Colyseus networking
+// Server-authoritative pattern: All physics runs on Colyseus server
 
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, Loader } from '@react-three/drei'
 import * as THREE from 'three'
 
-import { usePlayroom } from './usePlayroom'
-import { RPC } from 'playroomkit'
+import { useColyseus } from './useColyseus.jsx'
 import useStore from './store'
 
 import TeamSelectPopup from './TeamSelectPopup'
@@ -19,7 +18,6 @@ import Chat from './Chat'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
-import { GamePhysics } from './GamePhysics'
 import { SoccerPitch, SoccerGoal, GameSkybox } from './Environment'
 
 const CSS_ANIMATIONS = `
@@ -27,7 +25,14 @@ const CSS_ANIMATIONS = `
     from { transform: scale(0.8); opacity: 0; }
     to { transform: scale(1); opacity: 1; }
   }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
 `
+
+// Server URL - change for production
+const SERVER_URL = import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567'
 
 // Camera Controller
 function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
@@ -138,22 +143,28 @@ export default function Scene() {
   const playerTeam = useStore((s) => s.playerTeam)
   const playerCharacter = useStore((s) => s.playerCharacter)
   const leaveGame = useStore((s) => s.leaveGame)
+  const setHasJoined = useStore((s) => s.setHasJoined)
 
-  // Playroom state
+  // Colyseus state
   const {
     isLaunched,
+    isConnected,
+    joinRoom,
+    leaveRoom,
     players,
     ballState,
-    setBallState,
     scores,
-    setScores,
     gameState,
-    setGameState,
     gameTimer,
-    setGameTimer,
     isHost,
-    me
-  } = usePlayroom()
+    me,
+    sendInput,
+    sendKick,
+    sendChat,
+    startGame,
+    endGame,
+    onMessage
+  } = useColyseus(SERVER_URL)
 
   // Adaptive shadow quality
   const [shadowMapSize, setShadowMapSize] = useState(2048)
@@ -164,13 +175,18 @@ export default function Scene() {
 
   // Remote players filter
   const remotePlayers = React.useMemo(() => {
-    if (!me) return []
-    return players.filter(p => p.id !== me.id)
+    if (!me) return players
+    return players.filter(p => p.sessionId !== me.sessionId)
+  }, [players, me])
+
+  // Get my player state from server for reconciliation
+  const myServerState = React.useMemo(() => {
+    if (!me) return null
+    return players.find(p => p.sessionId === me.sessionId)
   }, [players, me])
 
   // Refs
   const playerRef = useRef()
-  const ballRigidBodyRef = useRef()
   const isFreeLook = useRef(false)
   const cameraOrbit = useRef(null)
   const lastLocalInteraction = useRef(0)
@@ -193,13 +209,22 @@ export default function Scene() {
     return () => document.head.removeChild(style)
   }, [])
 
-
-
-  // Goal RPC listener
+  // Auto-join room when team select completes
   useEffect(() => {
-    if (!isLaunched) return
+    if (hasJoined && isLaunched && !isConnected) {
+      joinRoom({
+        name: playerName,
+        team: playerTeam,
+        character: playerCharacter
+      })
+    }
+  }, [hasJoined, isLaunched, isConnected, joinRoom, playerName, playerTeam, playerCharacter])
 
-    const unsubscribe = RPC.register('goal-scored', (data) => {
+  // Message listeners
+  useEffect(() => {
+    if (!isConnected) return
+
+    const unsubGoal = onMessage('goal-scored', (data) => {
       setCelebration({ team: data.team })
       
       const audio = new Audio('/winner-game-sound-404167.mp3')
@@ -222,41 +247,25 @@ export default function Scene() {
       }, 3000)
     })
 
-    return () => unsubscribe()
-  }, [isLaunched, playerTeam])
-
-  // Game reset listener
-  useEffect(() => {
-    if (!isLaunched) return
-
-    const unsubscribe = RPC.register('game-reset', () => {
+    const unsubReset = onMessage('game-reset', () => {
       if (playerRef.current) {
         const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
         playerRef.current.position.set(...spawn)
       }
     })
 
-    return () => unsubscribe()
-  }, [isLaunched, playerTeam])
-
-  // Game over RPC listener
-  useEffect(() => {
-    if (!isLaunched) return
-
-    const unsubscribe = RPC.register('game-over', (data) => {
+    const unsubOver = onMessage('game-over', (data) => {
       setGameOverData(data)
       
       const audio = new Audio('/endgame.mp3')
       audio.volume = 0.05
       audio.play().catch(e => console.error("Audio play failed:", e))
       
-      // Reset local player position immediately
       if (playerRef.current) {
         const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
         playerRef.current.position.set(...spawn)
       }
 
-      // Clear overlay after 5 seconds
       setTimeout(() => {
         setGameOverData(null)
         audio.pause()
@@ -264,8 +273,12 @@ export default function Scene() {
       }, 5000)
     })
 
-    return () => unsubscribe()
-  }, [isLaunched, playerTeam])
+    return () => {
+      if (typeof unsubGoal === 'function') unsubGoal()
+      if (typeof unsubReset === 'function') unsubReset()
+      if (typeof unsubOver === 'function') unsubOver()
+    }
+  }, [isConnected, onMessage, playerTeam])
 
   // Connection quality color helper
   const getConnectionQualityColor = (quality) => {
@@ -336,7 +349,6 @@ export default function Scene() {
   const handleCollectPowerUp = useCallback((id, type) => {
     setActivePowerUps(prev => prev.filter(p => p.id !== id))
     
-    // Find the emoji for this type
     const powerUpKey = Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === type)
     if (powerUpKey) {
       setCollectedEmoji(POWER_UP_TYPES[powerUpKey].label)
@@ -344,36 +356,17 @@ export default function Scene() {
     }
   }, [])
 
-  // Goal handler (host only)
-  const handleGoal = useCallback((team) => {
-    if (!isHost) return
-
-    const newScores = { ...scores }
-    newScores[team]++
-    setScores(newScores)
-
-    RPC.call('goal-scored', { team }, RPC.Mode.ALL)
-
-    // Reset ball after delay
-    setTimeout(() => {
-      if (ballRigidBodyRef.current) {
-        ballRigidBodyRef.current.setTranslation({ x: 0, y: 2, z: 0 }, true)
-        ballRigidBodyRef.current.setLinvel({ x: 0, y: 0, z: 0 }, true)
-        ballRigidBodyRef.current.setAngvel({ x: 0, y: 0, z: 0 }, true)
-
-        setBallState({
-          position: [0, 2, 0],
-          velocity: [0, 0, 0],
-          rotation: [0, 0, 0, 1]
-        }, true)
-      }
-    }, 3000)
-  }, [isHost, scores, setScores, setBallState])
+  // Handle leave
+  const handleLeave = useCallback(() => {
+    setShowExitConfirm(false)
+    leaveRoom()
+    leaveGame()
+  }, [leaveRoom, leaveGame])
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {!hasJoined ? (
-        <TeamSelectPopup key="team-select-popup" defaultName={me?.getProfile()?.name} />
+        <TeamSelectPopup key="team-select-popup" defaultName="" />
       ) : (
         <div className="game-content-wrapper" style={{ width: '100%', height: '100%' }}>
           {/* Connection Status */}
@@ -398,8 +391,8 @@ export default function Scene() {
         gap: '5px'
       }}>
         <div style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: getConnectionQualityColor(connectionQuality) }}>
-            ● {connectionQuality.toUpperCase()}
+          <span style={{ color: isConnected ? '#00ff00' : '#ff0000' }}>
+            ● {isConnected ? 'CONNECTED' : 'CONNECTING...'}
           </span>
           <span>{ping}ms</span>
           {isHost && <span style={{ color: '#ffd700' }}>★ HOST</span>}
@@ -526,7 +519,7 @@ export default function Scene() {
           <div style={{ display: 'flex', gap: '10px' }}>
             {gameState !== 'playing' ? (
               <button
-                onClick={() => RPC.call('start-game', {}, RPC.Mode.HOST)}
+                onClick={startGame}
                 style={{
                   background: '#2ecc71',
                   color: 'white',
@@ -542,7 +535,7 @@ export default function Scene() {
               </button>
             ) : (
               <button
-                onClick={() => RPC.call('end-game', {}, RPC.Mode.HOST)}
+                onClick={endGame}
                 style={{
                   background: '#e74c3c',
                   color: 'white',
@@ -557,7 +550,6 @@ export default function Scene() {
                 END GAME
               </button>
             )}
-            
           </div>
         )}
       </div>
@@ -565,22 +557,7 @@ export default function Scene() {
       {/* 3D Canvas */}
       <Canvas shadows camera={{ position: [0, 8, 12], fov: 45 }} dpr={[1, 2]}>
         <Suspense fallback={null}>
-          {/* Host-only physics world */}
-          <GamePhysics
-            isHost={isHost}
-            players={players}
-            me={me}
-            localPlayerRef={playerRef}
-            setBallState={setBallState}
-            onGoal={handleGoal}
-            ballRef={ballRigidBodyRef}
-            gameState={gameState}
-            setGameState={setGameState}
-            gameTimer={gameTimer}
-            setGameTimer={setGameTimer}
-            setScores={setScores}
-            scores={scores}
-          />
+          {/* No client-side physics - server handles all physics */}
 
           {/* Visuals (rendered for all) */}
           <GameSkybox />
@@ -599,8 +576,8 @@ export default function Scene() {
           <SoccerPitch />
           <MapComponents.MysteryShack />
 
-          {/* Ball - host gets physics, clients get interpolation */}
-          {!isHost && <ClientBallVisual ballState={ballState} />}
+          {/* Ball - interpolated from server state */}
+          <ClientBallVisual ballState={ballState} onKickMessage={onMessage} />
 
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />
@@ -611,7 +588,8 @@ export default function Scene() {
             <LocalPlayer
               ref={playerRef}
               me={me}
-              isHost={isHost}
+              sendInput={sendInput}
+              sendKick={sendKick}
               playerName={playerName}
               playerTeam={playerTeam}
               teamColor={playerTeam === 'red' ? '#ff4444' : '#4488ff'}
@@ -621,12 +599,13 @@ export default function Scene() {
               onCollectPowerUp={handleCollectPowerUp}
               isFreeLook={isFreeLook}
               onLocalInteraction={handleLocalInteraction}
+              serverState={myServerState}
             />
           )}
 
           {/* Remote Players */}
           {remotePlayers.map((p) => (
-            <ClientPlayerVisual key={p.id} player={p} />
+            <ClientPlayerVisual key={p.sessionId} player={p} />
           ))}
 
           <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
@@ -653,8 +632,12 @@ export default function Scene() {
       )}
 
       {/* Chat Box */}
-      <Chat playerName={playerName} playerTeam={playerTeam} />
-
+      <Chat 
+        playerName={playerName} 
+        playerTeam={playerTeam} 
+        sendChat={sendChat}
+        onMessage={onMessage}
+      />
 
       {/* Exit Confirmation Modal */}
       {showExitConfirm && (
@@ -680,9 +663,6 @@ export default function Scene() {
             boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,71,87,0.2)',
             textAlign: 'center',
             maxWidth: '400px',
-            
-          
-    
             width: '90%',
             animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
           }}>
@@ -725,11 +705,7 @@ export default function Scene() {
                 STAY
               </button>
               <button
-                onClick={() => {
-                  setShowExitConfirm(false)
-                  setScores({ red: 0, blue: 0 })
-                  leaveGame()
-                }}
+                onClick={handleLeave}
                 style={{
                   flex: 1,
                   padding: '15px',
@@ -850,7 +826,6 @@ export default function Scene() {
           borderRadius: '24px',
           border: '1px solid rgba(255,255,255,0.1)',
           boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-          
           animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
           pointerEvents: 'none'
         }}>

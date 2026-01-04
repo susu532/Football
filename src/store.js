@@ -19,8 +19,8 @@ const useStore = create((set) => ({
     playerCharacter: character,
     hasJoined: true 
   }),
+  setHasJoined: (value) => set({ hasJoined: value }),
   leaveGame: () => set({ hasJoined: false }),
 }))
 
 export default useStore
-

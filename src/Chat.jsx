@@ -1,19 +1,23 @@
+// Chat.jsx - Chat component for Colyseus
 import React, { useState, useEffect, useRef } from 'react'
-import { RPC } from 'playroomkit'
 
-export default function Chat({ playerName, playerTeam }) {
+export default function Chat({ playerName, playerTeam, sendChat, onMessage }) {
   const [chatMessages, setChatMessages] = useState([])
   const [chatInput, setChatInput] = useState('')
   const [isChatOpen, setIsChatOpen] = useState(true)
   const chatRef = useRef(null)
 
-  // Listen for chat messages via RPC
+  // Listen for chat messages from Colyseus
   useEffect(() => {
-    const unsubscribe = RPC.register('chat-message', (data) => {
-      setChatMessages((prev) => [...prev.slice(-49), data])
-    })
-    return () => unsubscribe()
-  }, [])
+    if (onMessage) {
+      const unsubscribe = onMessage('chat-message', (data) => {
+        setChatMessages((prev) => [...prev.slice(-49), data])
+      })
+      return () => {
+        if (typeof unsubscribe === 'function') unsubscribe()
+      }
+    }
+  }, [onMessage])
 
   // Auto-scroll chat
   useEffect(() => {
@@ -24,16 +28,8 @@ export default function Chat({ playerName, playerTeam }) {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    if (chatInput.trim()) {
-      const newMessage = {
-        playerName: playerName || 'Guest',
-        team: playerTeam,
-        message: chatInput.trim(),
-        time: Date.now()
-      }
-      
-      // Broadcast message to all players (including self)
-      RPC.call('chat-message', newMessage, RPC.Mode.ALL)
+    if (chatInput.trim() && sendChat) {
+      sendChat(chatInput.trim())
       setChatInput('')
     }
   }
