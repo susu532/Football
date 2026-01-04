@@ -1,4 +1,40 @@
-import { Schema, MapSchema, defineTypes } from '@colyseus/schema'
+import { Schema, MapSchema } from 'colyseus.js'
+import { defineTypes } from '@colyseus/schema' // defineTypes is NOT exported by colyseus.js usually, but Schema is.
+// Wait, if I mix them, it might fail.
+// Let's try to see if colyseus.js exports defineTypes.
+// If not, I must ensure @colyseus/schema is the SAME version as used by colyseus.js.
+// But colyseus.js usually bundles it.
+// Let's try importing Schema from colyseus.js and defineTypes from @colyseus/schema.
+// This is risky.
+// BETTER APPROACH: Use the Context?
+// No.
+// Let's try importing EVERYTHING from @colyseus/schema and hope colyseus.js uses it if installed?
+// No, colyseus.js is a bundle.
+
+// Let's try to import Schema from colyseus.js.
+// And defineTypes from @colyseus/schema.
+// But defineTypes registers metadata.
+// If Schema from colyseus.js is different from Schema from @colyseus/schema, defineTypes(Schema, ...) might fail or register on wrong global.
+
+// ACTUALLY, the best way for client-side colyseus.js (which is a browser bundle) is to NOT use @colyseus/schema package if possible, OR use the one it provides.
+// But it doesn't provide defineTypes in exports usually.
+
+// Let's try:
+// import { Schema, MapSchema } from 'colyseus.js'
+import { defineTypes } from '@colyseus/schema'
+// This WAS what I had. And it failed.
+// Why? Because colyseus.js (the client lib) checks `instanceof Schema` where `Schema` is ITS internal Schema.
+// So I MUST extend `colyseus.js`'s Schema.
+
+// So:
+// import { Schema, MapSchema } from 'colyseus.js'
+// import { defineTypes } from '@colyseus/schema'
+// defineTypes(GameState, ...) -> GameState extends Schema (from colyseus.js).
+// Does defineTypes work on any class? Yes, it attaches Symbol.metadata.
+// So this MIX should work IF defineTypes doesn't depend on Schema class identity.
+
+// Let's try this mix.
+
 
 // Player state
 export class PlayerState extends Schema {
