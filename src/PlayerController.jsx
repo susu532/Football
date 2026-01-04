@@ -146,9 +146,14 @@ export function PlayerController(props) {
       const kickDir = new THREE.Vector3(forwardX, 0.5, forwardZ).normalize()
       const kickPower = 65 * effects.current.kick
       
+      // Add a portion of player's current velocity to the kick for more dynamic feel
+      const impulseX = kickDir.x * kickPower + velocity.current.x * 2
+      const impulseY = kickDir.y * kickPower
+      const impulseZ = kickDir.z * kickPower + velocity.current.z * 2
+      
       RPC.call('player-kick', {
         playerId: me.id,
-        impulse: [kickDir.x * kickPower, kickDir.y * kickPower, kickDir.z * kickPower],
+        impulse: [impulseX, impulseY, impulseZ],
         position: [groupRef.current.position.x, groupRef.current.position.y, groupRef.current.position.z]
       }, RPC.Mode.ALL)
     }

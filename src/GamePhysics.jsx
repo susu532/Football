@@ -39,7 +39,7 @@ export function HostBallController(props) {
       const dz = ballPos.z - position[2]
       const dist = Math.sqrt(dx * dx + dy * dy + dz * dz)
 
-      if (dist < 1.5) {
+      if (dist < 2.5) {
         // Apply kick impulse at the ball's center
         // We add a slight upward bias to the impulse to make it feel more natural
         const refinedImpulse = { 
