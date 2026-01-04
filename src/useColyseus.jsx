@@ -95,6 +95,10 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
         console.log('Player joined:', message)
       })
 
+      joinedRoom.onMessage('game-started', (message) => {
+        console.log('Game started:', message)
+      })
+
       joinedRoom.onMessage('player-left', (message) => {
         console.log('Player left:', message)
       })
@@ -173,14 +177,14 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
   // Send input to server
   const sendInput = useCallback((input) => {
-    if (roomRef.current) {
+    if (roomRef.current && roomRef.current.connection && roomRef.current.connection.isOpen) {
       roomRef.current.send('input', input)
     }
   }, [])
 
   // Send kick
   const sendKick = useCallback((impulse) => {
-    if (roomRef.current) {
+    if (roomRef.current && roomRef.current.connection && roomRef.current.connection.isOpen) {
       roomRef.current.send('kick', impulse)
     }
   }, [])
