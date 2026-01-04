@@ -89,9 +89,10 @@ export function ClientBallVisual({ ballState, onKickMessage, ref }) {
         // We can apply a temporary visual impulse to the ball
         // This makes it feel instant even before the server snapshot arrives
         if (data.impulse) {
-           velocity.current.x += data.impulse.x * 0.1
-           velocity.current.y += data.impulse.y * 0.1
-           velocity.current.z += data.impulse.z * 0.1
+           // Mass is 3.0 on server, so dv = impulse / 3.0
+           velocity.current.x += data.impulse.x / 3.0
+           velocity.current.y += data.impulse.y / 3.0
+           velocity.current.z += data.impulse.z / 3.0
         }
       })
       return unsubscribe
@@ -105,7 +106,7 @@ export function ClientBallVisual({ ballState, onKickMessage, ref }) {
     // Helps smooth out the gap between snapshots
     targetPos.current.addScaledVector(velocity.current, delta)
     
-    // Apply simple gravity to prediction
+    // Apply gravity to prediction (matches server gravity -20)
     if (targetPos.current.y > 0.8) {
       velocity.current.y -= 20 * delta
     }
@@ -130,8 +131,8 @@ export function ClientBallVisual({ ballState, onKickMessage, ref }) {
       velocity.current.y = Math.abs(velocity.current.y) * 0.5 // Bounce
     }
 
-    // 4. Apply velocity damping
-    velocity.current.multiplyScalar(1 - 0.3 * delta)
+    // 4. Apply velocity damping (matches server linearDamping 1.5)
+    velocity.current.multiplyScalar(1 - 1.5 * delta)
   })
 
   return (
