@@ -76,12 +76,22 @@ export function ClientBallVisual({ ballState, onKickMessage, ref }) {
     }
   }, [ballState])
 
-  // Listen for kick message for visual feedback
+  // Listen for kick message for visual feedback and prediction
   useEffect(() => {
     if (onKickMessage) {
-      const unsubscribe = onKickMessage('ball-kicked', () => {
+      const unsubscribe = onKickMessage('ball-kicked', (data) => {
+        // Visual feedback (scale pop)
         if (kickFeedback.current) {
           kickFeedback.current()
+        }
+
+        // Prediction: If we kicked it, or if we want to predict others' kicks
+        // We can apply a temporary visual impulse to the ball
+        // This makes it feel instant even before the server snapshot arrives
+        if (data.impulse) {
+           velocity.current.x += data.impulse.x * 0.1
+           velocity.current.y += data.impulse.y * 0.1
+           velocity.current.z += data.impulse.z * 0.1
         }
       })
       return unsubscribe
