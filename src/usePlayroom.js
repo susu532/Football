@@ -37,7 +37,6 @@ export function usePlayroom() {
     rotation: [0, 0, 0, 1] // Initial quaternion (identity)
   })
   const [scores, setScores] = useMultiplayerState('scores', { red: 0, blue: 0 })
-  const [chatMessages, setChatMessages] = useMultiplayerState('chat', [])
   const isHostPlayer = useIsHost()
 
   // Helper to get my player object
@@ -50,8 +49,6 @@ export function usePlayroom() {
     setBallState,
     scores: scores || { red: 0, blue: 0 },
     setScores,
-    chatMessages: chatMessages || [],
-    setChatMessages,
     isHost: isHostPlayer,
     me
   }

@@ -20,7 +20,6 @@ const MAX_JUMPS = 2
 export function PlayerController(props) {
   const { 
     me,
-    isHost,
     playerName = '',
     playerTeam = '',
     teamColor = '#888',

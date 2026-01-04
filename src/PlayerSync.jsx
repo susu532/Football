@@ -148,6 +148,3 @@ export function ClientPlayerVisual(props) {
   )
 }
 
-// Re-export for backward compatibility
-export { LocalPlayer as LocalPlayerWithSync }
-export { ClientPlayerVisual as RemotePlayerWithPhysics }

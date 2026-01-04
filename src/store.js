@@ -7,8 +7,6 @@ const useStore = create((set) => ({
   playerCharacter: typeof window !== 'undefined' ? localStorage.getItem('playerCharacter') || 'cat' : 'cat',
   hasJoined: false,
   // Player customization actions
-  setPlayerName: (name) => set({ playerName: name }),
-  setPlayerTeam: (team) => set({ playerTeam: team }),
   setPlayerCharacter: (character) => {
     if (typeof window !== 'undefined') {
       localStorage.setItem('playerCharacter', character)

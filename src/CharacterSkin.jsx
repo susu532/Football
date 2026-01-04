@@ -10,7 +10,6 @@ import * as THREE from 'three'
 const CharacterSkin = function CharacterSkin({ 
   teamColor = '#888',
   characterType = 'cat',
-  isRemote = false,
   invisible = false,
   giant = false,
   children,

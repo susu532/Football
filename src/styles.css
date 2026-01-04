@@ -161,13 +161,6 @@ html,
   background: linear-gradient(to right, var(--magic-border), transparent);
 }
 
-/* Grid Layouts */
-.magic-grid-rooms {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 12px;
-}
-
 .magic-grid-teams {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -178,32 +171,6 @@ html,
   display: flex;
   gap: 20px;
   justify-content: center;
-}
-
-/* Buttons & Inputs */
-.magic-btn-room {
-  padding: 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid var(--magic-border);
-  border-radius: 12px;
-  color: var(--magic-text-dim);
-  font-weight: 700;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-transform: uppercase;
-  font-size: 0.75rem;
-}
-
-.magic-btn-room:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-}
-
-.magic-btn-room.selected {
-  background: var(--magic-accent);
-  color: #000;
-  border-color: var(--magic-accent);
-  box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
 }
 
 .magic-btn-team {

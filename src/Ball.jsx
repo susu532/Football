@@ -107,5 +107,3 @@ export function ClientBallVisual({ ballState, ref }) {
   )
 }
 
-// Re-export for backward compatibility during transition
-export { ClientBallVisual as ClientBall }
