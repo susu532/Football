@@ -114,12 +114,16 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
               team: player.team,
               character: player.character,
               invisible: player.invisible,
-              giant: player.giant,
-              getState: (key) => player[key],
-              setState: () => {}
+              giant: player.giant
             })
           })
-          setPlayers(currentPlayers)
+          
+          // Use a simple check to avoid redundant state updates
+          setPlayers(prev => {
+            if (prev.length !== currentPlayers.length) return currentPlayers
+            // For now, we update every time to ensure sync, but we could do a deep compare
+            return currentPlayers
+          })
         }
 
         // 2. Sync Ball
