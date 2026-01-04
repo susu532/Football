@@ -3,6 +3,7 @@
 
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
 import { Client } from 'colyseus.js'
+import { GameState } from './schema/GameState'
 
 // Context for sharing room across components
 const ColyseusContext = createContext(null)
@@ -83,7 +84,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     if (!client) return null
 
     try {
-      const joinedRoom = await client.joinOrCreate('soccer', options)
+      const joinedRoom = await client.joinOrCreate('soccer', options, GameState)
       roomRef.current = joinedRoom
       setRoom(joinedRoom)
       setMySessionId(joinedRoom.sessionId)
