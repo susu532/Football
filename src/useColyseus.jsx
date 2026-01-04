@@ -125,7 +125,6 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
         if (state.players) {
           const playerIds = []
           state.players.forEach((p, id) => {
-            p.sessionId = id // Ensure sessionId is available on the proxy
             playerIds.push(id)
           })
 

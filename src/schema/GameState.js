@@ -18,6 +18,7 @@ export class PlayerState extends Schema {
     this.invisible = false
     this.giant = false
     this.jumpCount = 0
+    this.sessionId = ''
   }
 }
 
@@ -34,7 +35,8 @@ defineTypes(PlayerState, {
   character: 'string',
   invisible: 'boolean',
   giant: 'boolean',
-  jumpCount: 'number'
+  jumpCount: 'number',
+  sessionId: 'string'
 })
 
 // Ball state
