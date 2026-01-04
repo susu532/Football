@@ -3,7 +3,7 @@
 
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Loader, Environment } from '@react-three/drei'
+import { Html, Loader, Environment, Preload } from '@react-three/drei'
 import * as THREE from 'three'
 
 
@@ -646,8 +646,20 @@ export default function Scene() {
               type={Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === p.type)}
             />
           ))}
+
+          {/* Preload models to avoid pop-in and improve slow network handling */}
+          <Preload all />
         </Suspense>
       </Canvas>
+
+      {/* Loading Screen */}
+      <Loader 
+        containerStyles={{ background: 'rgba(10,10,15,0.95)', backdropFilter: 'blur(10px)' }}
+        innerStyles={{ background: '#2d3436', height: '4px', width: '200px' }}
+        barStyles={{ background: '#3742fa', height: '4px' }}
+        dataStyles={{ color: 'white', fontFamily: 'Inter, sans-serif', fontWeight: 'bold' }}
+        dataInterpolation={(p) => `LOADING STADIUM ${p.toFixed(0)}%`}
+      />
 
       {/* Mobile Controls */}
       {hasJoined && (
