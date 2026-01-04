@@ -183,6 +183,7 @@ export default function Scene() {
   const [ping] = useState(0)
   const [showConnectionWarning] = useState(false)
   const [gameOverData, setGameOverData] = useState(null)
+  const [collectedEmoji, setCollectedEmoji] = useState(null)
 
   // Inject CSS animations
   useEffect(() => {
@@ -332,8 +333,15 @@ export default function Scene() {
     return () => clearInterval(interval)
   }, [hasJoined])
 
-  const handleCollectPowerUp = useCallback((id) => {
+  const handleCollectPowerUp = useCallback((id, type) => {
     setActivePowerUps(prev => prev.filter(p => p.id !== id))
+    
+    // Find the emoji for this type
+    const powerUpKey = Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === type)
+    if (powerUpKey) {
+      setCollectedEmoji(POWER_UP_TYPES[powerUpKey].label)
+      setTimeout(() => setCollectedEmoji(null), 15000)
+    }
   }, [])
 
   // Goal handler (host only)
@@ -828,6 +836,27 @@ export default function Scene() {
       )}
       </div>
     )}
+
+      {/* Power-up Collection Overlay */}
+      {collectedEmoji && (
+        <div style={{
+          position: 'absolute',
+          top: '80px',
+          right: '0px',
+          zIndex: 10000,
+          fontSize: '80px',
+          background: 'linear-gradient(135deg, rgba(20,20,30,0.9), rgba(40,40,60,0.9))',
+          padding: '5px',
+          borderRadius: '24px',
+          border: '1px solid rgba(255,255,255,0.1)',
+          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+          
+          animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+          pointerEvents: 'none'
+        }}>
+          {collectedEmoji}
+        </div>
+      )}
     </div>
   )
 }

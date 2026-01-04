@@ -72,7 +72,7 @@ export function PlayerController(props) {
       const dist = Math.sqrt(dx * dx + dz * dz)
       
       if (dist < 1.5) {
-        onCollectPowerUp(p.id)
+        onCollectPowerUp(p.id, p.type)
         
         // Apply effect
         const effectDuration = 15000
