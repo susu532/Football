@@ -88,9 +88,9 @@ export function ClientPlayerVisual(props) {
     if (serverTimestamp && serverTimestamp !== lastServerTime.current) {
       lastServerTime.current = serverTimestamp
       
-      // Initialize time offset on first packet
-      if (timeOffset.current === null) {
-        timeOffset.current = Date.now() - serverTimestamp
+      const currentOffset = Date.now() - serverTimestamp
+      if (timeOffset.current === null || currentOffset < timeOffset.current) {
+        timeOffset.current = currentOffset
       }
 
       buffer.current.add({

@@ -82,6 +82,10 @@ export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, re
   const timeOffset = useRef(null)
   const kickFeedback = useRef(null)
   
+  // Visual prediction offset (for instant responsiveness)
+  const visualOffset = useRef(new THREE.Vector3())
+  const predictionVelocity = useRef(new THREE.Vector3())
+  
   useImperativeHandle(ref, () => groupRef.current)
 
   // Listen for kick message for visual feedback and prediction
@@ -93,7 +97,14 @@ export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, re
           kickFeedback.current()
         }
 
-
+        // Prediction: Apply instant visual velocity that decays
+        if (data.impulse) {
+           predictionVelocity.current.set(
+             data.impulse.x,
+             data.impulse.y,
+             data.impulse.z
+           ).multiplyScalar(0.1) // Scale down for visual offset
+        }
       })
       return unsubscribe
     }
@@ -106,8 +117,9 @@ export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, re
     if (serverTimestamp && serverTimestamp !== lastServerTime.current) {
       lastServerTime.current = serverTimestamp
       
-      if (timeOffset.current === null) {
-        timeOffset.current = Date.now() - serverTimestamp
+      const currentOffset = Date.now() - serverTimestamp
+      if (timeOffset.current === null || currentOffset < timeOffset.current) {
+        timeOffset.current = currentOffset
       }
 
       buffer.current.add({
@@ -128,7 +140,17 @@ export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, re
       const state = buffer.current.getInterpolatedState(estimatedServerTime)
       
       if (state) {
-        groupRef.current.position.set(state.x, state.y, state.z)
+        // Apply prediction velocity to offset
+        visualOffset.current.addScaledVector(predictionVelocity.current, delta)
+        predictionVelocity.current.multiplyScalar(1 - 10 * delta) // Decay velocity
+        visualOffset.current.multiplyScalar(1 - 5 * delta)        // Decay offset back to 0
+
+        groupRef.current.position.set(
+          state.x + visualOffset.current.x, 
+          state.y + visualOffset.current.y, 
+          state.z + visualOffset.current.z
+        )
+        
         if (state.rx !== undefined) {
           groupRef.current.quaternion.set(state.rx, state.ry, state.rz, state.rw)
         }

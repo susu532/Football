@@ -210,8 +210,9 @@ export function PlayerController(props) {
     // History-based Reconciliation
     if (serverState && serverTimestamp) {
       // 1. Initialize time offset
-      if (timeOffset.current === null) {
-        timeOffset.current = Date.now() - serverTimestamp
+      const currentOffset = Date.now() - serverTimestamp
+      if (timeOffset.current === null || currentOffset < timeOffset.current) {
+        timeOffset.current = currentOffset
       }
 
       // 2. Find past state matching server timestamp
