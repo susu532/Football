@@ -110,44 +110,48 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage }, 
   useFrame((state, delta) => {
     if (!groupRef.current || !ballState) return
 
-    // 1. Sync targets from proxy
+    // 1. Sync targets from server state
     targetPos.current.set(ballState.x, ballState.y, ballState.z)
-    velocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
+    
+    // Blend velocity toward server velocity instead of snapping
+    // This prevents rubber-banding when prediction diverges
+    const serverVel = new THREE.Vector3(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
+    velocity.current.lerp(serverVel, 0.3)
+    
+    // Clamp velocity to prevent runaway prediction
+    const maxSpeed = 30
+    if (velocity.current.length() > maxSpeed) {
+      velocity.current.setLength(maxSpeed)
+    }
+    
     if (ballState.rx !== undefined) {
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
 
     // 2. Prediction: Advance target position using velocity
-    // Helps smooth out the gap between snapshots
-    targetPos.current.addScaledVector(velocity.current, delta)
-    
-    // Apply gravity to prediction (matches server gravity -20)
-    if (targetPos.current.y > 0.8) {
-      velocity.current.y -= 20 * delta
-    }
+    // Server already applies gravity, so we don't re-apply it here
+    targetPos.current.addScaledVector(velocity.current, delta * 0.5) // Reduced prediction strength
 
-    // 2. Interpolation: Smoothly move visual toward target
-    // Use adaptive lerp based on distance (snap if too far)
+    // 3. Interpolation: Smoothly move visual toward target
     const distance = groupRef.current.position.distanceTo(targetPos.current)
     
     if (distance > 10) {
       // Snap to position if too far (likely reconnect or major desync)
       groupRef.current.position.copy(targetPos.current)
     } else {
-      const lerpFactor = 1 - Math.exp(-15 * delta)
+      const lerpFactor = 1 - Math.exp(-12 * delta) // Slightly slower for smoother motion
       groupRef.current.position.lerp(targetPos.current, lerpFactor)
     }
     
     groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-10 * delta))
     
-    // 3. Simple floor collision for visual prediction
+    // 4. Simple floor collision for visual prediction
     if (groupRef.current.position.y < 0.8) {
       groupRef.current.position.y = 0.8
-      velocity.current.y = Math.abs(velocity.current.y) * 0.5 // Bounce
     }
 
-    // 4. Apply velocity damping (matches server linearDamping 1.5)
-    velocity.current.multiplyScalar(1 - 1.5 * delta)
+    // 5. Apply velocity damping (matches server linearDamping 2.5)
+    velocity.current.multiplyScalar(1 - 2.5 * delta)
   })
 
   return (
