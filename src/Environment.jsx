@@ -224,11 +224,11 @@ export function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColo
             child.material = new THREE.MeshPhysicalMaterial({
               color: oldMat.color,
               map: oldMat.map,
-              roughness: 0.1,
-              metalness: 0.8, // Metallic posts
-              clearcoat: 1.0,
+              roughness: 0.4, // More matte
+              metalness: 0.1, // Less metallic
+              clearcoat: 0.2, // Subtle shine
               clearcoatRoughness: 0.1,
-              envMapIntensity: 1.2
+              envMapIntensity: 0.4 // Softer reflections
             })
           }
           child.material.needsUpdate = true
