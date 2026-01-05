@@ -59,11 +59,11 @@ const CharacterSkin = React.forwardRef(({
             transparent: false,
             opacity: 1.0,
             side: THREE.FrontSide,
-            roughness: 0.2, // Even shinier
-            metalness: 0.1,
-            clearcoat: 1.0, // Toy-like finish
+            roughness: 0.5, // More matte
+            metalness: 0.0, // Remove metallic look
+            clearcoat: 0.3, // Subtle shine
             clearcoatRoughness: 0.05,
-            envMapIntensity: 1.5, // Stronger reflections
+            envMapIntensity: 0.5, // Softer reflections
             flatShading: false
           })
           child.material.needsUpdate = true

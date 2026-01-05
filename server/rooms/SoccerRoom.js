@@ -111,6 +111,7 @@ export class SoccerRoom extends Room {
       // halfX=1 (2m thick), halfY=5 (10m high), halfZ=5 (10m wide to overlap sides)
       const desc = RAPIER.ColliderDesc.cuboid(1, 5, 5)
         .setTranslation(x, 5, z)
+        .setRestitution(1.2)
       this.world.createCollider(desc)
     })
 
@@ -151,6 +152,7 @@ export class SoccerRoom extends Room {
       // halfX=2.5 (5m deep), halfY=5 (10m high), halfZ=1 (2m thick)
       const desc = RAPIER.ColliderDesc.cuboid(2.5, 5, 1)
         .setTranslation(x, 5, z)
+        .setRestitution(1.2)
       this.world.createCollider(desc)
     })
 
@@ -159,6 +161,7 @@ export class SoccerRoom extends Room {
     blockerPositions.forEach(([x, z]) => {
       const desc = RAPIER.ColliderDesc.cuboid(2.5, 4.5, 2.75)
         .setTranslation(x, 8.7, z)
+        .setRestitution(1.2)
       this.world.createCollider(desc)
     })
   }
