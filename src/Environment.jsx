@@ -106,12 +106,12 @@ export function SoccerPitch({
   return (
     <group>
       {/* Grass Pitch */}
-      <mesh position={[0, 0, 0]} receiveShadow matrixAutoUpdate={false}>
+      <mesh position={[0, 0, 0]} receiveShadow>
         <boxGeometry args={size} />
         <meshStandardMaterial 
           map={grassTexture}
           roughness={0.8} 
-          metalness={0.0}
+          metalness={0.1}
           envMapIntensity={0.5}
         />
       </mesh>
@@ -224,11 +224,11 @@ export function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColo
             child.material = new THREE.MeshPhysicalMaterial({
               color: oldMat.color,
               map: oldMat.map,
-              roughness: 0.5,
-              metalness: 0.0, // Matte posts
-              clearcoat: 0.3,
+              roughness: 0.1,
+              metalness: 0.8, // Metallic posts
+              clearcoat: 1.0,
               clearcoatRoughness: 0.1,
-              envMapIntensity: 0.2
+              envMapIntensity: 1.2
             })
           }
           child.material.needsUpdate = true
@@ -247,7 +247,6 @@ export function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColo
       position={position} 
       rotation={rotation} 
       scale={0.01} 
-      matrixAutoUpdate={false}
     />
   )
 }
