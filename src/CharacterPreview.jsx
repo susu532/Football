@@ -1,7 +1,7 @@
 import React, { useRef, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { EffectComposer, FXAA } from '@react-three/postprocessing'
+import { EffectComposer, SMAA } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 function CharacterModel({ modelPath, character, isSelected }) {
@@ -69,8 +69,8 @@ export default function CharacterPreview({ character, isSelected, onSelect }) {
           }}
         >
           <Suspense fallback={null}>
-            <EffectComposer>
-              <FXAA />
+            <EffectComposer multisampling={4}>
+              <SMAA />
             </EffectComposer>
             <CharacterScene character={character} isSelected={isSelected} />
           </Suspense>

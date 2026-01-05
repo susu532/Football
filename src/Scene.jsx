@@ -4,7 +4,7 @@
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, Loader, Environment, Preload } from '@react-three/drei'
-import { EffectComposer, FXAA } from '@react-three/postprocessing'
+import { EffectComposer, SMAA } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 
@@ -558,7 +558,7 @@ export default function Scene() {
       {/* 3D Canvas */}
       <Canvas 
         shadows="soft"
-        camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 600 }} 
+        camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={[1, 2]}
         gl={{ 
           antialias: false, // Disable MSAA as we use FXAA
@@ -574,8 +574,8 @@ export default function Scene() {
       >
         <Suspense fallback={null}>
           {/* Post-processing */}
-          <EffectComposer>
-            <FXAA />
+          <EffectComposer multisampling={4}>
+            <SMAA />
           </EffectComposer>
           {/* No client-side physics - server handles all physics */}
 
