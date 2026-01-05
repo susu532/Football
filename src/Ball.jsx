@@ -6,7 +6,6 @@ import { useFrame } from '@react-three/fiber'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 import { useSpring, a } from '@react-spring/three'
-import { SnapshotBuffer } from './SnapshotBuffer'
 
 // Soccer Ball Visual Component
 export function SoccerBall({ radius = 0.8, ref, onKickFeedback }) {
@@ -75,16 +74,13 @@ export function SoccerBall({ radius = 0.8, ref, onKickFeedback }) {
 
 // ClientBallVisual - Visual-only ball with smooth interpolation from server state
 // Receives snapshots from Colyseus, interpolates smoothly
-export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, ref }) {
+export function ClientBallVisual({ ballState, onKickMessage, ref }) {
   const groupRef = useRef()
-  const buffer = useRef(new SnapshotBuffer(30))
-  const lastServerTime = useRef(0)
-  const timeOffset = useRef(null)
+  const targetPos = useRef(new THREE.Vector3(0, 2, 0))
+  const targetRot = useRef(new THREE.Quaternion())
+  const velocity = useRef(new THREE.Vector3(0, 0, 0))
   const kickFeedback = useRef(null)
-  
-  // Visual prediction offset (for instant responsiveness)
-  const visualOffset = useRef(new THREE.Vector3())
-  const predictionVelocity = useRef(new THREE.Vector3())
+  const lastUpdateTime = useRef(0)
   
   useImperativeHandle(ref, () => groupRef.current)
 
@@ -97,13 +93,11 @@ export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, re
           kickFeedback.current()
         }
 
-        // Prediction: Apply instant visual velocity that decays
+        // Prediction: Apply a temporary visual impulse
         if (data.impulse) {
-           predictionVelocity.current.set(
-             data.impulse.x,
-             data.impulse.y,
-             data.impulse.z
-           ).multiplyScalar(0.1) // Scale down for visual offset
+           velocity.current.x += data.impulse.x / 3.0
+           velocity.current.y += data.impulse.y / 3.0
+           velocity.current.z += data.impulse.z / 3.0
         }
       })
       return unsubscribe
@@ -113,49 +107,44 @@ export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, re
   useFrame((state, delta) => {
     if (!groupRef.current || !ballState) return
 
-    // 1. Add to buffer
-    if (serverTimestamp && serverTimestamp !== lastServerTime.current) {
-      lastServerTime.current = serverTimestamp
-      
-      const currentOffset = Date.now() - serverTimestamp
-      if (timeOffset.current === null || currentOffset < timeOffset.current) {
-        timeOffset.current = currentOffset
-      }
-
-      buffer.current.add({
-        x: ballState.x,
-        y: ballState.y,
-        z: ballState.z,
-        rx: ballState.rx,
-        ry: ballState.ry,
-        rz: ballState.rz,
-        rw: ballState.rw,
-        timestamp: serverTimestamp
-      })
+    // 1. Sync targets from proxy
+    targetPos.current.set(ballState.x, ballState.y, ballState.z)
+    velocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
+    if (ballState.rx !== undefined) {
+      targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
 
-    // 2. Interpolate
-    if (timeOffset.current !== null) {
-      const estimatedServerTime = Date.now() - timeOffset.current
-      const state = buffer.current.getInterpolatedState(estimatedServerTime)
-      
-      if (state) {
-        // Apply prediction velocity to offset
-        visualOffset.current.addScaledVector(predictionVelocity.current, delta)
-        predictionVelocity.current.multiplyScalar(1 - 10 * delta) // Decay velocity
-        visualOffset.current.multiplyScalar(1 - 5 * delta)        // Decay offset back to 0
-
-        groupRef.current.position.set(
-          state.x + visualOffset.current.x, 
-          state.y + visualOffset.current.y, 
-          state.z + visualOffset.current.z
-        )
-        
-        if (state.rx !== undefined) {
-          groupRef.current.quaternion.set(state.rx, state.ry, state.rz, state.rw)
-        }
-      }
+    // 2. Prediction: Advance target position using velocity
+    // Helps smooth out the gap between snapshots
+    targetPos.current.addScaledVector(velocity.current, delta)
+    
+    // Apply gravity to prediction (matches server gravity -20)
+    if (targetPos.current.y > 0.8) {
+      velocity.current.y -= 20 * delta
     }
+
+    // 2. Interpolation: Smoothly move visual toward target
+    // Use adaptive lerp based on distance (snap if too far)
+    const distance = groupRef.current.position.distanceTo(targetPos.current)
+    
+    if (distance > 10) {
+      // Snap to position if too far (likely reconnect or major desync)
+      groupRef.current.position.copy(targetPos.current)
+    } else {
+      const lerpFactor = 1 - Math.exp(-15 * delta)
+      groupRef.current.position.lerp(targetPos.current, lerpFactor)
+    }
+    
+    groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-10 * delta))
+    
+    // 3. Simple floor collision for visual prediction
+    if (groupRef.current.position.y < 0.8) {
+      groupRef.current.position.y = 0.8
+      velocity.current.y = Math.abs(velocity.current.y) * 0.5 // Bounce
+    }
+
+    // 4. Apply velocity damping (matches server linearDamping 1.5)
+    velocity.current.multiplyScalar(1 - 1.5 * delta)
   })
 
   return (

@@ -63,7 +63,6 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [gamePhase, setGamePhase] = useState('waiting')
   const [gameTimer, setGameTimer] = useState(300)
   const [mySessionId, setMySessionId] = useState(null)
-  const [serverTimestamp, setServerTimestamp] = useState(0)
 
   const roomRef = useRef(null)
 
@@ -156,7 +155,6 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
         setScores({ red: state.redScore, blue: state.blueScore })
         setGamePhase(state.gamePhase)
         setGameTimer(state.timer)
-        setServerTimestamp(state.timestamp)
       })
 
       return joinedRoom
@@ -258,7 +256,6 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     scores,
     gameState: gamePhase,
     gameTimer,
-    serverTimestamp,
     isHost,
     me,
 
