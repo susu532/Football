@@ -147,9 +147,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Apply physics (local prediction)
     const speedMult = serverState?.speedMult || 1
     const speed = MOVE_SPEED * speedMult
-    // Direct velocity (snappy movement) - matches server
-    velocity.current.x = moveDir.x * speed
-    velocity.current.z = moveDir.z * speed
+    // Smoothed velocity (matches server 0.3 factor)
+    const targetVx = moveDir.x * speed
+    const targetVz = moveDir.z * speed
+    velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
+    velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
     
     verticalVelocity.current -= GRAVITY * delta
 
@@ -194,14 +196,16 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Server reconciliation (smooth correction of physics position)
-    if (serverState) {
+    // Skip reconciliation if actively moving - prediction is more accurate
+    const isMoving = moveDir.length() > 0.1 || Math.abs(verticalVelocity.current) > 0.5
+    if (serverState && !isMoving) {
       const serverPos = new THREE.Vector3(serverState.x, serverState.y, serverState.z)
       const error = serverPos.clone().sub(physicsPosition.current)
       
       const errorMagnitude = error.length()
-      if (errorMagnitude > 0.2 && errorMagnitude < 5) {
+      if (errorMagnitude > 0.5 && errorMagnitude < 5) {
         // Soft correction of physics position - frame-rate independent
-        const correctionAlpha = 1 - Math.exp(-10 * delta)
+        const correctionAlpha = 1 - Math.exp(-5 * delta)
         physicsPosition.current.add(error.multiplyScalar(correctionAlpha))
       } else if (errorMagnitude >= 5) {
         // Snap physics position if way off
