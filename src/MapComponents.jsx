@@ -6,7 +6,7 @@ export const MAP_DATA = [
   { id: 'OceanFloor', name: 'Ocean Floor', path: '/maps_1/oceanfloor.glb', scale: 100, position: [0, 26, 0], emoji: '🌊', image: '/placeholders/Screenshots-20260105142140.png', color: '#00a8ff' },
   { id: 'CityAtNight', name: 'City At Night', path: '/maps_1/city_at_night.glb', scale: 1, position: [30, -26.5, -35], emoji: '🌃', image: '/placeholders/Screenshots-20260105142231.png' },
   { id: 'CloudStation', name: 'Cloud Station', path: '/maps_1/cloud_station.glb', scale: 20, position: [-20, -20, 0], emoji: '☁️', image: '/placeholders/Screenshots-20260105142255.png' },
-  { id: 'CreekFalls', name: 'Creek Falls', path: '/maps_1/creek_falls_world_maps.glb', scale: 2, position: [10, 3, -35], emoji: '🌲', image: '/placeholders/Screenshots-20260105142323.png' },
+  { id: 'CreekFalls', name: 'Creek Falls', path: '/maps_1/creek_falls_world_maps.glb', scale: 2, position: [10, 0, -35], emoji: '🌲', image: '/placeholders/Screenshots-20260105142323.png' },
   { id: 'SoccerStadiumMap', name: 'Soccer Stadium', path: '/maps_3/soccer_stadium_draco.glb', scale: 0.2, position: [0, -7.5, 0], emoji: '🏟️', image: '/placeholders/Screenshots-20260105142925.png' },
   { id: 'GravityFallsMap', name: 'Gravity Falls', path: '/maps_1/gravity_falls.glb', scale: 4, position: [10, 0, -26], emoji: '🌲', image: '/placeholders/Screenshots-20260105143032.png' },
   { id: 'MinecraftMap', name: 'Minecraft', path: '/maps_2/minecraft_world.glb', scale: 80, position: [0, -10.5, 0], emoji: '⛏️', image: '/placeholders/Screenshots-20260105143054.png' },
