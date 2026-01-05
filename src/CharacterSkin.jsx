@@ -75,7 +75,7 @@ const CharacterSkin = React.forwardRef(({
   useFrame(() => {
     if (!internalRef.current) return
     const currentIsInvisible = player ? player.invisible : invisible
-    const targetOpacity = currentIsInvisible ? 0.2 : 1.0
+    const targetOpacity = currentIsInvisible ? 0.0 : 1.0
     
     // Only update if opacity changed significantly
     internalRef.current.traverse((child) => {
