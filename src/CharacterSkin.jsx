@@ -55,7 +55,7 @@ const CharacterSkin = React.forwardRef(({
           child.material.side = THREE.FrontSide
           child.material.roughness = 0.8
           child.material.metalness = 0.1
-          child.material.envMapIntensity = 0.2
+          child.material.envMapIntensity = 0.8
           child.material.flatShading = false
           child.material.needsUpdate = true
         }

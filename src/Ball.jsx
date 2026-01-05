@@ -53,7 +53,7 @@ export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, re
           }
           child.material.roughness = 0.8
           child.material.metalness = 0.1
-          child.material.envMapIntensity = 0.2
+          child.material.envMapIntensity = 0.8
           child.material.flatShading = false
           child.material.needsUpdate = true
         }

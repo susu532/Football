@@ -4,7 +4,7 @@
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, Loader, Environment, Preload } from '@react-three/drei'
-import { EffectComposer, SMAA } from '@react-three/postprocessing'
+import { EffectComposer, SMAA, Bloom, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 
@@ -567,7 +567,7 @@ export default function Scene() {
           powerPreference: 'high-performance',
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 0.7,
+          toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
           logarithmicDepthBuffer: true
         }}
@@ -576,16 +576,18 @@ export default function Scene() {
           {/* Post-processing */}
           <EffectComposer multisampling={4}>
             <SMAA />
+            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+            <Vignette eskil={false} offset={0.1} darkness={0.5} />
           </EffectComposer>
           {/* No client-side physics - server handles all physics */}
 
           {/* Visuals (rendered for all) */}
           <GameSkybox />
-          <Environment preset="city" environmentIntensity={0.5} />
-          <ambientLight intensity={0.15} />
+          <Environment preset="city" environmentIntensity={0.8} />
+          <ambientLight intensity={0.2} />
           <directionalLight
             position={[10, 20, 10]}
-            intensity={0.5}
+            intensity={0.7}
             castShadow
             shadow-mapSize={[2048, 2048]}
             shadow-bias={-0.0001}

@@ -1,7 +1,7 @@
 import React, { useRef, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { EffectComposer, SMAA } from '@react-three/postprocessing'
+import { EffectComposer, SMAA, Bloom, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 function CharacterModel({ modelPath, character, isSelected }) {
@@ -64,13 +64,15 @@ export default function CharacterPreview({ character, isSelected, onSelect }) {
             antialias: false, // Disable MSAA for FXAA
             outputColorSpace: THREE.SRGBColorSpace,
             toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 0.7,
+            toneMappingExposure: 0.9,
             logarithmicDepthBuffer: true
           }}
         >
           <Suspense fallback={null}>
             <EffectComposer multisampling={4}>
               <SMAA />
+              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+              <Vignette eskil={false} offset={0.1} darkness={0.4} />
             </EffectComposer>
             <CharacterScene character={character} isSelected={isSelected} />
           </Suspense>
