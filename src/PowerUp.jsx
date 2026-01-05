@@ -3,11 +3,11 @@ import { useFrame } from '@react-three/fiber'
 import { Text } from '@react-three/drei'
 
 export const POWER_UP_TYPES = {
-  SPEED: { color: '#00ffff', label: '⚡', id: 'speed' },
-  KICK: { color: '#ff0000', label: '💥', id: 'kick' },
-  JUMP: { color: '#00ff00', label: '⬆️', id: 'jump' },
-  INVISIBLE: { color: '#a020f0', label: '👻', id: 'invisible' },
-  GIANT: { color: '#FFD700', label: '🦍', id: 'giant' }
+  speed: { color: '#00ffff', label: '⚡', id: 'speed' },
+  kick: { color: '#ff0000', label: '💥', id: 'kick' },
+  jump: { color: '#00ff00', label: '⬆️', id: 'jump' },
+  invisible: { color: '#a020f0', label: '👻', id: 'invisible' },
+  giant: { color: '#FFD700', label: '🦍', id: 'giant' }
 }
 
 export function PowerUp({ position, type, onCollect }) {

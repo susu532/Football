@@ -194,7 +194,6 @@ export default function Scene() {
 
   // UI State
   const [celebration, setCelebration] = useState(null)
-  const [activePowerUps, setActivePowerUps] = useState([])
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [connectionQuality] = useState('excellent')
   const [ping] = useState(0)
@@ -329,39 +328,8 @@ export default function Scene() {
     lastLocalInteraction.current = Date.now()
   }, [])
 
-  // Power-up spawning
-  useEffect(() => {
-    if (!hasJoined) return
-
-    const spawnPowerUp = () => {
-      const types = Object.values(POWER_UP_TYPES)
-      const randomType = types[Math.floor(Math.random() * types.length)]
-
-      const newPowerUp = {
-        id: Math.random().toString(36).substr(2, 9),
-        type: randomType.id,
-        position: [
-          (Math.random() - 0.5) * 28,
-          0.2,
-          (Math.random() - 0.5) * 18
-        ]
-      }
-
-      setActivePowerUps([newPowerUp])
-
-      setTimeout(() => {
-        setActivePowerUps(prev => prev.filter(p => p.id !== newPowerUp.id))
-      }, 5000)
-    }
-
-    spawnPowerUp()
-    const interval = setInterval(spawnPowerUp, 20000)
-    return () => clearInterval(interval)
-  }, [hasJoined])
-
   const handleCollectPowerUp = useCallback((id, type) => {
-    setActivePowerUps(prev => prev.filter(p => p.id !== id))
-    
+    // Collection is now handled on the server
     const powerUpKey = Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === type)
     if (powerUpKey) {
       setCollectedEmoji(POWER_UP_TYPES[powerUpKey].label)
@@ -626,7 +594,7 @@ export default function Scene() {
               teamColor={teamColor}
               characterType={playerCharacter}
               spawnPosition={spawnPosition}
-              powerUps={activePowerUps}
+              powerUps={[]} // No longer needed locally
               onCollectPowerUp={handleCollectPowerUp}
               isFreeLook={isFreeLook}
               onLocalInteraction={handleLocalInteraction}
@@ -641,12 +609,12 @@ export default function Scene() {
 
           <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
 
-          {/* Power-ups */}
-          {activePowerUps.map(p => (
+          {/* Power-ups from server */}
+          {gameState?.powerUps && Array.from(gameState.powerUps.values()).map(p => (
             <PowerUp
               key={p.id}
-              position={p.position}
-              type={Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === p.type)}
+              position={[p.x, p.y, p.z]}
+              type={p.type}
             />
           ))}
 

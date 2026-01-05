@@ -83,37 +83,8 @@ export function PlayerController(props) {
 
   // Collect power-ups
   const checkPowerUpCollision = useCallback((position) => {
-    if (!onCollectPowerUp) return
-    
-    powerUps.forEach(p => {
-      const dx = position.x - p.position[0]
-      const dz = position.z - p.position[2]
-      const dist = Math.sqrt(dx * dx + dz * dz)
-      
-      if (dist < 1.5) {
-        onCollectPowerUp(p.id, p.type)
-        
-        // Apply effect locally
-        const effectDuration = 15000
-        if (p.type === 'speed') {
-          effects.current.speed = 2.0
-          setTimeout(() => effects.current.speed = 1, effectDuration)
-        } else if (p.type === 'jump') {
-          effects.current.jump = 2.0
-          setTimeout(() => effects.current.jump = 1, effectDuration)
-        } else if (p.type === 'kick') {
-          effects.current.kick = 2.0
-          setTimeout(() => effects.current.kick = 1, effectDuration)
-        } else if (p.type === 'invisible') {
-          effects.current.invisible = true
-          setTimeout(() => effects.current.invisible = false, effectDuration)
-        } else if (p.type === 'giant') {
-          effects.current.giant = true
-          setTimeout(() => effects.current.giant = false, effectDuration)
-        }
-      }
-    })
-  }, [powerUps, onCollectPowerUp])
+    // Handled on server
+  }, [])
 
   useFrame((state, delta) => {
     if (!groupRef.current) return
@@ -142,7 +113,8 @@ export function PlayerController(props) {
 
     // Handle jump (with edge detection to match server)
     if (input.jump && !prevJump.current && jumpCount.current < MAX_JUMPS) {
-      const baseJumpForce = JUMP_FORCE * effects.current.jump
+      const jumpMult = serverState?.jumpMult || 1
+      const baseJumpForce = JUMP_FORCE * jumpMult
       verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
       jumpCount.current++
       isOnGround.current = false
@@ -157,7 +129,8 @@ export function PlayerController(props) {
       const forwardX = Math.sin(rotation)
       const forwardZ = Math.cos(rotation)
       const kickDir = new THREE.Vector3(forwardX, 0.5, forwardZ).normalize()
-      const kickPower = 65 * effects.current.kick
+      const kickMult = serverState?.kickMult || 1
+      const kickPower = 65 * kickMult
       
       sendKick({
         impulseX: kickDir.x * kickPower + velocity.current.x * 2,
@@ -167,7 +140,8 @@ export function PlayerController(props) {
     }
 
     // Apply physics (local prediction)
-    const speed = MOVE_SPEED * effects.current.speed
+    const speedMult = serverState?.speedMult || 1
+    const speed = MOVE_SPEED * speedMult
     // Direct velocity (snappy movement) - matches server
     velocity.current.x = moveDir.x * speed
     velocity.current.z = moveDir.z * speed
@@ -231,8 +205,8 @@ export function PlayerController(props) {
     }
 
     // Update userData for effects sync
-    groupRef.current.userData.invisible = effects.current.invisible
-    groupRef.current.userData.giant = effects.current.giant
+    groupRef.current.userData.invisible = serverState?.invisible || false
+    groupRef.current.userData.giant = serverState?.giant || false
 
     // Check power-up collisions
     checkPowerUpCollision(physicsPosition.current)
@@ -257,8 +231,8 @@ export function PlayerController(props) {
       <CharacterSkin
         teamColor={teamColor}
         characterType={characterType}
-        invisible={effects.current.invisible}
-        giant={effects.current.giant}
+        invisible={serverState?.invisible || false}
+        giant={serverState?.giant || false}
         isRemote={false}
       />
     </group>
