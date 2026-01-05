@@ -12,11 +12,17 @@ export default function MapSelector({ selectedMapId, onSelect }) {
             className={`map-card ${selectedMapId === map.id ? 'selected' : ''}`}
             onClick={() => onSelect(map.id)}
           >
-            <div className="map-preview-placeholder">
-              {/* Placeholder for image */}
-              <span className="map-emoji">
-                {map.emoji}
-              </span>
+            <div className="map-preview-placeholder" style={{ 
+              backgroundImage: map.image ? `url(${map.image})` : 'none',
+              backgroundSize: 'cover',
+              backgroundPosition: 'center'
+            }}>
+              {/* Show emoji only if no image */}
+              {!map.image && (
+                <span className="map-emoji">
+                  {map.emoji}
+                </span>
+              )}
             </div>
             <div className="map-name">{map.name}</div>
           </div>
