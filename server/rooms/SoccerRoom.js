@@ -150,7 +150,7 @@ export class SoccerRoom extends Room {
     ]
     barrierPositions.forEach(([x, z]) => {
       // halfX=2.5 (5m deep), halfY=5 (10m high), halfZ=1 (2m thick)
-      const desc = RAPIER.ColliderDesc.cuboid(2.5, 5, 1)
+      const desc = RAPIER.ColliderDesc.cuboid(2.5, 5, 4)
         .setTranslation(x, 5, z)
       this.world.createCollider(desc)
     })
