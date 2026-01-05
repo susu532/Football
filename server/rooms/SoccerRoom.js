@@ -29,17 +29,15 @@ export class SoccerRoom extends Room {
   }
 
   async onCreate(options) {
-    console.log('SoccerRoom created!')
-
-    // Initialize state
     this.setState(new GameState())
 
-    // Set patch rate (30Hz)
-    this.setPatchRate(1000 / 30)
+    // Set map from options if provided (Host's choice)
+    if (options.map) {
+      this.state.selectedMap = options.map
+    }
 
-    // Initialize Rapier
-    await RAPIER.init()
-    this.world = new RAPIER.World({ x: 0, y: -20, z: 0 })
+    // Physics world
+    this.world = new RAPIER.World({ x: 0, y: -9.81, z: 0 })
 
     // Create arena colliders
     this.createArena()
@@ -112,7 +110,6 @@ export class SoccerRoom extends Room {
       // halfX=1 (2m thick), halfY=5 (10m high), halfZ=5 (10m wide to overlap sides)
       const desc = RAPIER.ColliderDesc.cuboid(1, 5, 5)
         .setTranslation(x, 5, z)
-        .setRestitution(1.2)
       this.world.createCollider(desc)
     })
 
@@ -153,7 +150,6 @@ export class SoccerRoom extends Room {
       // halfX=2.5 (5m deep), halfY=5 (10m high), halfZ=1 (2m thick)
       const desc = RAPIER.ColliderDesc.cuboid(2.5, 5, 1)
         .setTranslation(x, 5, z)
-        .setRestitution(1.2)
       this.world.createCollider(desc)
     })
 

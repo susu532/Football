@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import useStore from './store'
 import CharacterPreview from './CharacterPreview'
+import MapSelector from './MapSelector'
 
 // Random name generator
 const adjectives = ['Swift', 'Thunder', 'Shadow', 'Blaze', 'Storm', 'Frost', 'Iron', 'Steel', 'Phantom', 'Cyber', 'Nova', 'Turbo', 'Mega', 'Ultra', 'Epic']
@@ -25,6 +26,7 @@ export default function TeamSelectPopup({ defaultName }) {
     }
     return 'cat'
   })
+  const [selectedMap, setSelectedMap] = useState('OceanFloor')
   const [playerName, setPlayerName] = useState(defaultName || '')
   
   useEffect(() => {
@@ -54,7 +56,7 @@ export default function TeamSelectPopup({ defaultName }) {
       alert('Please enter a name!')
       return
     }
-    joinGame(playerName.trim(), selectedTeam, selectedCharacter)
+    joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
   }
   
   return (
@@ -122,6 +124,11 @@ export default function TeamSelectPopup({ defaultName }) {
               />
             </div>
           </div>
+
+          <MapSelector 
+            selectedMapId={selectedMap} 
+            onSelect={setSelectedMap} 
+          />
           
           <div className="magic-section">
             <div className="magic-section-title">Player Identity</div>

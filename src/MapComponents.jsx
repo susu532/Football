@@ -1,24 +1,45 @@
-import React from 'react'
+import React, { useEffect, useMemo } from 'react'
 import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 
+export const MAP_DATA = [
+  { id: 'OceanFloor', name: 'Ocean Floor', path: '/maps_1/oceanfloor.glb', scale: 100, position: [0, 26, 0], emoji: '🌊' },
+  { id: 'CityAtNight', name: 'City At Night', path: '/maps_1/city_at_night.glb', scale: 1, position: [30, -26.5, -35], emoji: '🌃' },
+  { id: 'CloudStation', name: 'Cloud Station', path: '/maps_1/cloud_station.glb', scale: 20, position: [-20, -20, 0], emoji: '☁️' },
+  { id: 'CreekFalls', name: 'Creek Falls', path: '/maps_1/creek_falls_world_maps.glb', scale: 2, position: [10, 0, -35], emoji: '🌲' },
+  { id: 'SoccerStadiumMap', name: 'Soccer Stadium', path: '/maps_3/soccer_stadium_draco.glb', scale: 0.2, position: [0, -7.5, 0], emoji: '🏟️' },
+  { id: 'GravityFallsMap', name: 'Gravity Falls', path: '/maps_1/gravity_falls.glb', scale: 4, position: [10, 0, -26], emoji: '🌲' },
+  { id: 'MinecraftMap', name: 'Minecraft', path: '/maps_2/minecraft_world.glb', scale: 80, position: [0, -10.5, 0], emoji: '⛏️' },
+  { id: 'MoonMap', name: 'Moon Base', path: '/maps_2/moon_-_mare_moscoviense.glb', scale: 0.5, position: [0, 33, 0], emoji: '🌑' },
+  { id: 'TropicalIslandMap', name: 'Tropical Island', path: '/maps_3/tropical_island.glb', scale: 50, position: [0, -2.6, 0], emoji: '🏝️' },
+  { id: 'ShipInClouds', name: 'Ship In Clouds', path: '/maps_2/ship_in_clouds.glb', scale: 100, position: [0, -10, 100], emoji: '🚢' },
+  { id: 'DesertMap', name: 'Desert', path: '/maps_2/stylized_desert_skybox_2.glb', scale: 50, position: [0, 0, 0], emoji: '🌵' },
+  { id: 'MarioMap', name: 'Mario World', path: '/maps_3/world_1-1.glb', scale: 50, position: [0, 1.4, 0], emoji: '🍄' },
+  { id: 'MysteryShack', name: 'Mystery Shack', path: '/models/gravity_falls.glb', scale: 4, position: [0, -8, 0], emoji: '🏚️' },
+]
 
+export function MapRenderer({ mapId }) {
+  const mapConfig = useMemo(() => MAP_DATA.find(m => m.id === mapId) || MAP_DATA[0], [mapId])
+  
+  // Lazy load only the selected map
+  const gltf = useGLTF(mapConfig.path, true)
+  
+  // Cleanup on unmount or map change
+  useEffect(() => {
+    return () => {
+      // Clear from cache to free memory
+      useGLTF.clear(mapConfig.path)
+      console.log(`Unloaded map: ${mapConfig.name}`)
+    }
+  }, [mapConfig.path, mapConfig.name])
 
-export const MysteryShack = React.memo(function MysteryShack() {
-  const gltf = useGLTF('/models/gravity_falls.glb', true)
-  const scene = React.useMemo(() => {
+  const scene = useMemo(() => {
     const cloned = gltf.scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
-        // Smooth shading
-        if (child.geometry) {
-          child.geometry.computeVertexNormals()
-        }
-        
-        // Material fixes
+        if (child.geometry) child.geometry.computeVertexNormals()
         if (child.material) {
           child.material = child.material.clone()
-          // Ensure textures are filtered well
           if (child.material.map) {
             child.material.map.anisotropy = 16
             child.material.map.minFilter = THREE.LinearMipmapLinearFilter
@@ -31,13 +52,12 @@ export const MysteryShack = React.memo(function MysteryShack() {
           child.material.flatShading = false
           child.material.needsUpdate = true
         }
-        
         child.castShadow = true
         child.receiveShadow = true
       }
     })
     return cloned
   }, [gltf.scene])
-  return React.createElement('primitive', { object: scene, position: [0, -8, 0], scale: 4 })
-})
 
+  return <primitive object={scene} position={mapConfig.position} scale={mapConfig.scale} />
+}

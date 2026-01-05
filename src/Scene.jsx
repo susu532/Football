@@ -143,6 +143,7 @@ export default function Scene() {
   const playerName = useStore((s) => s.playerName)
   const playerTeam = useStore((s) => s.playerTeam)
   const playerCharacter = useStore((s) => s.playerCharacter)
+  const playerMap = useStore((s) => s.playerMap)
   const leaveGame = useStore((s) => s.leaveGame)
   const setHasJoined = useStore((s) => s.setHasJoined)
 
@@ -166,6 +167,7 @@ export default function Scene() {
     endGame,
     onMessage,
     powerUps,
+    selectedMap,
     ping: realPing
   } = useColyseus(SERVER_URL)
 
@@ -242,10 +244,11 @@ export default function Scene() {
       joinRoom({
         name: playerName,
         team: playerTeam,
-        character: playerCharacter
+        character: playerCharacter,
+        map: playerMap
       })
     }
-  }, [hasJoined, isLaunched, isConnected, joinRoom, playerName, playerTeam, playerCharacter])
+  }, [hasJoined, isLaunched, isConnected, joinRoom, playerName, playerTeam, playerCharacter, playerMap])
 
   // Message listeners
   useEffect(() => {
@@ -589,7 +592,7 @@ export default function Scene() {
 
 
           <SoccerPitch />
-          <MapComponents.MysteryShack />
+          <MapComponents.MapRenderer mapId={selectedMap} />
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual ballState={ballState} onKickMessage={onMessage} />

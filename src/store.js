@@ -5,6 +5,7 @@ const useStore = create((set) => ({
   playerName: '',
   playerTeam: null, // 'red' or 'blue'
   playerCharacter: typeof window !== 'undefined' ? localStorage.getItem('playerCharacter') || 'cat' : 'cat',
+  playerMap: 'OceanFloor',
   hasJoined: false,
   // Player customization actions
   setPlayerCharacter: (character) => {
@@ -13,10 +14,11 @@ const useStore = create((set) => ({
     }
     set({ playerCharacter: character })
   },
-  joinGame: (name, team, character) => set({ 
+  joinGame: (name, team, character, map) => set({ 
     playerName: name, 
     playerTeam: team, 
     playerCharacter: character,
+    playerMap: map,
     hasJoined: true 
   }),
   setHasJoined: (value) => set({ hasJoined: value }),

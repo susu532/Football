@@ -62,6 +62,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [scores, setScores] = useState({ red: 0, blue: 0 })
   const [gamePhase, setGamePhase] = useState('waiting')
   const [gameTimer, setGameTimer] = useState(300)
+  const [selectedMap, setSelectedMap] = useState('OceanFloor')
   const [mySessionId, setMySessionId] = useState(null)
   const [powerUps, setPowerUps] = useState([]) // Array for easier mapping
   const [ping, setPing] = useState(0)
@@ -164,6 +165,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
         setScores({ red: state.redScore, blue: state.blueScore })
         setGamePhase(state.gamePhase)
         setGameTimer(state.timer)
+        if (state.selectedMap) setSelectedMap(state.selectedMap)
 
         // Sync Power-ups (Only if collection changes)
         if (state.powerUps) {
@@ -304,6 +306,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     scores,
     gameState: gamePhase,
     gameTimer,
+    selectedMap,
     isHost,
     me,
     powerUps,
