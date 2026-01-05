@@ -259,26 +259,26 @@ export default function Scene() {
 
       // Reset local player position
       setTimeout(() => {
-        if (playerRef.current) {
+        if (playerRef.current && typeof playerRef.current.resetPosition === 'function') {
           const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-          playerRef.current.position.set(...spawn)
+          playerRef.current.resetPosition(...spawn)
         }
       }, 3000)
     })
 
     const unsubReset = onMessage('game-reset', () => {
-      if (playerRef.current) {
+      if (playerRef.current && typeof playerRef.current.resetPosition === 'function') {
         const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-        playerRef.current.position.set(...spawn)
+        playerRef.current.resetPosition(...spawn)
       }
     })
 
     const unsubOver = onMessage('game-over', (data) => {
       setGameOverData(data)
       
-      if (playerRef.current) {
+      if (playerRef.current && typeof playerRef.current.resetPosition === 'function') {
         const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-        playerRef.current.position.set(...spawn)
+        playerRef.current.resetPosition(...spawn)
       }
 
       setTimeout(() => {

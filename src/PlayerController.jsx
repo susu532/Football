@@ -71,7 +71,13 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
   useImperativeHandle(ref, () => ({
     get position() { return groupRef.current?.position || new THREE.Vector3() },
-    get rotation() { return groupRef.current?.rotation || new THREE.Euler() }
+    get rotation() { return groupRef.current?.rotation || new THREE.Euler() },
+    resetPosition: (x, y, z) => {
+      if (groupRef.current) groupRef.current.position.set(x, y, z)
+      physicsPosition.current.set(x, y, z)
+      velocity.current.set(0, 0, 0)
+      verticalVelocity.current = 0
+    }
   }))
 
   // Initialize input manager
