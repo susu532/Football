@@ -124,7 +124,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     const z = p.z + distance * Math.sin(polar) * Math.cos(azimuth)
     camera.position.lerp(new THREE.Vector3(x, y, z), 0.15)
     camera.lookAt(p.x, p.y + 1, p.z)
-  })
+  }, 1) // Priority 1: Run after player physics (Priority 0)
 
   return null
 }

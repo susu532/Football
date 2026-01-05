@@ -58,7 +58,7 @@ export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, re
             map: oldMat.map,
             roughness: 0.15, // Shinier
             metalness: 0.2,
-            clearcoat: 1.0, // Protective glossy layer
+            clearcoat: 0.05, // Protective glossy layer
             clearcoatRoughness: 0.05,
             envMapIntensity: 1.5, // Stronger reflections
             flatShading: false
