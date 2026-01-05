@@ -129,20 +129,7 @@ export function SoccerPitch({
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
 
-      <RoundedBox args={[size[0] + wallThickness*2, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, -size[2]/2 - wallThickness/2]} castShadow receiveShadow>
-        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
-      </RoundedBox>
-      <RoundedBox args={[size[0] + wallThickness*2, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[0, wallHeight/2, size[2]/2 + wallThickness/2]} castShadow receiveShadow>
-        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
-      </RoundedBox>
       
-      <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[-size[0]/2 - wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
-      </RoundedBox>
-      
-      <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
-        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
-      </RoundedBox>
 
 
       
