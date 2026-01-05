@@ -9,7 +9,7 @@ export const MAP_DATA = [
   { id: 'CreekFalls', name: 'Creek Falls', path: '/maps_1/creek_falls_world_maps.glb', scale: 2, position: [10, 0, -35], emoji: '🌲', image: '/placeholders/Screenshots-20260105142323.png' },
   { id: 'SoccerStadiumMap', name: 'Soccer Stadium', path: '/maps_3/soccer_stadium_draco.glb', scale: 0.2, position: [0, -7.5, 0], emoji: '🏟️', image: '/placeholders/Screenshots-20260105142925.png' },
   { id: 'GravityFallsMap', name: 'Gravity Falls', path: '/maps_1/gravity_falls.glb', scale: 4, position: [10, 0, -26], emoji: '🌲', image: '/placeholders/Screenshots-20260105143032.png' },
-  { id: 'MinecraftMap', name: 'Minecraft', path: '/maps_2/minecraft_world.glb', scale: 80, position: [0, -10.5, 0], emoji: '⛏️', image: '/placeholders/Screenshots-20260105143054.png' },
+  { id: 'MinecraftMap', name: 'Minecraft', path: '/maps_2/minecraft_world.glb', scale: 80, position: [0, -11.5, 0], emoji: '⛏️', image: '/placeholders/Screenshots-20260105143054.png' },
   { id: 'MoonMap', name: 'Moon Base', path: '/maps_2/moon_-_mare_moscoviense.glb', scale: 0.5, position: [0, 33, 0], emoji: '🌑', image: '/placeholders/Screenshots-20260105143316.png' },
   { id: 'TropicalIslandMap', name: 'Tropical Island', path: '/maps_3/tropical_island.glb', scale: 50, position: [0, -6.6, 0], emoji: '🏝️', image: '/placeholders/Screenshots-20260105143421.png' },
   { id: 'ShipInClouds', name: 'Ship In Clouds', path: '/maps_2/ship_in_clouds.glb', scale: 100, position: [0, -10, 100], emoji: '🚢', image: '/placeholders/Screenshots-20260105143500.png' },

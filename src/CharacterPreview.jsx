@@ -1,6 +1,7 @@
 import React, { useRef, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, OrbitControls, PerspectiveCamera } from '@react-three/drei'
+import { EffectComposer, FXAA } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 function CharacterModel({ modelPath, character, isSelected }) {
@@ -38,7 +39,7 @@ function CharacterScene({ character, isSelected }) {
   
   return (
     <>
-      <PerspectiveCamera makeDefault position={[0, 1.5, 4]} fov={50} />
+      <PerspectiveCamera makeDefault position={[0, 1.5, 4]} fov={50} near={0.1} far={100} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
       <directionalLight position={[-5, 5, -5]} intensity={0.5} />
@@ -56,8 +57,21 @@ export default function CharacterPreview({ character, isSelected, onSelect }) {
       onClick={() => onSelect(character)}
     >
       <div className="character-preview-canvas">
-        <Canvas shadows gl={{ outputColorSpace: THREE.SRGBColorSpace }}>
+        <Canvas 
+          shadows="soft"
+          dpr={[1, 2]}
+          gl={{ 
+            antialias: false, // Disable MSAA for FXAA
+            outputColorSpace: THREE.SRGBColorSpace,
+            toneMapping: THREE.ACESFilmicToneMapping,
+            toneMappingExposure: 0.7,
+            logarithmicDepthBuffer: true
+          }}
+        >
           <Suspense fallback={null}>
+            <EffectComposer>
+              <FXAA />
+            </EffectComposer>
             <CharacterScene character={character} isSelected={isSelected} />
           </Suspense>
         </Canvas>
