@@ -4,6 +4,7 @@
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, Loader, Environment, Preload } from '@react-three/drei'
+import { EffectComposer, FXAA } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 
@@ -556,20 +557,26 @@ export default function Scene() {
 
       {/* 3D Canvas */}
       <Canvas 
-        shadows 
-        camera={{ position: [0, 8, 12], fov: 45 }} 
+        shadows="soft"
+        camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 100 }} 
         dpr={[1, 2]}
         gl={{ 
-          antialias: true, 
+          antialias: false, // Disable MSAA as we use FXAA
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
-          toneMappingExposure: 0.7
+          toneMappingExposure: 0.7,
+          outputColorSpace: THREE.SRGBColorSpace,
+          logarithmicDepthBuffer: true
         }}
       >
         <Suspense fallback={null}>
+          {/* Post-processing */}
+          <EffectComposer>
+            <FXAA />
+          </EffectComposer>
           {/* No client-side physics - server handles all physics */}
 
           {/* Visuals (rendered for all) */}
@@ -580,7 +587,8 @@ export default function Scene() {
             position={[10, 20, 10]}
             intensity={0.5}
             castShadow
-            shadow-mapSize={[shadowMapSize, shadowMapSize]}
+            shadow-mapSize={[2048, 2048]}
+            shadow-bias={-0.0001}
             shadow-camera-left={-20}
             shadow-camera-right={20}
             shadow-camera-top={20}
