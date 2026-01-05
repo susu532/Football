@@ -3,7 +3,8 @@
 
 import React, { useRef, useEffect, useImperativeHandle, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useGLTF } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { useGLTF, Trail } from '@react-three/drei'
 import * as THREE from 'three'
 import { useSpring, a } from '@react-spring/three'
 
@@ -152,7 +153,14 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage }, 
 
   return (
     <group ref={groupRef} position={[0, 2, 0]}>
-      <SoccerBall onKickFeedback={kickFeedback} />
+      <Trail
+        width={0.6}
+        length={8}
+        color="#ffffff"
+        attenuation={(t) => t * t}
+      >
+        <SoccerBall onKickFeedback={kickFeedback} />
+      </Trail>
     </group>
   )
 })

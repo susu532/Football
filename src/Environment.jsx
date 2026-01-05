@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react'
+import React, { useMemo, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
 import { Stars, Sparkles, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
@@ -50,23 +50,82 @@ export function RapierArena() {
   )
 }
 
+// Helper to generate striped grass texture
+function generateGrassTexture() {
+  const canvas = document.createElement('canvas')
+  canvas.width = 1024
+  canvas.height = 1024
+  const context = canvas.getContext('2d')
+  
+  // Darker green base
+  context.fillStyle = '#1a4a10'
+  context.fillRect(0, 0, 1024, 1024)
+  
+  // Lighter green stripes
+  context.fillStyle = '#225c16' 
+  const numStripes = 12
+  const stripeHeight = 1024 / numStripes
+  
+  for (let i = 0; i < numStripes; i += 2) {
+    context.fillRect(0, i * stripeHeight, 1024, stripeHeight)
+  }
+  
+  // Add some noise/texture
+  context.fillStyle = 'rgba(0,0,0,0.05)'
+  for(let i=0; i<50000; i++) {
+    const x = Math.random() * 1024
+    const y = Math.random() * 1024
+    const w = Math.random() * 3
+    const h = Math.random() * 3
+    context.fillRect(x, y, w, h)
+  }
+
+  const texture = new THREE.CanvasTexture(canvas)
+  texture.wrapS = THREE.RepeatWrapping
+  texture.wrapT = THREE.RepeatWrapping
+  // Anisotropy will be set by the mesh
+  return texture
+}
+
 // Soccer Pitch (Visuals Only)
 export function SoccerPitch({
   size = [30, 0.2, 20],
   wallHeight = 10,
   wallThickness = 0.4,
 }) {
+  const grassTexture = useMemo(() => generateGrassTexture(), [])
+  
+  // Configure texture
+  useEffect(() => {
+    grassTexture.anisotropy = 16
+    grassTexture.minFilter = THREE.LinearMipmapLinearFilter
+    grassTexture.magFilter = THREE.LinearFilter
+    grassTexture.needsUpdate = true
+  }, [grassTexture])
+
   return (
     <group>
+      {/* Grass Pitch */}
       <mesh position={[0, 0, 0]} receiveShadow>
         <boxGeometry args={size} />
-        <meshPhysicalMaterial 
-          color="#1a4a10" 
-          roughness={0.9} 
-          metalness={0.02}
-          envMapIntensity={0.2}
+        <meshStandardMaterial 
+          map={grassTexture}
+          roughness={0.8} 
+          metalness={0.1}
+          envMapIntensity={0.5}
         />
       </mesh>
+
+      {/* Atmospheric Sparkles (Fireflies/Dew) */}
+      <Sparkles 
+        count={100} 
+        scale={[28, 2, 18]} 
+        position={[0, 1, 0]} 
+        size={4} 
+        speed={0.4} 
+        opacity={0.4} 
+        color="#ccffcc"
+      />
       <mesh position={[0, 0.11, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[0.1, 20]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />

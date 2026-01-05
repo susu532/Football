@@ -43,6 +43,7 @@ const CharacterSkin = React.forwardRef(({
           child.material.color = new THREE.Color(teamColor)
           
           // Ensure textures are filtered well
+          // Ensure textures are filtered well
           if (child.material.map) {
             child.material.map.anisotropy = 16
             child.material.map.minFilter = THREE.LinearMipmapLinearFilter
@@ -50,13 +51,21 @@ const CharacterSkin = React.forwardRef(({
             child.material.map.needsUpdate = true
           }
 
-          child.material.transparent = false
-          child.material.opacity = 1.0
-          child.material.side = THREE.FrontSide
-          child.material.roughness = 0.8
-          child.material.metalness = 0.1
-          child.material.envMapIntensity = 0.8
-          child.material.flatShading = false
+          // Upgrade to MeshPhysicalMaterial for better look
+          const oldMat = child.material
+          child.material = new THREE.MeshPhysicalMaterial({
+            map: oldMat.map,
+            color: new THREE.Color(teamColor),
+            transparent: false,
+            opacity: 1.0,
+            side: THREE.FrontSide,
+            roughness: 0.3, // Shinier
+            metalness: 0.1,
+            clearcoat: 1.0, // Toy-like finish
+            clearcoatRoughness: 0.1,
+            envMapIntensity: 1.0,
+            flatShading: false
+          })
           child.material.needsUpdate = true
         }
         child.castShadow = true
@@ -103,6 +112,18 @@ const CharacterSkin = React.forwardRef(({
         new THREE.Vector3(targetScale, targetScale, targetScale), 
         0.1
       )
+    }
+  })
+
+  // Idle Breathing Animation
+  useFrame((state) => {
+    if (!internalRef.current) return
+    // Only breathe if not giant
+    const currentIsGiant = player ? player.giant : giant
+    if (!currentIsGiant) {
+      const t = state.clock.getElapsedTime()
+      const breatheScale = 1.0 + Math.sin(t * 3) * 0.03 // Subtle pulse
+      internalRef.current.scale.setY(breatheScale)
     }
   })
   
