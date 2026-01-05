@@ -26,6 +26,18 @@ export default function Chat({ playerName, playerTeam, sendChat, onMessage }) {
     }
   }, [chatMessages])
 
+  // Click outside to minimize
+  const containerRef = useRef(null)
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (containerRef.current && !containerRef.current.contains(event.target)) {
+        setIsChatOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const handleSubmit = (e) => {
     e.preventDefault()
     if (chatInput.trim() && sendChat) {
@@ -35,7 +47,9 @@ export default function Chat({ playerName, playerTeam, sendChat, onMessage }) {
   }
 
   return (
-    <div style={{
+    <div 
+      ref={containerRef}
+      style={{
       position: 'absolute',
       bottom: '20px',
       right: '20px',

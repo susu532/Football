@@ -68,9 +68,23 @@ class InputManagerClass {
     this.kickPressed = true
   }
 
+  // Helper to check if user is typing in an input field
+  isInputFocused() {
+    if (typeof document === 'undefined') return false
+    const active = document.activeElement
+    return active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA')
+  }
+
   // Get current input state
   // Returns { move: {x, z}, jump: bool, kick: bool }
   getInput() {
+    if (this.isInputFocused()) {
+      // Consume one-shots even if focused to prevent "stuck" actions
+      this.jumpPressed = false
+      this.kickPressed = false
+      return { move: { x: 0, z: 0 }, jump: false, kick: false }
+    }
+
     let moveX = 0
     let moveZ = 0
 
@@ -108,6 +122,10 @@ class InputManagerClass {
 
   // Peek at input without consuming one-shots (for prediction)
   peekInput() {
+    if (this.isInputFocused()) {
+      return { move: { x: 0, z: 0 }, jump: false, kick: false }
+    }
+
     let moveX = 0
     let moveZ = 0
 
