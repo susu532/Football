@@ -77,7 +77,7 @@ export function SoccerBall({ radius = 0.8, ref, onKickFeedback }) {
 // Receives snapshots from Colyseus, interpolates smoothly
 export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, ref }) {
   const groupRef = useRef()
-  const buffer = useRef(new SnapshotBuffer(50))
+  const buffer = useRef(new SnapshotBuffer(30))
   const lastServerTime = useRef(0)
   const timeOffset = useRef(null)
   const kickFeedback = useRef(null)
