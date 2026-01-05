@@ -64,6 +64,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [gameTimer, setGameTimer] = useState(300)
   const [mySessionId, setMySessionId] = useState(null)
   const [powerUps, setPowerUps] = useState([]) // Array for easier mapping
+  const [ping, setPing] = useState(0)
 
   const roomRef = useRef(null)
 
@@ -118,6 +119,13 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
       joinedRoom.onMessage('chat-message', (message) => {
         // Handled by Chat.jsx
+      })
+
+      joinedRoom.onMessage('pong', () => {
+        const now = Date.now()
+        if (lastPingTime.current) {
+          setPing(now - lastPingTime.current)
+        }
       })
 
       // 2. Defensive State Sync
@@ -184,6 +192,25 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       return null
     }
   }, [client])
+
+  const lastPingTime = useRef(0)
+  const pingInterval = useRef(null)
+
+  // Ping loop
+  useEffect(() => {
+    if (isConnected && room) {
+      pingInterval.current = setInterval(() => {
+        lastPingTime.current = Date.now()
+        room.send('ping')
+      }, 2000)
+    } else {
+      if (pingInterval.current) clearInterval(pingInterval.current)
+    }
+
+    return () => {
+      if (pingInterval.current) clearInterval(pingInterval.current)
+    }
+  }, [isConnected, room])
 
   // Leave room
   const leaveRoom = useCallback(() => {
@@ -280,6 +307,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     isHost,
     me,
     powerUps,
+    ping,
 
     // Actions
     sendInput,

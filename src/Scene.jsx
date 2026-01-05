@@ -165,7 +165,8 @@ export default function Scene() {
     startGame,
     endGame,
     onMessage,
-    powerUps
+    powerUps,
+    ping: realPing
   } = useColyseus(SERVER_URL)
 
   // Adaptive shadow quality
@@ -196,11 +197,18 @@ export default function Scene() {
   // UI State
   const [celebration, setCelebration] = useState(null)
   const [showExitConfirm, setShowExitConfirm] = useState(false)
-  const [connectionQuality] = useState('excellent')
-  const [ping] = useState(0)
-  const [showConnectionWarning] = useState(false)
   const [gameOverData, setGameOverData] = useState(null)
   const [collectedEmoji, setCollectedEmoji] = useState(null)
+
+  // Connection Quality Logic
+  const connectionQuality = React.useMemo(() => {
+    if (realPing < 60) return 'excellent'
+    if (realPing < 120) return 'good'
+    if (realPing < 200) return 'fair'
+    return 'poor'
+  }, [realPing])
+
+  const showConnectionWarning = realPing > 250
 
   // Stable player props
   const spawnPosition = React.useMemo(() => (
@@ -383,7 +391,7 @@ export default function Scene() {
           <span style={{ color: isConnected ? '#00ff00' : '#ff0000' }}>
             ● {isConnected ? 'CONNECTED' : 'CONNECTING...'}
           </span>
-          <span>{ping}ms</span>
+          <span style={{ color: getConnectionQualityColor(connectionQuality) }}>{realPing}ms</span>
           {isHost && <span style={{ color: '#ffd700' }}>★ HOST</span>}
         </div>
       </div>
