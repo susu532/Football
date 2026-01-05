@@ -157,6 +157,7 @@ export default function Scene() {
     scores,
     gameState,
     gameTimer,
+    serverTimestamp,
     isHost,
     me,
     sendInput,
@@ -600,7 +601,7 @@ export default function Scene() {
           {/* Ball - interpolated from server state */}
           <ClientBallVisual 
             ballState={ballState} 
-            serverTimestamp={gameState?.timestamp}
+            serverTimestamp={serverTimestamp}
             onKickMessage={onMessage} 
           />
 
@@ -625,7 +626,7 @@ export default function Scene() {
               isFreeLook={isFreeLook}
               onLocalInteraction={handleLocalInteraction}
               serverState={myServerState}
-              serverTimestamp={gameState?.timestamp}
+              serverTimestamp={serverTimestamp}
             />
           )}
 
@@ -634,7 +635,7 @@ export default function Scene() {
             <ClientPlayerVisual 
               key={p.sessionId} 
               player={p} 
-              serverTimestamp={gameState?.timestamp}
+              serverTimestamp={serverTimestamp}
             />
           ))}
 
