@@ -558,7 +558,7 @@ export default function Scene() {
       {/* 3D Canvas */}
       <Canvas 
         shadows="soft"
-        camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 100 }} 
+        camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 200 }} 
         dpr={[1, 2]}
         gl={{ 
           antialias: false, // Disable MSAA as we use FXAA
