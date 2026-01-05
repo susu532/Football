@@ -93,12 +93,7 @@ export function ClientBallVisual({ ballState, serverTimestamp, onKickMessage, re
           kickFeedback.current()
         }
 
-        // Prediction: Apply a temporary visual impulse
-        if (data.impulse) {
-           velocity.current.x += data.impulse.x / 3.0
-           velocity.current.y += data.impulse.y / 3.0
-           velocity.current.z += data.impulse.z / 3.0
-        }
+
       })
       return unsubscribe
     }
