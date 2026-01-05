@@ -7,7 +7,9 @@ import { useFrame } from '@react-three/fiber'
 import { Html } from '@react-three/drei'
 import * as THREE from 'three'
 import CharacterSkin from './CharacterSkin'
+
 import { PlayerController } from './PlayerController'
+import { SnapshotBuffer } from './SnapshotBuffer'
 
 // LocalPlayer - Wraps PlayerController for the local player
 export function LocalPlayer(props) {
@@ -71,44 +73,49 @@ export function LocalPlayer(props) {
 
 // ClientPlayerVisual - Visual-only remote player with smooth interpolation
 export function ClientPlayerVisual(props) {
-  const { player, ref } = props
+  const { player, serverTimestamp, ref } = props
   const groupRef = useRef()
+  const buffer = useRef(new SnapshotBuffer(50)) // 50ms delay
+  const lastServerTime = useRef(0)
+  const timeOffset = useRef(null)
 
   useImperativeHandle(ref, () => groupRef.current)
   
   const teamColor = player.team === 'red' ? '#ff4444' : player.team === 'blue' ? '#4488ff' : '#888'
 
+  // Add snapshots to buffer
+  useEffect(() => {
+    if (serverTimestamp && serverTimestamp !== lastServerTime.current) {
+      lastServerTime.current = serverTimestamp
+      
+      // Initialize time offset on first packet
+      if (timeOffset.current === null) {
+        timeOffset.current = Date.now() - serverTimestamp
+      }
+
+      buffer.current.add({
+        x: player.x,
+        y: player.y,
+        z: player.z,
+        rotY: player.rotY,
+        timestamp: serverTimestamp
+      })
+    }
+  }, [serverTimestamp, player])
+
   // Smooth interpolation each frame
-  useFrame((_, delta) => {
-    if (!groupRef.current || !player) return
+  useFrame(() => {
+    if (!groupRef.current || timeOffset.current === null) return
     
-    const lambda = 10 // Interpolation speed (tuned for 20Hz)
+    // Estimate current server time
+    const estimatedServerTime = Date.now() - timeOffset.current
     
-    // Position interpolation - read directly from Colyseus proxy
-    groupRef.current.position.x = THREE.MathUtils.damp(
-      groupRef.current.position.x, 
-      player.x, 
-      lambda, 
-      delta
-    )
-    groupRef.current.position.y = THREE.MathUtils.damp(
-      groupRef.current.position.y, 
-      player.y, 
-      lambda, 
-      delta
-    )
-    groupRef.current.position.z = THREE.MathUtils.damp(
-      groupRef.current.position.z, 
-      player.z, 
-      lambda, 
-      delta
-    )
-    
-    // Rotation interpolation (handle wrapping)
-    let rotDiff = player.rotY - groupRef.current.rotation.y
-    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
-    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
-    groupRef.current.rotation.y += rotDiff * Math.min(1, lambda * delta)
+    // Get interpolated state
+    const state = buffer.current.getInterpolatedState(estimatedServerTime)
+    if (!state) return
+
+    groupRef.current.position.set(state.x, state.y, state.z)
+    groupRef.current.rotation.y = state.rotY
   })
 
   // Initialize position on mount

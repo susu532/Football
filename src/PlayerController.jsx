@@ -14,7 +14,7 @@ const DOUBLE_JUMP_MULTIPLIER = 0.8
 const GRAVITY = 20
 const GROUND_Y = 0.1
 const MAX_JUMPS = 2
-const INPUT_SEND_RATE = 1 / 30 // 30Hz
+const INPUT_SEND_RATE = 1 / 60 // 60Hz
 
 // PlayerController: Handles local player input => sends to server + local prediction
 export function PlayerController(props) {
@@ -27,11 +27,8 @@ export function PlayerController(props) {
     teamColor = '#888',
     characterType = 'cat',
     spawnPosition = [0, 1, 0],
-    powerUps = [],
-    onCollectPowerUp = null,
-    isFreeLook = null,
-    onLocalInteraction = null,
     serverState = null, // Server state for reconciliation
+    serverTimestamp = null,
     ref
   } = props
 
@@ -45,6 +42,10 @@ export function PlayerController(props) {
   const isOnGround = useRef(true)
   const jumpCount = useRef(0)
   const prevJump = useRef(false) // For edge detection
+  
+  // History buffer for reconciliation
+  const history = useRef([])
+  const timeOffset = useRef(null)
 
   // Initialize position
   const lastSpawnRef = useRef('')
@@ -57,7 +58,7 @@ export function PlayerController(props) {
     }
   }, [spawnPosition])
   
-  // Power-up effects
+  // Power-up effects (synced from server)
   const effects = useRef({
     speed: 1,
     jump: 1,
@@ -65,6 +66,17 @@ export function PlayerController(props) {
     invisible: false,
     giant: false
   })
+
+  // Sync effects from server state
+  useEffect(() => {
+    if (serverState) {
+      effects.current.speed = serverState.speedMultiplier || 1
+      effects.current.jump = serverState.jumpMultiplier || 1
+      effects.current.kick = serverState.kickMultiplier || 1
+      effects.current.invisible = serverState.invisible || false
+      effects.current.giant = serverState.giant || false
+    }
+  }, [serverState])
 
   // Input throttle
   const lastInputTime = useRef(0)
@@ -91,39 +103,7 @@ export function PlayerController(props) {
     return () => InputManager.destroy()
   }, [])
 
-  // Collect power-ups
-  const checkPowerUpCollision = useCallback((position) => {
-    if (!onCollectPowerUp) return
-    
-    powerUps.forEach(p => {
-      const dx = position.x - p.position[0]
-      const dz = position.z - p.position[2]
-      const dist = Math.sqrt(dx * dx + dz * dz)
-      
-      if (dist < 1.5) {
-        onCollectPowerUp(p.id, p.type)
-        
-        // Apply effect locally
-        const effectDuration = 15000
-        if (p.type === 'speed') {
-          effects.current.speed = 2.0
-          setTimeout(() => effects.current.speed = 1, effectDuration)
-        } else if (p.type === 'jump') {
-          effects.current.jump = 2.0
-          setTimeout(() => effects.current.jump = 1, effectDuration)
-        } else if (p.type === 'kick') {
-          effects.current.kick = 2.0
-          setTimeout(() => effects.current.kick = 1, effectDuration)
-        } else if (p.type === 'invisible') {
-          effects.current.invisible = true
-          setTimeout(() => effects.current.invisible = false, effectDuration)
-        } else if (p.type === 'giant') {
-          effects.current.giant = true
-          setTimeout(() => effects.current.giant = false, effectDuration)
-        }
-      }
-    })
-  }, [powerUps, onCollectPowerUp])
+
 
   useFrame((state, delta) => {
     if (!groupRef.current) return
@@ -225,28 +205,63 @@ export function PlayerController(props) {
       groupRef.current.rotation.y += rotDiff * Math.min(1, 20 * delta)
     }
 
-    // Server reconciliation (smooth correction of physics position)
-    if (serverState) {
-      const serverPos = new THREE.Vector3(serverState.x, serverState.y, serverState.z)
-      const error = serverPos.clone().sub(physicsPosition.current)
-      
-      const errorMagnitude = error.length()
-      if (errorMagnitude > 0.1 && errorMagnitude < 5) {
-        // Soft correction of physics position - frame-rate independent
-        const correctionAlpha = 1 - Math.exp(-5 * delta)
-        physicsPosition.current.add(error.multiplyScalar(correctionAlpha))
-      } else if (errorMagnitude >= 5) {
-        // Snap physics position if way off
-        physicsPosition.current.copy(serverPos)
+    // History-based Reconciliation
+    if (serverState && serverTimestamp) {
+      // 1. Initialize time offset
+      if (timeOffset.current === null) {
+        timeOffset.current = Date.now() - serverTimestamp
       }
+
+      // 2. Find past state matching server timestamp
+      // Server timestamp is "server time". We need to find local state at that time.
+      // Local state was saved with Date.now().
+      // serverTime + offset = localTime
+      const targetLocalTime = serverTimestamp + timeOffset.current
+      
+      // Find snapshot closest to targetLocalTime
+      const pastState = history.current.find(s => Math.abs(s.timestamp - targetLocalTime) < 20)
+
+      if (pastState) {
+        const serverPos = new THREE.Vector3(serverState.x, serverState.y, serverState.z)
+        const pastPos = new THREE.Vector3(pastState.x, pastState.y, pastState.z)
+        
+        const error = serverPos.clone().sub(pastPos)
+        
+        // Ignore small errors (floating point diffs)
+        if (error.length() > 0.05) {
+          // Apply soft correction to CURRENT position
+          // We assume the error made in the past persists to now
+          const correctionAlpha = 1 - Math.exp(-5 * delta)
+          physicsPosition.current.add(error.multiplyScalar(correctionAlpha))
+        }
+      } else if (!pastState && history.current.length > 0) {
+        // If no matching history (maybe too old or too new), fall back to simple distance check
+        // This handles the case where we just joined or lag spike dropped history
+        const serverPos = new THREE.Vector3(serverState.x, serverState.y, serverState.z)
+        if (physicsPosition.current.distanceTo(serverPos) > 2.0) {
+           physicsPosition.current.lerp(serverPos, 0.1)
+        }
+      }
+    }
+
+    // Save current state to history
+    history.current.push({
+      x: physicsPosition.current.x,
+      y: physicsPosition.current.y,
+      z: physicsPosition.current.z,
+      timestamp: Date.now()
+    })
+    
+    // Prune history (keep 1 second)
+    if (history.current.length > 60) {
+      history.current.shift()
     }
 
     // Update userData for effects sync
     groupRef.current.userData.invisible = effects.current.invisible
     groupRef.current.userData.giant = effects.current.giant
 
-    // Check power-up collisions
-    checkPowerUpCollision(physicsPosition.current)
+
 
     // Send input to server (throttled at 60Hz)
     if (now - lastInputTime.current >= INPUT_SEND_RATE && sendInput) {

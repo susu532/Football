@@ -194,7 +194,7 @@ export default function Scene() {
 
   // UI State
   const [celebration, setCelebration] = useState(null)
-  const [activePowerUps, setActivePowerUps] = useState([])
+  // const [activePowerUps, setActivePowerUps] = useState([]) // Removed local state
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [connectionQuality] = useState('excellent')
   const [ping] = useState(0)
@@ -286,12 +286,23 @@ export default function Scene() {
       }, 5000)
     })
 
+    const unsubPowerUp = onMessage('power-up-collected', (data) => {
+      if (data.playerId === me?.sessionId) {
+        const powerUpKey = Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === data.type)
+        if (powerUpKey) {
+          setCollectedEmoji(POWER_UP_TYPES[powerUpKey].label)
+          setTimeout(() => setCollectedEmoji(null), 3000)
+        }
+      }
+    })
+
     return () => {
       if (typeof unsubGoal === 'function') unsubGoal()
       if (typeof unsubReset === 'function') unsubReset()
       if (typeof unsubOver === 'function') unsubOver()
+      if (typeof unsubPowerUp === 'function') unsubPowerUp()
     }
-  }, [isConnected, onMessage, playerTeam])
+  }, [isConnected, onMessage, playerTeam, me])
 
   // Connection quality color helper
   const getConnectionQualityColor = (quality) => {
@@ -329,44 +340,23 @@ export default function Scene() {
     lastLocalInteraction.current = Date.now()
   }, [])
 
-  // Power-up spawning
+  // Power-up spawning - REMOVED (Server handled)
+  /*
   useEffect(() => {
     if (!hasJoined) return
 
     const spawnPowerUp = () => {
-      const types = Object.values(POWER_UP_TYPES)
-      const randomType = types[Math.floor(Math.random() * types.length)]
-
-      const newPowerUp = {
-        id: Math.random().toString(36).substr(2, 9),
-        type: randomType.id,
-        position: [
-          (Math.random() - 0.5) * 28,
-          0.2,
-          (Math.random() - 0.5) * 18
-        ]
-      }
-
-      setActivePowerUps([newPowerUp])
-
-      setTimeout(() => {
-        setActivePowerUps(prev => prev.filter(p => p.id !== newPowerUp.id))
-      }, 5000)
+      // ...
     }
 
     spawnPowerUp()
     const interval = setInterval(spawnPowerUp, 20000)
     return () => clearInterval(interval)
   }, [hasJoined])
+  */
 
   const handleCollectPowerUp = useCallback((id, type) => {
-    setActivePowerUps(prev => prev.filter(p => p.id !== id))
-    
-    const powerUpKey = Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === type)
-    if (powerUpKey) {
-      setCollectedEmoji(POWER_UP_TYPES[powerUpKey].label)
-      setTimeout(() => setCollectedEmoji(null), 15000)
-    }
+    // Local collection logic removed - handled by server collision
   }, [])
 
   // Handle leave
@@ -608,7 +598,11 @@ export default function Scene() {
           <MapComponents.MysteryShack />
 
           {/* Ball - interpolated from server state */}
-          <ClientBallVisual ballState={ballState} onKickMessage={onMessage} />
+          <ClientBallVisual 
+            ballState={ballState} 
+            serverTimestamp={gameState?.timestamp}
+            onKickMessage={onMessage} 
+          />
 
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />
@@ -626,26 +620,31 @@ export default function Scene() {
               teamColor={teamColor}
               characterType={playerCharacter}
               spawnPosition={spawnPosition}
-              powerUps={activePowerUps}
+              // powerUps={activePowerUps}
               onCollectPowerUp={handleCollectPowerUp}
               isFreeLook={isFreeLook}
               onLocalInteraction={handleLocalInteraction}
               serverState={myServerState}
+              serverTimestamp={gameState?.timestamp}
             />
           )}
 
           {/* Remote Players */}
           {remotePlayers.map((p) => (
-            <ClientPlayerVisual key={p.sessionId} player={p} />
+            <ClientPlayerVisual 
+              key={p.sessionId} 
+              player={p} 
+              serverTimestamp={gameState?.timestamp}
+            />
           ))}
 
           <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
 
-          {/* Power-ups */}
-          {activePowerUps.map(p => (
+          {/* Power-ups (Server Synced) */}
+          {gameState && gameState.powerUps && Array.from(gameState.powerUps.values()).map(p => (
             <PowerUp
               key={p.id}
-              position={p.position}
+              position={[p.x, p.y, p.z]}
               type={Object.keys(POWER_UP_TYPES).find(key => POWER_UP_TYPES[key].id === p.type)}
             />
           ))}

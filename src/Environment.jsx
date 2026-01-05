@@ -112,19 +112,19 @@ export function SoccerPitch({
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
       
-      <mesh position={[-size[0]/2 + 1, 0.105, -size[2]/2 + 1]} rotation={[-Math.PI/2, 0, 0]}>
+      <mesh position={[-size[0]/2 , 0.105, -size[2]/2]} rotation={[-Math.PI/2, 0, -Math.PI/2]}>
         <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[size[0]/2 - 1, 0.105, -size[2]/2 + 1]} rotation={[-Math.PI/2, 0, Math.PI/2]}>
+      <mesh position={[size[0]/2, 0.105, -size[2]/2 ]} rotation={[-Math.PI/2, 0, -Math.PI]}>
         <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[size[0]/2 - 1, 0.105, size[2]/2 - 1]} rotation={[-Math.PI/2, 0, Math.PI]}>
+      <mesh position={[size[0]/2, 0.105, size[2]/2]} rotation={[-Math.PI/2, 0, Math.PI/2]}>
         <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
-      <mesh position={[-size[0]/2 + 1, 0.105, size[2]/2 - 1]} rotation={[-Math.PI/2, 0, -Math.PI/2]}>
+      <mesh position={[-size[0]/2, 0.105, size[2]/2]} rotation={[-Math.PI/2, 0, 0]}>
         <ringGeometry args={[0.8, 1.0, 16, 1, 0, Math.PI/2]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />
       </mesh>
