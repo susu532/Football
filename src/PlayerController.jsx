@@ -17,7 +17,7 @@ const MAX_JUMPS = 2
 const INPUT_SEND_RATE = 1 / 60 // 60Hz
 
 // PlayerController: Handles local player input => sends to server + local prediction
-export function PlayerController(props) {
+export const PlayerController = React.forwardRef((props, ref) => {
   const { 
     me,
     sendInput,
@@ -31,8 +31,7 @@ export function PlayerController(props) {
     onCollectPowerUp = null,
     isFreeLook = null,
     onLocalInteraction = null,
-    serverState = null, // Server state for reconciliation
-    ref
+    serverState = null // Server state for reconciliation
   } = props
 
   const groupRef = useRef()
@@ -237,6 +236,6 @@ export function PlayerController(props) {
       />
     </group>
   )
-}
+})
 
 export default PlayerController

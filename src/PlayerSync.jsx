@@ -10,7 +10,7 @@ import CharacterSkin from './CharacterSkin'
 import { PlayerController } from './PlayerController'
 
 // LocalPlayer - Wraps PlayerController for the local player
-export function LocalPlayer(props) {
+export const LocalPlayer = React.forwardRef((props, ref) => {
   const { 
     me, 
     sendInput,
@@ -24,8 +24,7 @@ export function LocalPlayer(props) {
     isFreeLook = null, 
     characterType = 'cat',
     onLocalInteraction = null,
-    serverState = null,
-    ref
+    serverState = null
   } = props
   
   const controllerRef = useRef()
@@ -67,11 +66,11 @@ export function LocalPlayer(props) {
       )}
     </group>
   )
-}
+})
 
 // ClientPlayerVisual - Visual-only remote player with smooth interpolation
-export function ClientPlayerVisual(props) {
-  const { player, ref } = props
+export const ClientPlayerVisual = React.forwardRef((props, ref) => {
+  const { player } = props
   const groupRef = useRef()
 
   useImperativeHandle(ref, () => groupRef.current)
@@ -136,4 +135,4 @@ export function ClientPlayerVisual(props) {
       )}
     </group>
   )
-}
+})
