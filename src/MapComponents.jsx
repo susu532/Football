@@ -47,6 +47,11 @@ export function MapRenderer({ mapId }) {
             // Reduce roughness for more "watery" or shiny look if colored
             child.material.roughness = 0.4
             child.material.metalness = 0.3
+          } else {
+            // Apply matte finish to all other map models
+            child.material.roughness = 0.5
+            child.material.metalness = 0.0
+            child.material.envMapIntensity = 0.5
           }
 
           if (child.material.map) {
@@ -56,10 +61,6 @@ export function MapRenderer({ mapId }) {
             child.material.map.needsUpdate = true
           }
           
-          // REMOVED: Blanket override of roughness/metalness
-          // We now respect the model's original PBR values
-          
-          child.material.envMapIntensity = 1.0 // Increased from 0.2 for better reflections
           child.material.flatShading = false
           child.material.needsUpdate = true
         }

@@ -56,6 +56,7 @@ export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, re
           const oldMat = child.material
           child.material = new THREE.MeshPhysicalMaterial({
             map: oldMat.map,
+            color: oldMat.color, // Restore original color
             roughness: 0.4, // More matte
             metalness: 0.0, // Remove silver tint
             clearcoat: 0.3, // Subtle shine
