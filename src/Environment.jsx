@@ -219,9 +219,17 @@ export function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColo
             child.material.transparent = true
             child.material.opacity = 0.7
           } else {
-            child.material.roughness = 0.8
-            child.material.metalness = 0.2
-            child.material.envMapIntensity = 0.2
+            // Upgrade posts to MeshPhysicalMaterial
+            const oldMat = child.material
+            child.material = new THREE.MeshPhysicalMaterial({
+              color: oldMat.color,
+              map: oldMat.map,
+              roughness: 0.1,
+              metalness: 0.8, // Metallic posts
+              clearcoat: 1.0,
+              clearcoatRoughness: 0.1,
+              envMapIntensity: 1.2
+            })
           }
           child.material.needsUpdate = true
         }

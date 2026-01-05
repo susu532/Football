@@ -3,7 +3,7 @@
 
 import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Loader, Environment, Preload } from '@react-three/drei'
+import { Html, Loader, Environment, Preload, ContactShadows } from '@react-three/drei'
 import { EffectComposer, SMAA, Bloom, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
@@ -574,19 +574,46 @@ export default function Scene() {
 
           {/* Visuals (rendered for all) */}
           <GameSkybox />
-          <Environment preset="city" environmentIntensity={0.5} />
-          <ambientLight intensity={0.15} />
-          <directionalLight
-            position={[10, 20, 10]}
-            intensity={0.5}
-            castShadow
-            shadow-mapSize={[2048, 2048]}
-            shadow-bias={-0.0001}
-            shadow-camera-left={-20}
-            shadow-camera-right={20}
-            shadow-camera-top={20}
-            shadow-camera-bottom={-20}
-          />
+          
+          {/* Map-specific Lighting & Fog */}
+          {(() => {
+            const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
+            const ambient = mapConfig.ambientIntensity ?? 0.15
+            const direct = mapConfig.lightIntensity ?? 0.5
+            const fogColor = mapConfig.fogColor ?? '#050510'
+            const fogDensity = mapConfig.fogDensity ?? 0.01
+
+            return (
+              <>
+                <fog attach="fog" args={[fogColor, 1, 100]} />
+                <Environment preset="city" environmentIntensity={direct} />
+                <ambientLight intensity={ambient} />
+                <directionalLight
+                  position={[10, 20, 10]}
+                  intensity={direct}
+                  castShadow
+                  shadow-mapSize={[4096, 4096]} // Higher resolution
+                  shadow-bias={-0.0005} // Adjusted bias
+                  shadow-normalBias={0.02} // Added normal bias for cleaner edges
+                  shadow-camera-left={-20}
+                  shadow-camera-right={20}
+                  shadow-camera-top={20}
+                  shadow-camera-bottom={-20}
+                />
+                
+                {/* Soft grounding shadows */}
+                <ContactShadows 
+                  position={[0, 0.01, 0]} 
+                  opacity={0.6} 
+                  scale={40} 
+                  blur={2} 
+                  far={4} 
+                  resolution={512} 
+                  color="#000000"
+                />
+              </>
+            )
+          })()}
           
 
           
