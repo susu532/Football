@@ -53,8 +53,8 @@ export class SoccerRoom extends Room {
     // State sync (broadcast at 30Hz)
     this.clock.setInterval(() => this.syncState(), STATE_SYNC_RATE)
 
-    // Power-up spawning (every 20 seconds)
-    this.powerUpInterval = this.clock.setInterval(() => this.spawnPowerUp(), 20000)
+    // Power-up spawning (every 10 seconds)
+    this.powerUpInterval = this.clock.setInterval(() => this.spawnPowerUp(), 10000)
 
     // Message handlers
     this.onMessage('input', (client, data) => this.handleInput(client, data))

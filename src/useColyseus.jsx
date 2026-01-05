@@ -63,6 +63,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [gamePhase, setGamePhase] = useState('waiting')
   const [gameTimer, setGameTimer] = useState(300)
   const [mySessionId, setMySessionId] = useState(null)
+  const [powerUps, setPowerUps] = useState([]) // Array for easier mapping
 
   const roomRef = useRef(null)
 
@@ -155,6 +156,26 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
         setScores({ red: state.redScore, blue: state.blueScore })
         setGamePhase(state.gamePhase)
         setGameTimer(state.timer)
+
+        // Sync Power-ups (Only if collection changes)
+        if (state.powerUps) {
+          const powerUpIds = []
+          state.powerUps.forEach((p, id) => powerUpIds.push(id))
+          
+          setPowerUps(prev => {
+            const prevIds = prev.map(p => p.id)
+            const hasChanged = powerUpIds.length !== prevIds.length || 
+                               !powerUpIds.every(id => prevIds.includes(id))
+            
+            if (hasChanged) {
+              const newPowerUps = []
+              state.powerUps.forEach((p) => newPowerUps.push(p))
+              console.log('Power-ups updated:', newPowerUps.length)
+              return newPowerUps
+            }
+            return prev
+          })
+        }
       })
 
       return joinedRoom
@@ -258,6 +279,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     gameTimer,
     isHost,
     me,
+    powerUps,
 
     // Actions
     sendInput,

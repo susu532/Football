@@ -16,8 +16,8 @@ export function PowerUp({ position, type, onCollect }) {
   useFrame((state, delta) => {
     if (ref.current) {
       ref.current.rotation.y += delta
-      // Bob around the initial Y position passed in props
-      ref.current.position.y = position[1] + Math.sin(state.clock.elapsedTime * 2) * 0.1
+      // Bob around the group center
+      ref.current.position.y = Math.sin(state.clock.elapsedTime * 2) * 0.1
     }
   })
 

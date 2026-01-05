@@ -164,7 +164,8 @@ export default function Scene() {
     sendChat,
     startGame,
     endGame,
-    onMessage
+    onMessage,
+    powerUps
   } = useColyseus(SERVER_URL)
 
   // Adaptive shadow quality
@@ -610,7 +611,7 @@ export default function Scene() {
           <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
 
           {/* Power-ups from server */}
-          {gameState?.powerUps && Array.from(gameState.powerUps.values()).map(p => (
+          {powerUps && powerUps.map(p => (
             <PowerUp
               key={p.id}
               position={[p.x, p.y, p.z]}
