@@ -1,6 +1,6 @@
 import React, { useRef } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { Text } from '@react-three/drei'
+import { Html } from '@react-three/drei'
 
 export const POWER_UP_TYPES = {
   speed: { color: '#00ffff', label: '⚡', id: 'speed' },
@@ -35,15 +35,20 @@ export function PowerUp({ position, type, onCollect }) {
           opacity={0.8}
         />
       </mesh>
-      <Text
+      <Html
         position={[0, 1, 0]}
-        fontSize={0.5}
-        color="white"
-        anchorX="center"
-        anchorY="middle"
+        center
+        distanceFactor={8}
       >
-        {config.label}
-      </Text>
+        <div style={{
+          fontSize: '24px',
+          pointerEvents: 'none',
+          userSelect: 'none',
+          filter: 'drop-shadow(0 0 5px rgba(255,255,255,0.5))'
+        }}>
+          {config.label}
+        </div>
+      </Html>
     </group>
   )
 }

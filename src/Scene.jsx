@@ -286,12 +286,19 @@ export default function Scene() {
       }, 5000)
     })
 
+    const unsubPowerUp = onMessage('powerup-collected', (data) => {
+      if (data.sessionId === me?.sessionId) {
+        handleCollectPowerUp(null, data.type)
+      }
+    })
+
     return () => {
       if (typeof unsubGoal === 'function') unsubGoal()
       if (typeof unsubReset === 'function') unsubReset()
       if (typeof unsubOver === 'function') unsubOver()
+      if (typeof unsubPowerUp === 'function') unsubPowerUp()
     }
-  }, [isConnected, onMessage, playerTeam])
+  }, [isConnected, onMessage, playerTeam, me])
 
   // Connection quality color helper
   const getConnectionQualityColor = (quality) => {
