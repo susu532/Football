@@ -14,7 +14,7 @@ const DOUBLE_JUMP_MULTIPLIER = 0.8
 const GRAVITY = 20
 const GROUND_Y = 0.1
 const MAX_JUMPS = 2
-const INPUT_SEND_RATE = 1 / 30 // 30Hz
+const INPUT_SEND_RATE = 1 / 60 // 60Hz
 
 // PlayerController: Handles local player input => sends to server + local prediction
 export function PlayerController(props) {
@@ -194,9 +194,9 @@ export function PlayerController(props) {
       const error = serverPos.clone().sub(physicsPosition.current)
       
       const errorMagnitude = error.length()
-      if (errorMagnitude > 0.1 && errorMagnitude < 5) {
+      if (errorMagnitude > 0.2 && errorMagnitude < 5) {
         // Soft correction of physics position - frame-rate independent
-        const correctionAlpha = 1 - Math.exp(-5 * delta)
+        const correctionAlpha = 1 - Math.exp(-10 * delta)
         physicsPosition.current.add(error.multiplyScalar(correctionAlpha))
       } else if (errorMagnitude >= 5) {
         // Snap physics position if way off

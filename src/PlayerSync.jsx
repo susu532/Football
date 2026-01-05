@@ -82,7 +82,7 @@ export function ClientPlayerVisual(props) {
   useFrame((_, delta) => {
     if (!groupRef.current || !player) return
     
-    const lambda = 10 // Interpolation speed (tuned for 20Hz)
+    const lambda = 5 // Interpolation speed (tuned for 30Hz)
     
     // Position interpolation - read directly from Colyseus proxy
     groupRef.current.position.x = THREE.MathUtils.damp(
