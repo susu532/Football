@@ -44,9 +44,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     polar: Math.PI / 4,
     distance: 8,
     targetDistance: 8,
-    dragging: false,
-    lastX: 0,
-    lastY: 0,
+    isLocked: false
   })
 
   useEffect(() => {
@@ -56,41 +54,36 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
   }, [cameraOrbit])
 
   useEffect(() => {
-    const onPointerDown = (e) => {
-      if (e.target.closest('.mobile-controls') || e.target.closest('.joystick-container') || e.target.closest('.action-buttons')) {
+    const onPointerLockChange = () => {
+      const isLocked = document.pointerLockElement === document.body
+      orbit.current.isLocked = isLocked
+    }
+
+    const onClick = (e) => {
+      // Ignore clicks on buttons, inputs, or interactive elements
+      if (
+        e.target.tagName === 'BUTTON' || 
+        e.target.tagName === 'INPUT' || 
+        e.target.closest('button') || 
+        e.target.closest('.interactive-ui')
+      ) {
         return
       }
-      if (e.pointerType === 'touch') return
-      if (e.button !== 0 && e.button !== 2) return
 
-      orbit.current.dragging = true
-      orbit.current.lastX = e.clientX
-      orbit.current.lastY = e.clientY
-
-      if (e.button === 2 && isFreeLook) {
-        isFreeLook.current = true
+      // Request lock
+      if (document.pointerLockElement !== document.body) {
+        document.body.requestPointerLock()
       }
     }
 
-    const onPointerUp = () => {
-      orbit.current.dragging = false
-      if (isFreeLook) {
-        isFreeLook.current = false
-      }
-    }
-
-    const onPointerMove = (e) => {
-      if (!orbit.current.dragging) return
-      const dx = e.clientX - orbit.current.lastX
-      const dy = e.clientY - orbit.current.lastY
-      orbit.current.lastX = e.clientX
-      orbit.current.lastY = e.clientY
-      orbit.current.azimuth -= dx * 0.01
-      orbit.current.polar -= dy * 0.01
+    const onMouseMove = (e) => {
+      if (document.pointerLockElement !== document.body) return
+      
+      const sensitivity = 0.002
+      orbit.current.azimuth -= e.movementX * sensitivity
+      orbit.current.polar -= e.movementY * sensitivity
       orbit.current.polar = Math.max(0.2, Math.min(Math.PI / 2, orbit.current.polar))
     }
-
-    const onContextMenu = (e) => e.preventDefault()
 
     const onWheel = (e) => {
       const delta = e.deltaY
@@ -104,20 +97,18 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
       )
     }
 
-    window.addEventListener('pointerdown', onPointerDown)
-    window.addEventListener('pointerup', onPointerUp)
-    window.addEventListener('pointermove', onPointerMove)
-    window.addEventListener('contextmenu', onContextMenu)
+    document.addEventListener('pointerlockchange', onPointerLockChange)
+    document.body.addEventListener('click', onClick)
+    document.addEventListener('mousemove', onMouseMove)
     window.addEventListener('wheel', onWheel, { passive: true })
 
     return () => {
-      window.removeEventListener('pointerdown', onPointerDown)
-      window.removeEventListener('pointerup', onPointerUp)
-      window.removeEventListener('pointermove', onPointerMove)
-      window.removeEventListener('contextmenu', onContextMenu)
+      document.removeEventListener('pointerlockchange', onPointerLockChange)
+      document.body.removeEventListener('click', onClick)
+      document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('wheel', onWheel)
     }
-  }, [isFreeLook])
+  }, [])
 
   useFrame(() => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
