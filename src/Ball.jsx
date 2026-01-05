@@ -8,7 +8,9 @@ import * as THREE from 'three'
 import { useSpring, a } from '@react-spring/three'
 
 // Soccer Ball Visual Component
-export function SoccerBall({ radius = 0.8, ref, onKickFeedback }) {
+export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, ref) => {
+  const internalRef = useRef()
+  useImperativeHandle(ref, () => internalRef.current)
   const { scene } = useGLTF('/models/soccer_ball.glb')
   
   const [spring, api] = useSpring(() => ({
@@ -65,16 +67,17 @@ export function SoccerBall({ radius = 0.8, ref, onKickFeedback }) {
 
   return (
     <a.primitive 
-      ref={ref}
+      ref={internalRef}
       object={clonedBall} 
       scale={spring.scale} 
     />
   )
-}
+})
+SoccerBall.displayName = 'SoccerBall'
 
 // ClientBallVisual - Visual-only ball with smooth interpolation from server state
 // Receives snapshots from Colyseus, interpolates smoothly
-export function ClientBallVisual({ ballState, onKickMessage, ref }) {
+export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage }, ref) => {
   const groupRef = useRef()
   const targetPos = useRef(new THREE.Vector3(0, 2, 0))
   const targetRot = useRef(new THREE.Quaternion())
@@ -152,4 +155,5 @@ export function ClientBallVisual({ ballState, onKickMessage, ref }) {
       <SoccerBall onKickFeedback={kickFeedback} />
     </group>
   )
-}
+})
+ClientBallVisual.displayName = 'ClientBallVisual'

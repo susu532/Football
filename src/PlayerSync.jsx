@@ -67,6 +67,7 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
     </group>
   )
 })
+LocalPlayer.displayName = 'LocalPlayer'
 
 // ClientPlayerVisual - Visual-only remote player with smooth interpolation
 export const ClientPlayerVisual = React.forwardRef((props, ref) => {
@@ -136,3 +137,4 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
     </group>
   )
 })
+ClientPlayerVisual.displayName = 'ClientPlayerVisual'

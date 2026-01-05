@@ -7,15 +7,16 @@ import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-const CharacterSkin = function CharacterSkin({ 
+const CharacterSkin = React.forwardRef(({ 
   player,
   teamColor = '#888',
   characterType = 'cat',
   invisible = false,
   giant = false,
-  children,
-  ref
-}) {
+  children
+}, ref) => {
+  const internalRef = useRef()
+  useImperativeHandle(ref, () => internalRef.current)
   // Use proxy values if player is provided, otherwise fallback to props
   const isInvisible = player ? player.invisible : invisible
   const isGiant = player ? player.giant : giant
@@ -72,12 +73,12 @@ const CharacterSkin = function CharacterSkin({
   
   // Handle visual effects (invisibility)
   useFrame(() => {
-    if (!ref || !ref.current) return
+    if (!internalRef.current) return
     const currentIsInvisible = player ? player.invisible : invisible
     const targetOpacity = currentIsInvisible ? 0.2 : 1.0
     
     // Only update if opacity changed significantly
-    ref.current.traverse((child) => {
+    internalRef.current.traverse((child) => {
       if (child.isMesh && child.material) {
         if (Math.abs(child.material.opacity - targetOpacity) > 0.01) {
           const isTransparent = targetOpacity < 0.99
@@ -92,13 +93,13 @@ const CharacterSkin = function CharacterSkin({
 
   // Handle visual effects (giant scaling)
   useFrame((_, delta) => {
-    if (!ref || !ref.current) return
+    if (!internalRef.current) return
     
     // Apply giant scaling effect
     const currentIsGiant = player ? player.giant : giant
     const targetScale = currentIsGiant ? 6.0 : 1.0
-    if (Math.abs(ref.current.scale.x - targetScale) > 0.01) {
-      ref.current.scale.lerp(
+    if (Math.abs(internalRef.current.scale.x - targetScale) > 0.01) {
+      internalRef.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale), 
         0.1
       )
@@ -106,7 +107,7 @@ const CharacterSkin = function CharacterSkin({
   })
   
   return (
-    <group ref={ref}>
+    <group ref={internalRef}>
       <primitive 
         object={clonedScene} 
         scale={characterScale} 
@@ -114,6 +115,7 @@ const CharacterSkin = function CharacterSkin({
       {children}
     </group>
   )
-}
+})
+CharacterSkin.displayName = 'CharacterSkin'
 
 export default CharacterSkin

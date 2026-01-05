@@ -237,5 +237,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
     </group>
   )
 })
+PlayerController.displayName = 'PlayerController'
 
 export default PlayerController
