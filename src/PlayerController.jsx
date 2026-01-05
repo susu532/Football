@@ -27,6 +27,8 @@ export function PlayerController(props) {
     teamColor = '#888',
     characterType = 'cat',
     spawnPosition = [0, 1, 0],
+    isFreeLook = null,
+    onLocalInteraction = null,
     serverState = null, // Server state for reconciliation
     serverTimestamp = null,
     ref
