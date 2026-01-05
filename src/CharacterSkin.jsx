@@ -2,7 +2,7 @@
 // All movement logic has been moved to PlayerController.jsx
 // This component handles: model loading, team colors, visual effects (invisible/giant)
 
-import React, { useMemo, useRef } from 'react'
+import React, { useMemo, useRef, useImperativeHandle } from 'react'
 import { useGLTF } from '@react-three/drei'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
