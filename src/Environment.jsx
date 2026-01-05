@@ -27,8 +27,9 @@ export function RapierArena() {
        <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[pitchWidth/2 + wallThickness/2, wallHeight/2, -6.5]} />
        <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[pitchWidth/2 + wallThickness/2, wallHeight/2, 6.5]} />
        
-       <CuboidCollider args={[wallThickness/2, wallHeight/2, (goalWidth+2)/2]} position={[-13 - wallThickness, wallHeight/2, 0]} />
-       <CuboidCollider args={[wallThickness/2, wallHeight/2, (goalWidth+2)/2]} position={[13 + wallThickness, wallHeight/2, 0]} />
+       {/* Goal Back Walls (Standardized) */}
+       <CuboidCollider args={[1, 5, 5]} position={[-17.2, 5, 0]} />
+       <CuboidCollider args={[1, 5, 5]} position={[17.2, 5, 0]} />
        
        <CylinderCollider args={[2, 0.06]} position={[-10.8, 2, -2.5]} restitution={0.8} />
        <CylinderCollider args={[2, 0.06]} position={[-10.8, 2, 2.5]} restitution={0.8} />
@@ -40,10 +41,11 @@ export function RapierArena() {
        
        <CuboidCollider args={[pitchWidth/2, 0.1, pitchDepth/2]} position={[0, wallHeight, 0]} />
 
-        <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[13, 0, -2.4]} />
-        <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[-13, 0, -2.4]} />
-        <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[13, 0, 2.4]} />
-        <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[-13, 0, 2.4]} />
+        {/* Goal Side Walls (Standardized) */}
+        <CuboidCollider args={[2.5, 5, 1]} position={[13.7, 5, -4]} />
+        <CuboidCollider args={[2.5, 5, 1]} position={[-13.7, 5, -4]} />
+        <CuboidCollider args={[2.5, 5, 1]} position={[13.7, 5, 4]} />
+        <CuboidCollider args={[2.5, 5, 1]} position={[-13.7, 5, 4]} />
         <CuboidCollider args={[5/2, 9/2, 5.5/2]} position={[10.8, 8.7, 0]} />
         <CuboidCollider args={[5/2, 9/2, 5.5/2]} position={[-10.8, 8.7, 0]} />
     </RigidBody>
@@ -141,6 +143,29 @@ export function SoccerPitch({
       </RoundedBox>
       
       <RoundedBox args={[wallThickness, wallHeight, 20]} radius={0.1} smoothness={4} position={[size[0]/2 + wallThickness/2, wallHeight/2, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
+      </RoundedBox>
+
+      {/* Goal Side Walls (Visual) */}
+      {/* Matching "big wall" style and dimensions */}
+      <RoundedBox args={[5, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[13.7, wallHeight/2, -4]} castShadow receiveShadow>
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
+      </RoundedBox>
+      <RoundedBox args={[5, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[-13.7, wallHeight/2, -4]} castShadow receiveShadow>
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
+      </RoundedBox>
+      <RoundedBox args={[5, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[13.7, wallHeight/2, 4]} castShadow receiveShadow>
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
+      </RoundedBox>
+      <RoundedBox args={[5, wallHeight, wallThickness]} radius={0.1} smoothness={4} position={[-13.7, wallHeight/2, 4]} castShadow receiveShadow>
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
+      </RoundedBox>
+
+      {/* Goal Back Walls (Visual) */}
+      <RoundedBox args={[wallThickness, wallHeight, 10]} radius={0.1} smoothness={4} position={[17.2, wallHeight/2, 0]} castShadow receiveShadow>
+        <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
+      </RoundedBox>
+      <RoundedBox args={[wallThickness, wallHeight, 10]} radius={0.1} smoothness={4} position={[-17.2, wallHeight/2, 0]} castShadow receiveShadow>
         <meshStandardMaterial color="#88ccff" roughness={0.1} metalness={0.1} transparent opacity={0.3} />
       </RoundedBox>
       
