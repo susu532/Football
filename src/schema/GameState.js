@@ -106,6 +106,7 @@ export class GameState extends Schema {
     this.blueScore = 0
     this.timer = 300
     this.gamePhase = 'waiting'
+    this.selectedMap = 'OceanFloor'
   }
 }
 
@@ -116,5 +117,6 @@ defineTypes(GameState, {
   redScore: 'number',
   blueScore: 'number',
   timer: 'number',
-  gamePhase: 'string'
+  gamePhase: 'string',
+  selectedMap: 'string'
 })
