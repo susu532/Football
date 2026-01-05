@@ -3,7 +3,7 @@
 
 import React, { useRef, useEffect, useImperativeHandle, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
-import { useFrame } from '@react-three/fiber'
+
 import { useGLTF, Trail } from '@react-three/drei'
 import * as THREE from 'three'
 import { useSpring, a } from '@react-spring/three'
