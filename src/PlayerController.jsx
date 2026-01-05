@@ -72,7 +72,17 @@ export function PlayerController(props) {
 
   useImperativeHandle(ref, () => ({
     get position() { return groupRef.current?.position || new THREE.Vector3() },
-    get rotation() { return groupRef.current?.rotation || new THREE.Euler() }
+    get rotation() { return groupRef.current?.rotation || new THREE.Euler() },
+    resetPosition: (x, y, z) => {
+      if (groupRef.current) {
+        groupRef.current.position.set(x, y, z)
+        physicsPosition.current.set(x, y, z)
+        velocity.current.set(0, 0, 0)
+        verticalVelocity.current = 0
+        jumpCount.current = 0
+        isOnGround.current = true
+      }
+    }
   }))
 
   // Initialize input manager
@@ -168,9 +178,10 @@ export function PlayerController(props) {
 
     // Apply physics (local prediction)
     const speed = MOVE_SPEED * effects.current.speed
-    // Direct velocity (snappy movement) - matches server
-    velocity.current.x = moveDir.x * speed
-    velocity.current.z = moveDir.z * speed
+       const lerpAlpha = 1 - Math.exp(-21.36 * delta)
+    velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, moveDir.x * speed, lerpAlpha)
+    velocity.current.z = THREE.MathUtils.lerp(velocity.current.z, moveDir.z * speed, lerpAlpha)
+
     
     verticalVelocity.current -= GRAVITY * delta
 

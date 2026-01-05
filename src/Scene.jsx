@@ -261,7 +261,7 @@ export default function Scene() {
       setTimeout(() => {
         if (playerRef.current) {
           const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-          playerRef.current.position.set(...spawn)
+          playerRef.current.resetPosition(...spawn)
         }
       }, 3000)
     })
@@ -269,7 +269,7 @@ export default function Scene() {
     const unsubReset = onMessage('game-reset', () => {
       if (playerRef.current) {
         const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-        playerRef.current.position.set(...spawn)
+        playerRef.current.resetPosition(...spawn)
       }
     })
 
@@ -278,7 +278,7 @@ export default function Scene() {
       
       if (playerRef.current) {
         const spawn = playerTeam === 'red' ? [-6, 0.1, 0] : [6, 0.1, 0]
-        playerRef.current.position.set(...spawn)
+        playerRef.current.resetPosition(...spawn)
       }
 
       setTimeout(() => {
