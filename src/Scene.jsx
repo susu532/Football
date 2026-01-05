@@ -578,8 +578,8 @@ export default function Scene() {
           {/* Map-specific Lighting & Fog */}
           {(() => {
             const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
-            const ambient = mapConfig.ambientIntensity ?? 0.15
-            const direct = mapConfig.lightIntensity ?? 0.5
+            const ambient = mapConfig.ambientIntensity ?? 0.1
+            const direct = mapConfig.lightIntensity ?? 0.4
             const fogColor = mapConfig.fogColor ?? '#050510'
             const fogDensity = mapConfig.fogDensity ?? 0.01
 
@@ -595,17 +595,17 @@ export default function Scene() {
                   shadow-mapSize={[4096, 4096]} // Higher resolution
                   shadow-bias={-0.0005} // Adjusted bias
                   shadow-normalBias={0.02} // Added normal bias for cleaner edges
-                  shadow-camera-left={-20}
-                  shadow-camera-right={20}
-                  shadow-camera-top={20}
-                  shadow-camera-bottom={-20}
+                  shadow-camera-left={-16}
+                  shadow-camera-right={16}
+                  shadow-camera-top={11}
+                  shadow-camera-bottom={-11}
                 />
                 
                 {/* Soft grounding shadows */}
                 <ContactShadows 
                   position={[0, 0.01, 0]} 
                   opacity={0.6} 
-                  scale={40} 
+                  scale={32} 
                   blur={2} 
                   far={4} 
                   resolution={512} 

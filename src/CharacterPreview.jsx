@@ -1,7 +1,7 @@
 import React, { useRef, Suspense } from 'react'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, OrbitControls, PerspectiveCamera } from '@react-three/drei'
-import { EffectComposer, SMAA, Bloom, Vignette } from '@react-three/postprocessing'
+import { EffectComposer, SMAA, FXAA, Bloom, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 function CharacterModel({ modelPath, character, isSelected }) {
@@ -16,6 +16,10 @@ function CharacterModel({ modelPath, character, isSelected }) {
       if (child.isMesh) {
         child.castShadow = true
         child.receiveShadow = true
+        if (child.material.map) {
+          child.material.map.anisotropy = 16
+          child.material.map.needsUpdate = true
+        }
       }
     })
     return cloned
@@ -65,12 +69,13 @@ export default function CharacterPreview({ character, isSelected, onSelect }) {
             outputColorSpace: THREE.SRGBColorSpace,
             toneMapping: THREE.ACESFilmicToneMapping,
             toneMappingExposure: 0.9,
-            logarithmicDepthBuffer: true
+            logarithmicDepthBuffer: false // Disable to reduce shimmering in small scenes
           }}
         >
           <Suspense fallback={null}>
-            <EffectComposer multisampling={4}>
+            <EffectComposer multisampling={8}>
               <SMAA />
+              <FXAA />
               <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
               <Vignette eskil={false} offset={0.1} darkness={0.4} />
             </EffectComposer>
