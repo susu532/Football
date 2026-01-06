@@ -1,7 +1,7 @@
 // Scene.jsx - Main game scene with Colyseus networking
 // Server-authoritative pattern: All physics runs on Colyseus server
 
-import React, { useRef, useEffect, useState, Suspense, useCallback } from 'react'
+import React, { useRef, useEffect, useState, Suspense, useCallback, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, Loader, Environment, Preload, ContactShadows } from '@react-three/drei'
 import { EffectComposer, SMAA, Bloom, Vignette } from '@react-three/postprocessing'
@@ -396,21 +396,38 @@ export default function Scene() {
     leaveGame()
   }, [leaveRoom, leaveGame])
 
+  const rooming = useMemo(() => ({
+    roomCode,
+    availableRooms,
+    createPublicRoom,
+    createPrivateRoom,
+    joinRoomById,
+    joinPrivateRoomByCode,
+    refreshAvailableRooms
+  }), [
+    roomCode,
+    availableRooms,
+    createPublicRoom,
+    createPrivateRoom,
+    joinRoomById,
+    joinPrivateRoomByCode,
+    refreshAvailableRooms
+  ])
+
+  useEffect(() => {
+    if (hasJoined) return
+    if (!isLaunched) return
+    if (typeof refreshAvailableRooms !== 'function') return
+    refreshAvailableRooms()
+  }, [hasJoined, isLaunched, refreshAvailableRooms])
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {!hasJoined ? (
         <TeamSelectPopup
           key="team-select-popup"
           defaultName=""
-          rooming={{
-            roomCode,
-            availableRooms,
-            createPublicRoom,
-            createPrivateRoom,
-            joinRoomById,
-            joinPrivateRoomByCode,
-            refreshAvailableRooms
-          }}
+          rooming={rooming}
         />
       ) : (
         <div className="game-content-wrapper" style={{ width: '100%', height: '100%' }}>

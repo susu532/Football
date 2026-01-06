@@ -35,6 +35,14 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     if (!rooming || typeof rooming.refreshAvailableRooms !== 'function') return
     rooming.refreshAvailableRooms()
   }, [rooming])
+
+  useEffect(() => {
+    if (!rooming || typeof rooming.refreshAvailableRooms !== 'function') return
+    const id = setInterval(() => {
+      rooming.refreshAvailableRooms()
+    }, 1500)
+    return () => clearInterval(id)
+  }, [rooming])
   
   useEffect(() => {
     if (!defaultName) {
