@@ -85,21 +85,27 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
     const lambda = 15 // Interpolation speed (increased from 5 for snappier tracking)
     
     // Position interpolation - read directly from Colyseus proxy
+    // Prediction: Extrapolate position based on velocity
+    // This helps smooth out jumps and fast movements between server updates
+    const predictedX = player.x + (player.vx || 0) * delta
+    const predictedY = player.y + (player.vy || 0) * delta
+    const predictedZ = player.z + (player.vz || 0) * delta
+
     groupRef.current.position.x = THREE.MathUtils.damp(
       groupRef.current.position.x, 
-      player.x, 
+      predictedX, 
       lambda, 
       delta
     )
     groupRef.current.position.y = THREE.MathUtils.damp(
       groupRef.current.position.y, 
-      player.y, 
+      predictedY, 
       lambda, 
       delta
     )
     groupRef.current.position.z = THREE.MathUtils.damp(
       groupRef.current.position.z, 
-      player.z, 
+      predictedZ, 
       lambda, 
       delta
     )
