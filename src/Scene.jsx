@@ -47,6 +47,9 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     isLocked: false
   })
 
+  // Pre-allocated vector for camera target (avoids GC stutters)
+  const cameraTarget = useRef(new THREE.Vector3())
+
   useEffect(() => {
     if (cameraOrbit) {
       cameraOrbit.current = orbit.current
@@ -110,7 +113,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     }
   }, [])
 
-  useFrame(() => {
+  useFrame((_, delta) => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
     const { azimuth, polar } = orbit.current
     orbit.current.distance = THREE.MathUtils.lerp(
@@ -122,7 +125,13 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     const x = p.x + distance * Math.sin(polar) * Math.sin(azimuth)
     const y = p.y + distance * Math.cos(polar) + 2.2
     const z = p.z + distance * Math.sin(polar) * Math.cos(azimuth)
-    camera.position.lerp(new THREE.Vector3(x, y, z), 0.15)
+    
+    // Use pre-allocated vector and frame-rate independent damp
+    cameraTarget.current.set(x, y, z)
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
+    
     camera.lookAt(p.x, p.y + 1, p.z)
   }, 1) // Priority 1: Run after player physics (Priority 0)
 

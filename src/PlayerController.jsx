@@ -45,6 +45,13 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const jumpCount = useRef(0)
   const prevJump = useRef(false) // For edge detection
 
+  // Pre-allocated vectors for per-frame calculations (avoids GC stutters)
+  const cameraForward = useRef(new THREE.Vector3())
+  const cameraRight = useRef(new THREE.Vector3())
+  const moveDir = useRef(new THREE.Vector3())
+  const serverPos = useRef(new THREE.Vector3())
+  const errorVec = useRef(new THREE.Vector3())
+
   // Initialize position
   const lastSpawnRef = useRef('')
   useEffect(() => {
@@ -97,23 +104,21 @@ export const PlayerController = React.forwardRef((props, ref) => {
     const now = state.clock.getElapsedTime()
     const input = InputManager.getInput()
     
-    // Get camera direction for relative movement
-    const cameraForward = new THREE.Vector3()
-    camera.getWorldDirection(cameraForward)
-    cameraForward.y = 0
-    cameraForward.normalize()
+    // Get camera direction for relative movement (reuse pre-allocated vectors)
+    camera.getWorldDirection(cameraForward.current)
+    cameraForward.current.y = 0
+    cameraForward.current.normalize()
     
-    const cameraRight = new THREE.Vector3()
-    cameraRight.crossVectors(cameraForward, new THREE.Vector3(0, 1, 0))
-    cameraRight.normalize()
+    cameraRight.current.crossVectors(cameraForward.current, new THREE.Vector3(0, 1, 0))
+    cameraRight.current.normalize()
 
     // Calculate movement direction relative to camera
-    const moveDir = new THREE.Vector3()
-    moveDir.addScaledVector(cameraForward, -input.move.z)
-    moveDir.addScaledVector(cameraRight, input.move.x)
+    moveDir.current.set(0, 0, 0)
+    moveDir.current.addScaledVector(cameraForward.current, -input.move.z)
+    moveDir.current.addScaledVector(cameraRight.current, input.move.x)
     
-    if (moveDir.length() > 0) {
-      moveDir.normalize()
+    if (moveDir.current.length() > 0) {
+      moveDir.current.normalize()
     }
 
     // Handle jump (with edge detection to match server)
@@ -133,14 +138,13 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const rotation = groupRef.current.rotation.y
       const forwardX = Math.sin(rotation)
       const forwardZ = Math.cos(rotation)
-      const kickDir = new THREE.Vector3(forwardX, 0.5, forwardZ).normalize()
       const kickMult = serverState?.kickMult || 1
       const kickPower = 65 * kickMult
       
       sendKick({
-        impulseX: kickDir.x * kickPower + velocity.current.x * 2,
-        impulseY: kickDir.y * kickPower,
-        impulseZ: kickDir.z * kickPower + velocity.current.z * 2
+        impulseX: forwardX * kickPower + velocity.current.x * 2,
+        impulseY: 0.5 * kickPower,
+        impulseZ: forwardZ * kickPower + velocity.current.z * 2
       })
     }
 
@@ -148,8 +152,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
     const speedMult = serverState?.speedMult || 1
     const speed = MOVE_SPEED * speedMult
     // Smoothed velocity (matches server 0.3 factor)
-    const targetVx = moveDir.x * speed
-    const targetVz = moveDir.z * speed
+    const targetVx = moveDir.current.x * speed
+    const targetVz = moveDir.current.z * speed
     velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
     velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
     
@@ -185,7 +189,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
     // Rotate player to face camera direction (strafe mode)
     if (!isFreeLook || !isFreeLook.current) {
-      const targetAngle = Math.atan2(cameraForward.x, cameraForward.z)
+      const targetAngle = Math.atan2(cameraForward.current.x, cameraForward.current.z)
       const currentRot = groupRef.current.rotation.y
       let rotDiff = targetAngle - currentRot
       
@@ -197,19 +201,19 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
     // Server reconciliation (smooth correction of physics position)
     // Skip reconciliation if actively moving - prediction is more accurate
-    const isMoving = moveDir.length() > 0.1 || Math.abs(verticalVelocity.current) > 0.5
+    const isMoving = moveDir.current.length() > 0.1 || Math.abs(verticalVelocity.current) > 0.5
     if (serverState && !isMoving) {
-      const serverPos = new THREE.Vector3(serverState.x, serverState.y, serverState.z)
-      const error = serverPos.clone().sub(physicsPosition.current)
+      serverPos.current.set(serverState.x, serverState.y, serverState.z)
+      errorVec.current.copy(serverPos.current).sub(physicsPosition.current)
       
-      const errorMagnitude = error.length()
+      const errorMagnitude = errorVec.current.length()
       if (errorMagnitude > 0.5 && errorMagnitude < 5) {
         // Soft correction of physics position - frame-rate independent
         const correctionAlpha = 1 - Math.exp(-5 * delta)
-        physicsPosition.current.add(error.multiplyScalar(correctionAlpha))
+        physicsPosition.current.add(errorVec.current.multiplyScalar(correctionAlpha))
       } else if (errorMagnitude >= 5) {
         // Snap physics position if way off
-        physicsPosition.current.copy(serverPos)
+        physicsPosition.current.copy(serverPos.current)
       }
     }
 
@@ -226,8 +230,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       inputSequence.current++
       
       sendInput({
-        x: moveDir.x,
-        z: moveDir.z,
+        x: moveDir.current.x,
+        z: moveDir.current.z,
         jump: input.jump,
         rotY: groupRef.current.rotation.y,
         seq: inputSequence.current

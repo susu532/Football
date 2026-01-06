@@ -82,7 +82,7 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
   useFrame((_, delta) => {
     if (!groupRef.current || !player) return
     
-    const lambda = 5 // Interpolation speed (tuned for 30Hz)
+    const lambda = 15 // Interpolation speed (increased from 5 for snappier tracking)
     
     // Position interpolation - read directly from Colyseus proxy
     groupRef.current.position.x = THREE.MathUtils.damp(
