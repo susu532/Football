@@ -239,14 +239,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             </div>
           </div>
           
-          <button 
-            className={`magic-join-btn ${selectedTeam ? 'active' : ''}`}
-            onClick={handleJoin}
-            disabled={!selectedTeam}
-          >
-            🎮 Enter Arena
-          </button>
-
+         
           {rooming && (
             <div className="magic-section" style={{ marginTop: '20px' }}>
               <div className="magic-section-title">Rooms (Max 4 players)</div>
