@@ -14,6 +14,7 @@ const useStore = create((set) => ({
     }
     set({ playerCharacter: character })
   },
+  setPlayerTeam: (team) => set({ playerTeam: team }),
   joinGame: (name, team, character, map) => set({ 
     playerName: name, 
     playerTeam: team, 

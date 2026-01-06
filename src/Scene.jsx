@@ -163,6 +163,7 @@ export default function Scene() {
   const playerMap = useStore((s) => s.playerMap)
   const leaveGame = useStore((s) => s.leaveGame)
   const setHasJoined = useStore((s) => s.setHasJoined)
+  const setPlayerTeam = useStore((s) => s.setPlayerTeam)
 
   // Colyseus state
   const {
@@ -213,6 +214,14 @@ export default function Scene() {
     if (!me) return null
     return players.find(p => p.sessionId === me.sessionId)
   }, [players, me])
+
+  useEffect(() => {
+    if (!myServerState?.team) return
+    if (!playerTeam) return
+    if (myServerState.team !== playerTeam) {
+      setPlayerTeam(myServerState.team)
+    }
+  }, [myServerState?.team, playerTeam, setPlayerTeam])
 
   // Refs
   const playerRef = useRef()
@@ -549,6 +558,21 @@ export default function Scene() {
           </div>
           <div style={{ color: '#3742fa', fontSize: '32px', fontWeight: 'bold' }}>{scores?.blue ?? 0}</div>
         </div>
+
+        {roomCode && (
+          <div style={{
+            background: 'rgba(0,0,0,0.45)',
+            color: 'white',
+            padding: '6px 14px',
+            borderRadius: '999px',
+            border: '1px solid rgba(255,255,255,0.12)',
+            fontFamily: 'monospace',
+            letterSpacing: '2px',
+            fontSize: '12px'
+          }}>
+            CODE: {roomCode}
+          </div>
+        )}
 
         {/* Host Controls */}
         {isHost && (

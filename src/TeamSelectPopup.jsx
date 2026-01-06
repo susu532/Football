@@ -30,6 +30,11 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   const [playerName, setPlayerName] = useState(defaultName || '')
   const [privateJoinCode, setPrivateJoinCode] = useState('')
   const [isRoomBusy, setIsRoomBusy] = useState(false)
+
+  useEffect(() => {
+    if (!rooming || typeof rooming.refreshAvailableRooms !== 'function') return
+    rooming.refreshAvailableRooms()
+  }, [rooming])
   
   useEffect(() => {
     if (!defaultName) {
@@ -306,7 +311,9 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
                     <div key={r.roomId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
                       <div style={{ color: 'white', fontSize: '12px' }}>
                         <div style={{ fontWeight: 'bold' }}>{r.metadata?.map || 'Unknown Map'}</div>
-                        <div style={{ opacity: 0.8 }}>{r.clients}/{r.maxClients} players</div>
+                        <div style={{ opacity: 0.8 }}>
+                          {(r.metadata?.redCount ?? 0)} red / {(r.metadata?.blueCount ?? 0)} blue
+                        </div>
                       </div>
                       <button
                         className="magic-join-btn active"
