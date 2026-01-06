@@ -62,6 +62,11 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
       orbit.current.isLocked = isLocked
     }
 
+    const onPointerLockError = (e) => {
+      orbit.current.isLocked = false
+      console.warn('Pointer lock error:', e)
+    }
+
     const onClick = (e) => {
       // Ignore clicks on buttons, inputs, or interactive elements
       if (
@@ -75,7 +80,16 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
 
       // Request lock
       if (document.pointerLockElement !== document.body) {
-        document.body.requestPointerLock()
+        try {
+          const maybePromise = document.body.requestPointerLock()
+          if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch((err) => {
+              console.warn('Pointer lock request rejected:', err)
+            })
+          }
+        } catch (err) {
+          console.warn('Pointer lock request failed:', err)
+        }
       }
     }
 
@@ -101,12 +115,14 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     }
 
     document.addEventListener('pointerlockchange', onPointerLockChange)
+    document.addEventListener('pointerlockerror', onPointerLockError)
     document.body.addEventListener('click', onClick)
     document.addEventListener('mousemove', onMouseMove)
     window.addEventListener('wheel', onWheel, { passive: true })
 
     return () => {
       document.removeEventListener('pointerlockchange', onPointerLockChange)
+      document.removeEventListener('pointerlockerror', onPointerLockError)
       document.body.removeEventListener('click', onClick)
       document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('wheel', onWheel)
