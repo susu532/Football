@@ -99,7 +99,7 @@ const CharacterSkin = React.forwardRef(({
     
     // Apply giant scaling effect
     const currentIsGiant = player ? player.giant : giant
-    const targetScale = currentIsGiant ? 6.0 : 1.0
+    const targetScale = currentIsGiant ? 10.0 : 1.0
     if (Math.abs(internalRef.current.scale.x - targetScale) > 0.01) {
       internalRef.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale), 
