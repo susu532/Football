@@ -20,7 +20,7 @@ import Chat from './Chat'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
-import { SoccerPitch, SoccerGoal, GameSkybox } from './Environment'
+import { SoccerPitch, SoccerGoal, GameSkybox, GoalEffect } from './Environment'
 
 const CSS_ANIMATIONS = `
   @keyframes popIn {
@@ -193,6 +193,8 @@ export default function Scene() {
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [gameOverData, setGameOverData] = useState(null)
   const [collectedEmoji, setCollectedEmoji] = useState(null)
+  const [redGoalTrigger, setRedGoalTrigger] = useState(0)
+  const [blueGoalTrigger, setBlueGoalTrigger] = useState(0)
 
   // Connection Quality Logic
   const connectionQuality = React.useMemo(() => {
@@ -247,6 +249,9 @@ export default function Scene() {
     if (!isConnected) return
 
     const unsubGoal = onMessage('goal-scored', (data) => {
+      if (data.team === 'red') setRedGoalTrigger(prev => prev + 1)
+      if (data.team === 'blue') setBlueGoalTrigger(prev => prev + 1)
+      
       setCelebration({ team: data.team })
       
       const audio = new Audio('/winner-game-sound-404167.mp3')
@@ -628,6 +633,10 @@ export default function Scene() {
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />
           <SoccerGoal position={[11.2, 0, 0]} rotation={[0, -Math.PI, 0]} netColor="#4444ff" />
+
+          {/* Goal Effects */}
+          <GoalEffect position={[-11.2, 1, 0]} color="#ff4444" trigger={redGoalTrigger} />
+          <GoalEffect position={[11.2, 1, 0]} color="#4444ff" trigger={blueGoalTrigger} />
 
           {/* Local Player */}
           {me && (

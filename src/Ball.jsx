@@ -37,38 +37,32 @@ export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, re
     const cloned = scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
-        // Smooth shading
-        if (child.geometry) {
-          child.geometry.computeVertexNormals()
-        }
-
         // Material fixes
         if (child.material) {
-          child.material = child.material.clone()
+          const oldMat = child.material
+          // Use MeshStandardMaterial - cheaper than MeshPhysicalMaterial
+          child.material = new THREE.MeshStandardMaterial({
+            map: oldMat.map,
+            color: oldMat.color, // Restore original color
+            roughness: 0.4,
+            metalness: 0.0,
+            flatShading: false
+          })
+          
           // Ensure textures are filtered well
           if (child.material.map) {
-            child.material.map.anisotropy = 16
+            child.material.map.anisotropy = 4 // Reduced from 16
             child.material.map.minFilter = THREE.LinearMipmapLinearFilter
             child.material.map.magFilter = THREE.LinearFilter
             child.material.map.needsUpdate = true
           }
-          // Upgrade to MeshPhysicalMaterial for premium shine
-          const oldMat = child.material
-          child.material = new THREE.MeshPhysicalMaterial({
-            map: oldMat.map,
-            color: oldMat.color, // Restore original color
-            roughness: 0.4, // More matte
-            metalness: 0.0, // Remove silver tint
-            clearcoat: 0.3, // Subtle shine
-            clearcoatRoughness: 0.05,
-            envMapIntensity: 0.4, // Softer reflections
-            flatShading: false
-          })
           child.material.needsUpdate = true
         }
 
         child.castShadow = true
-        child.receiveShadow = true
+        child.receiveShadow = false // Disable receive shadow for performance
+        
+        // REMOVED: computeVertexNormals to save CPU
       }
     })
     return cloned

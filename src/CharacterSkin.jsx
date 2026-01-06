@@ -43,38 +43,31 @@ const CharacterSkin = React.forwardRef(({
           child.material.color = new THREE.Color(teamColor)
           
           // Ensure textures are filtered well
-          // Ensure textures are filtered well
           if (child.material.map) {
-            child.material.map.anisotropy = 16
+            child.material.map.anisotropy = 4 // Reduced from 16
             child.material.map.minFilter = THREE.LinearMipmapLinearFilter
             child.material.map.magFilter = THREE.LinearFilter
             child.material.map.needsUpdate = true
           }
 
-          // Upgrade to MeshPhysicalMaterial for better look
+          // Use MeshStandardMaterial - cheaper than MeshPhysicalMaterial
           const oldMat = child.material
-          child.material = new THREE.MeshPhysicalMaterial({
+          child.material = new THREE.MeshStandardMaterial({
             map: oldMat.map,
             color: new THREE.Color(teamColor),
             transparent: false,
             opacity: 1.0,
             side: THREE.FrontSide,
-            roughness: 0.5, // More matte
-            metalness: 0.0, // Remove metallic look
-            clearcoat: 0.3, // Subtle shine
-            clearcoatRoughness: 0.05,
-            envMapIntensity: 0.5, // Softer reflections
+            roughness: 0.5,
+            metalness: 0.0,
             flatShading: false
           })
           child.material.needsUpdate = true
         }
         child.castShadow = true
-        child.receiveShadow = true
+        child.receiveShadow = false // Disable receive shadow for performance
         
-        // Smooth shading
-        if (child.geometry) {
-          child.geometry.computeVertexNormals()
-        }
+        // REMOVED: computeVertexNormals to save CPU
       }
     })
     return cloned

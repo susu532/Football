@@ -3,6 +3,7 @@ import { useThree } from '@react-three/fiber'
 import { Stars, Sparkles, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier'
+import { useSpring, a } from '@react-spring/three'
 
 // Rapier Arena (Host Only)
 export function RapierArena() {
@@ -260,5 +261,53 @@ export function GameSkybox() {
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       <Sparkles count={200} scale={[30, 10, 20]} size={2} speed={0.2} opacity={0.2} />
     </>
+  )
+}
+
+// Goal Celebration Effect
+export function GoalEffect({ position, color, trigger }) {
+  const [spring, api] = useSpring(() => ({
+    scale: 0,
+    opacity: 0,
+    config: { tension: 120, friction: 14 }
+  }))
+
+  useEffect(() => {
+    if (trigger > 0) {
+      api.start({
+        from: { scale: 0, opacity: 1 },
+        to: [
+          { scale: 8, opacity: 0.5 },
+          { scale: 12, opacity: 0 }
+        ]
+      })
+    }
+  }, [trigger, api])
+
+  return (
+    <group position={position}>
+      {/* Shockwave Ring */}
+      <a.mesh rotation={[-Math.PI / 2, 0, 0]} scale={spring.scale}>
+        <ringGeometry args={[0.8, 1.0, 32]} />
+        <a.meshBasicMaterial 
+          color={color} 
+          transparent 
+          opacity={spring.opacity} 
+          side={THREE.DoubleSide}
+        />
+      </a.mesh>
+
+      {/* Particle Burst */}
+      {trigger > 0 && (
+        <Sparkles 
+          count={50} 
+          scale={[4, 4, 4]} 
+          size={6} 
+          speed={2} 
+          color={color} 
+          opacity={0.8}
+        />
+      )}
+    </group>
   )
 }
