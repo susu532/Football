@@ -186,23 +186,18 @@ export function MapRenderer({ mapId }) {
       if (child.isMesh) {
         // REMOVED: computeVertexNormals to save CPU
         if (child.material) {
-          const oldMat = child.material
-          // Use MeshLambertMaterial - much cheaper for CPU/GPU
-          child.material = new THREE.MeshLambertMaterial({
-            map: oldMat.map,
-            color: oldMat.color,
-            transparent: oldMat.transparent,
-            opacity: oldMat.opacity,
-            side: THREE.FrontSide
-          })
+          // Clone material to avoid sharing between instances if needed, 
+          // though maps are usually unique.
+          child.material = child.material.clone()
           
           // Apply custom color if defined (e.g. for Ocean Floor)
           if (mapConfig.color) {
             child.material.color.set(mapConfig.color)
           }
 
+          // Apply texture filtering optimizations to existing maps
           if (child.material.map) {
-            child.material.map.anisotropy = 4 // Reduced from 16
+            child.material.map.anisotropy = 8 // Balanced quality
             child.material.map.minFilter = THREE.LinearMipmapLinearFilter
             child.material.map.magFilter = THREE.LinearFilter
             child.material.map.needsUpdate = true
