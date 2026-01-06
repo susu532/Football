@@ -235,6 +235,7 @@ export default function Scene() {
   const [dpr, setDpr] = useState(1.5)
 
   useEffect(() => {
+    let timeoutId = null
     const checkMobile = () => {
       const userAgent = navigator.userAgent || navigator.vendor || window.opera
       const mobileRegex = /android|avantgo|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i
@@ -246,8 +247,17 @@ export default function Scene() {
     }
     
     checkMobile()
-    window.addEventListener('resize', checkMobile)
-    return () => window.removeEventListener('resize', checkMobile)
+    
+    const debouncedCheck = () => {
+      if (timeoutId) clearTimeout(timeoutId)
+      timeoutId = setTimeout(checkMobile, 200)
+    }
+
+    window.addEventListener('resize', debouncedCheck)
+    return () => {
+      window.removeEventListener('resize', debouncedCheck)
+      if (timeoutId) clearTimeout(timeoutId)
+    }
   }, [])
 
   // Connection Quality Logic
@@ -710,7 +720,6 @@ export default function Scene() {
                   far={4} 
                   resolution={isMobile ? 256 : 512} 
                   color="#000000"
-                  frames={isMobile ? 1 : Infinity} // Bake once on mobile
                 />
               </>
             )
