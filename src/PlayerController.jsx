@@ -178,7 +178,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
     // Visual Interpolation (Smooth Glide)
     // The visual model glides toward the predicted physics position
-    const visualLambda = 30 // Increased from 25 for snappier local visuals
+    const visualLambda = 25
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
     groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
     groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)

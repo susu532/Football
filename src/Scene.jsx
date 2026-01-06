@@ -20,7 +20,7 @@ import Chat from './Chat'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
-import { SoccerPitch, SoccerGoal, GameSkybox, GoalEffect } from './Environment'
+import { SoccerPitch, SoccerGoal, GameSkybox } from './Environment'
 
 const CSS_ANIMATIONS = `
   @keyframes popIn {
@@ -110,7 +110,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     }
   }, [])
 
-  useFrame((state) => {
+  useFrame(() => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
     const { azimuth, polar } = orbit.current
     orbit.current.distance = THREE.MathUtils.lerp(
@@ -122,16 +122,8 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     const x = p.x + distance * Math.sin(polar) * Math.sin(azimuth)
     const y = p.y + distance * Math.cos(polar) + 2.2
     const z = p.z + distance * Math.sin(polar) * Math.cos(azimuth)
-    
-    // Frame-rate independent camera smoothing
-    const cameraLambda = 15
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, x, cameraLambda, state.delta)
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, y, cameraLambda, state.delta)
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, z, cameraLambda, state.delta)
-    
-    // Smooth lookAt target
-    const lookAtTarget = new THREE.Vector3(p.x, p.y + 1, p.z)
-    camera.lookAt(lookAtTarget)
+    camera.position.lerp(new THREE.Vector3(x, y, z), 0.15)
+    camera.lookAt(p.x, p.y + 1, p.z)
   }, 1) // Priority 1: Run after player physics (Priority 0)
 
   return null
@@ -201,8 +193,6 @@ export default function Scene() {
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [gameOverData, setGameOverData] = useState(null)
   const [collectedEmoji, setCollectedEmoji] = useState(null)
-  const [redGoalTrigger, setRedGoalTrigger] = useState(0)
-  const [blueGoalTrigger, setBlueGoalTrigger] = useState(0)
 
   // Connection Quality Logic
   const connectionQuality = React.useMemo(() => {
@@ -257,9 +247,6 @@ export default function Scene() {
     if (!isConnected) return
 
     const unsubGoal = onMessage('goal-scored', (data) => {
-      if (data.team === 'red') setRedGoalTrigger(prev => prev + 1)
-      if (data.team === 'blue') setBlueGoalTrigger(prev => prev + 1)
-      
       setCelebration({ team: data.team })
       
       const audio = new Audio('/winner-game-sound-404167.mp3')
@@ -578,9 +565,9 @@ export default function Scene() {
       >
         <Suspense fallback={null}>
           {/* Post-processing */}
-          <EffectComposer multisampling={0}>
+          <EffectComposer multisampling={4}>
             <SMAA />
-            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.3} radius={0.4} />
+            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
             <Vignette eskil={false} offset={0.1} darkness={0.5} />
           </EffectComposer>
           {/* No client-side physics - server handles all physics */}
@@ -621,7 +608,7 @@ export default function Scene() {
                   scale={32} 
                   blur={2} 
                   far={4} 
-                  resolution={256} 
+                  resolution={512} 
                   color="#000000"
                 />
               </>
@@ -641,10 +628,6 @@ export default function Scene() {
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />
           <SoccerGoal position={[11.2, 0, 0]} rotation={[0, -Math.PI, 0]} netColor="#4444ff" />
-
-          {/* Goal Effects */}
-          <GoalEffect position={[-11.2, 1, 0]} color="#ff4444" trigger={redGoalTrigger} />
-          <GoalEffect position={[11.2, 1, 0]} color="#4444ff" trigger={blueGoalTrigger} />
 
           {/* Local Player */}
           {me && (

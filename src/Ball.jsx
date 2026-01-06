@@ -137,7 +137,7 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage }, 
       // Snap to position if too far (likely reconnect or major desync)
       groupRef.current.position.copy(targetPos.current)
     } else {
-      const lerpFactor = 1 - Math.exp(-20 * delta) // Increased from 15 for faster ball sync
+      const lerpFactor = 1 - Math.exp(-15 * delta)
       groupRef.current.position.lerp(targetPos.current, lerpFactor)
     }
     
