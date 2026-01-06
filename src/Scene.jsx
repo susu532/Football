@@ -122,8 +122,16 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     const x = p.x + distance * Math.sin(polar) * Math.sin(azimuth)
     const y = p.y + distance * Math.cos(polar) + 2.2
     const z = p.z + distance * Math.sin(polar) * Math.cos(azimuth)
-    camera.position.lerp(new THREE.Vector3(x, y, z), 0.15)
-    camera.lookAt(p.x, p.y + 1, p.z)
+    
+    // Frame-rate independent camera smoothing
+    const cameraLambda = 15
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, x, cameraLambda, state.delta)
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, y, cameraLambda, state.delta)
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, z, cameraLambda, state.delta)
+    
+    // Smooth lookAt target
+    const lookAtTarget = new THREE.Vector3(p.x, p.y + 1, p.z)
+    camera.lookAt(lookAtTarget)
   }, 1) // Priority 1: Run after player physics (Priority 0)
 
   return null
@@ -570,9 +578,9 @@ export default function Scene() {
       >
         <Suspense fallback={null}>
           {/* Post-processing */}
-          <EffectComposer multisampling={4}>
+          <EffectComposer multisampling={0}>
             <SMAA />
-            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.3} radius={0.4} />
             <Vignette eskil={false} offset={0.1} darkness={0.5} />
           </EffectComposer>
           {/* No client-side physics - server handles all physics */}
@@ -613,7 +621,7 @@ export default function Scene() {
                   scale={32} 
                   blur={2} 
                   far={4} 
-                  resolution={512} 
+                  resolution={256} 
                   color="#000000"
                 />
               </>

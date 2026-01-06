@@ -269,16 +269,17 @@ export function GoalEffect({ position, color, trigger }) {
   const [spring, api] = useSpring(() => ({
     scale: 0,
     opacity: 0,
+    lightIntensity: 0,
     config: { tension: 120, friction: 14 }
   }))
 
   useEffect(() => {
     if (trigger > 0) {
       api.start({
-        from: { scale: 0, opacity: 1 },
+        from: { scale: 0, opacity: 1, lightIntensity: 5 },
         to: [
-          { scale: 8, opacity: 0.5 },
-          { scale: 12, opacity: 0 }
+          { scale: 8, opacity: 0.5, lightIntensity: 2 },
+          { scale: 12, opacity: 0, lightIntensity: 0 }
         ]
       })
     }
@@ -286,9 +287,17 @@ export function GoalEffect({ position, color, trigger }) {
 
   return (
     <group position={position}>
+      {/* Flash Light */}
+      <a.pointLight 
+        color={color} 
+        intensity={spring.lightIntensity} 
+        distance={15} 
+        decay={2} 
+      />
+
       {/* Shockwave Ring */}
       <a.mesh rotation={[-Math.PI / 2, 0, 0]} scale={spring.scale}>
-        <ringGeometry args={[0.8, 1.0, 32]} />
+        <ringGeometry args={[0.8, 1.2, 32]} />
         <a.meshBasicMaterial 
           color={color} 
           transparent 
@@ -297,15 +306,26 @@ export function GoalEffect({ position, color, trigger }) {
         />
       </a.mesh>
 
-      {/* Particle Burst */}
+      {/* Glowing Sphere */}
+      <a.mesh scale={spring.scale.to(s => s * 0.5)}>
+        <sphereGeometry args={[1, 16, 16]} />
+        <a.meshBasicMaterial 
+          color={color} 
+          transparent 
+          opacity={spring.opacity.to(o => o * 0.5)} 
+        />
+      </a.mesh>
+
+      {/* Particle Burst - Keyed to trigger to force reset */}
       {trigger > 0 && (
         <Sparkles 
-          count={50} 
-          scale={[4, 4, 4]} 
-          size={6} 
-          speed={2} 
+          key={`goal-sparkles-${trigger}`}
+          count={60} 
+          scale={[5, 5, 5]} 
+          size={8} 
+          speed={3} 
           color={color} 
-          opacity={0.8}
+          opacity={1}
         />
       )}
     </group>
