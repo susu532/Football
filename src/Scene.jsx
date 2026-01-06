@@ -110,7 +110,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     }
   }, [])
 
-  useFrame(() => {
+  useFrame((state) => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
     const { azimuth, polar } = orbit.current
     orbit.current.distance = THREE.MathUtils.lerp(
