@@ -230,6 +230,26 @@ export default function Scene() {
   const [gameOverData, setGameOverData] = useState(null)
   const [collectedEmoji, setCollectedEmoji] = useState(null)
 
+  // Mobile detection & Performance Optimization
+  const [isMobile, setIsMobile] = useState(false)
+  const [dpr, setDpr] = useState(1.5)
+
+  useEffect(() => {
+    const checkMobile = () => {
+      const userAgent = navigator.userAgent || navigator.vendor || window.opera
+      const mobileRegex = /android|avantgo|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i
+      const isMob = mobileRegex.test(userAgent) || window.innerWidth < 768
+      setIsMobile(isMob)
+      
+      // Reduce DPR on mobile for performance
+      setDpr(isMob ? 1.0 : 1.5)
+    }
+    
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+    return () => window.removeEventListener('resize', checkMobile)
+  }, [])
+
   // Connection Quality Logic
   const connectionQuality = React.useMemo(() => {
     if (realPing < 60) return 'excellent'
@@ -628,11 +648,11 @@ export default function Scene() {
 
       {/* 3D Canvas */}
       <Canvas 
-        shadows="soft"
+        shadows={!isMobile}
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
-        dpr={[1, 2]}
+        dpr={dpr}
         gl={{ 
-          antialias: false, // Disable MSAA as we use FXAA
+          antialias: !isMobile, // Disable MSAA on mobile
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
@@ -644,12 +664,15 @@ export default function Scene() {
         }}
       >
         <Suspense fallback={null}>
-          {/* Post-processing */}
-          <EffectComposer multisampling={4}>
-            <SMAA />
-            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
-            <Vignette eskil={false} offset={0.1} darkness={0.5} />
-          </EffectComposer>
+          {/* Post-processing - Conditional for mobile */}
+          {!isMobile && (
+            <EffectComposer multisampling={4}>
+              <SMAA />
+              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+              <Vignette eskil={false} offset={0.1} darkness={0.5} />
+            </EffectComposer>
+          )}
+
           {/* No client-side physics - server handles all physics */}
 
           {/* Visuals (rendered for all) */}
@@ -674,19 +697,20 @@ export default function Scene() {
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
-                  castShadow
-                  shadow-mapSize={[1024, 1024]}
+                  castShadow={!isMobile} // Disable directional shadows on mobile
+                  shadow-mapSize={isMobile ? [512, 512] : [1024, 1024]}
                 />
                 
-                {/* Soft grounding shadows */}
+                {/* Soft grounding shadows - Reduced quality on mobile */}
                 <ContactShadows 
                   position={[0, 0.01, 0]} 
                   opacity={0.6} 
                   scale={32} 
                   blur={2} 
                   far={4} 
-                  resolution={512} 
+                  resolution={isMobile ? 256 : 512} 
                   color="#000000"
+                  frames={isMobile ? 1 : Infinity} // Bake once on mobile
                 />
               </>
             )
