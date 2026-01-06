@@ -4,7 +4,7 @@
 import React, { useRef, useEffect, useState, Suspense, useCallback, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, Loader, Environment, Preload, ContactShadows } from '@react-three/drei'
-import { EffectComposer, SMAA, Bloom, Vignette } from '@react-three/postprocessing'
+
 import * as THREE from 'three'
 
 
@@ -633,11 +633,11 @@ export default function Scene() {
 
       {/* 3D Canvas */}
       <Canvas 
-        shadows="soft"
+        shadows={{ type: THREE.PCFSoftShadowMap }}
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
-        dpr={[1, 2]}
+        dpr={window.devicePixelRatio}
         gl={{ 
-          antialias: false, // Disable MSAA as we use FXAA
+          antialias: true,
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
@@ -649,12 +649,6 @@ export default function Scene() {
         }}
       >
         <Suspense fallback={null}>
-          {/* Post-processing */}
-          <EffectComposer multisampling={4}>
-            <SMAA />
-            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
-            <Vignette eskil={false} offset={0.1} darkness={0.5} />
-          </EffectComposer>
           {/* No client-side physics - server handles all physics */}
 
           {/* Visuals (rendered for all) */}
@@ -681,7 +675,7 @@ export default function Scene() {
                   intensity={direct}
                 
                   castShadow
-                  shadow-mapSize={[4096, 4096]} // Higher resolution
+                  shadow-mapSize={[1024, 1024]}
                   shadow-bias={-0.0005} // Adjusted bias
                   shadow-normalBias={0.02} // Added normal bias for cleaner edges
                   shadow-camera-left={-16}
