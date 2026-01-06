@@ -147,28 +147,50 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       const collisionRadius = 1.5 // Player radius + ball radius
       
       if (dist < collisionRadius && dist > 0.1) {
-        // Check if ball is moving towards player (dot product)
+        // Check if ball is moving towards player (dot product) or if player is moving towards ball
         const velToPlayer = dx * velocity.current.x + dz * velocity.current.z
         
-        if (velToPlayer < 0) { // Ball is moving towards player
+        // Only collide if moving towards each other or overlapping significantly
+        if (velToPlayer < 0 || dist < collisionRadius * 0.9) { 
           lastCollisionTime.current = now
           
           // Calculate reflection normal (away from player)
           const nx = dx / dist
-          const ny = Math.max(0.3, dy / dist) // Bias upward for bounce feel
+          const ny = Math.max(0.2, dy / dist) // Bias upward for bounce feel
           const nz = dz / dist
           
-          // Simple deflection: reflect velocity component towards player
-          const dotVelNormal = velocity.current.x * nx + velocity.current.y * ny + velocity.current.z * nz
-          const bounceFactor = 0.8 // Energy retention
+          // Relative velocity (Ball - Player)
+          // We assume player velocity is available from ref, else 0
+          const playerVx = localPlayerRef.current.userData?.velocity?.x || 0
+          const playerVz = localPlayerRef.current.userData?.velocity?.z || 0
           
-          velocity.current.x -= 2 * dotVelNormal * nx * bounceFactor
-          velocity.current.y = Math.abs(velocity.current.y * 0.5) + 3 // Add upward bounce
-          velocity.current.z -= 2 * dotVelNormal * nz * bounceFactor
+          const relVx = velocity.current.x - playerVx
+          const relVz = velocity.current.z - playerVz
           
-          // Push ball slightly out to prevent tunneling
-          targetPos.current.x = playerPos.x + nx * collisionRadius * 1.1
-          targetPos.current.z = playerPos.z + nz * collisionRadius * 1.1
+          // Impulse calculation (simplified elastic collision)
+          // Ball mass ~3, Player mass ~infinite (kinematic)
+          const restitution = 0.8
+          const impulseStrength = 1.5 // Boost factor for game feel
+          
+          // Reflect relative velocity along normal
+          const dotRel = relVx * nx + velocity.current.y * ny + relVz * nz
+          
+          if (dotRel < 0) {
+             const j = -(1 + restitution) * dotRel
+             
+             velocity.current.x += j * nx * impulseStrength
+             velocity.current.y += j * ny * impulseStrength + 2 // Add vertical pop
+             velocity.current.z += j * nz * impulseStrength
+             
+             // Add player velocity transfer (friction/grip)
+             velocity.current.x += playerVx * 0.5
+             velocity.current.z += playerVz * 0.5
+          }
+          
+          // Push ball out to prevent tunneling
+          const overlap = collisionRadius - dist
+          targetPos.current.x += nx * overlap
+          targetPos.current.z += nz * overlap
         }
       }
     }

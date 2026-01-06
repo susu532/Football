@@ -225,9 +225,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
     }
 
-    // Update userData for effects sync
+    // Update userData for effects sync and ball prediction
     groupRef.current.userData.invisible = serverState?.invisible || false
     groupRef.current.userData.giant = serverState?.giant || false
+    groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
 
     // Check power-up collisions
     checkPowerUpCollision(physicsPosition.current)
