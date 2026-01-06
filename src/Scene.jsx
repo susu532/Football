@@ -232,7 +232,7 @@ export default function Scene() {
 
   // Mobile detection & Performance Optimization
   const [isMobile, setIsMobile] = useState(false)
-  const [dpr, setDpr] = useState(1.5)
+  const [dpr, setDpr] = useState([1, 2]) // Use automatic DPR clamping instead of manual state
 
   useEffect(() => {
     let timeoutId = null
@@ -241,9 +241,6 @@ export default function Scene() {
       const mobileRegex = /android|avantgo|blackberry|blazer|compal|elaine|fennec|hiptop|iemobile|ip(hone|od)|iris|kindle|lge |maemo|midp|mmp|mobile.+firefox|netfront|opera m(ob|in)i|palm( os)?|phone|p(ixi|re)\/|plucker|pocket|psp|series(4|6)0|symbian|treo|up\.(browser|link)|vodafone|wap|windows ce|xda|xiino/i
       const isMob = mobileRegex.test(userAgent) || window.innerWidth < 768
       setIsMobile(isMob)
-      
-      // Reduce DPR on mobile for performance
-      setDpr(isMob ? 1.0 : 1.5)
     }
     
     checkMobile()
@@ -662,7 +659,7 @@ export default function Scene() {
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={dpr}
         gl={{ 
-          antialias: !isMobile, // Disable MSAA on mobile
+          antialias: true, // Re-enable AA for stability
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
