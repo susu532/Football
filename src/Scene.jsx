@@ -667,7 +667,7 @@ export default function Scene() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: true
+          logarithmicDepthBuffer: !isMobile // Disable on mobile (can cause black screen on some Adreno GPUs)
         }}
       >
         <Suspense fallback={null}>
@@ -708,16 +708,18 @@ export default function Scene() {
                   shadow-mapSize={isMobile ? [512, 512] : [1024, 1024]}
                 />
                 
-                {/* Soft grounding shadows - Reduced quality on mobile */}
-                <ContactShadows 
-                  position={[0, 0.01, 0]} 
-                  opacity={0.6} 
-                  scale={32} 
-                  blur={2} 
-                  far={4} 
-                  resolution={isMobile ? 256 : 512} 
-                  color="#000000"
-                />
+                {/* Soft grounding shadows - Disabled on mobile for stability */}
+                {!isMobile && (
+                  <ContactShadows 
+                    position={[0, 0.01, 0]} 
+                    opacity={0.6} 
+                    scale={32} 
+                    blur={2} 
+                    far={4} 
+                    resolution={512} 
+                    color="#000000"
+                  />
+                )}
               </>
             )
           })()}
