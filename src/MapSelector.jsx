@@ -38,15 +38,6 @@ export default function MapSelector({ selectedMapId, onSelect }) {
           overflow-x: auto;
           gap: 15px;
           padding: 10px 5px;
-          scrollbar-width: thin;
-          scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
-        }
-        .map-slider::-webkit-scrollbar {
-          height: 6px;
-        }
-        .map-slider::-webkit-scrollbar-thumb {
-          background: rgba(255, 255, 255, 0.3);
-          border-radius: 3px;
         }
         .map-card {
           flex: 0 0 160px;

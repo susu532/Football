@@ -31,6 +31,15 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   const [playerName, setPlayerName] = useState(defaultName || '')
   const [privateJoinCode, setPrivateJoinCode] = useState('')
   const [isRoomBusy, setIsRoomBusy] = useState(false)
+  const [notifications, setNotifications] = useState([])
+
+  const showNotification = (message, type = 'info') => {
+    const id = Date.now()
+    setNotifications(prev => [...prev, { id, message, type }])
+    setTimeout(() => {
+      setNotifications(prev => prev.filter(n => n.id !== id))
+    }, 3000)
+  }
 
   useEffect(() => {
     if (!rooming || typeof rooming.refreshAvailableRooms !== 'function') return
@@ -65,11 +74,11 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
   const validateInputs = () => {
     if (!selectedTeam) {
-      alert('Please select a team!')
+      showNotification('Please select a team!', 'warning')
       return false
     }
     if (!playerName.trim()) {
-      alert('Please enter a name!')
+      showNotification('Please enter a name!', 'warning')
       return false
     }
     return true
@@ -94,7 +103,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     if (joined) {
       joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
     } else {
-      alert('Failed to create public room')
+      showNotification('Failed to create public room', 'error')
     }
   }
 
@@ -112,7 +121,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     if (joined) {
       joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
     } else {
-      alert('Failed to create private room')
+      showNotification('Failed to create private room', 'error')
     }
   }
 
@@ -136,7 +145,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     if (joined) {
       joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
     } else {
-      alert('Failed to join room')
+      showNotification('Failed to join room', 'error')
     }
   }
 
@@ -145,7 +154,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     if (!validateInputs()) return
     const code = privateJoinCode.trim().toUpperCase()
     if (!code) {
-      alert('Enter a room code')
+      showNotification('Enter a room code', 'warning')
       return
     }
     setIsRoomBusy(true)
@@ -158,7 +167,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     if (joined) {
       joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
     } else {
-      alert('Invalid code or room not found')
+      showNotification('Invalid code or room not found', 'error')
     }
   }
   
@@ -340,7 +349,18 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         
       </div>
       
+      {/* Modern Notifications */}
+      <div className="notification-container">
+        {notifications.map(n => (
+          <div key={n.id} className={`notification-card ${n.type}`}>
+            <div className="notification-icon">
+              {n.type === 'warning' ? '⚠️' : n.type === 'error' ? '❌' : 'ℹ️'}
+            </div>
+            <div className="notification-message">{n.message}</div>
+            <div className="notification-progress" />
+          </div>
+        ))}
+      </div>
     </div>
-    
   )
 }

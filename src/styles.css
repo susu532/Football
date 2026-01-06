@@ -20,6 +20,33 @@ html,
   color: var(--magic-text);
 }
 
+/* Global Scrollbar Styling */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.02);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--magic-accent);
+  border-radius: 10px;
+  border: 2px solid rgba(10, 10, 18, 0.8);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--magic-secondary);
+}
+
+/* Firefox support */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--magic-accent) rgba(255, 255, 255, 0.02);
+}
+
 .app {
   display: flex;
   height: 100vh;
@@ -565,17 +592,6 @@ html,
   margin-top: 10px;
   overflow-x: auto;
   padding: 15px 5px;
-  scrollbar-width: thin;
-  scrollbar-color: var(--magic-accent) transparent;
-}
-
-.rooms-slider::-webkit-scrollbar {
-  height: 6px;
-}
-
-.rooms-slider::-webkit-scrollbar-thumb {
-  background: var(--magic-accent);
-  border-radius: 3px;
 }
 
 .no-rooms-message {
@@ -734,6 +750,75 @@ html,
   font-size: 1.2rem;
   color: var(--magic-accent);
   margin-left: 10px;
+}
+
+/* Modern Notifications */
+.notification-container {
+  position: fixed;
+  top: 30px;
+  right: 30px;
+  z-index: 10001;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  pointer-events: none;
+}
+
+.notification-card {
+  pointer-events: auto;
+  min-width: 300px;
+  max-width: 400px;
+  background: rgba(20, 20, 35, 0.8);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--magic-border);
+  border-radius: 20px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  animation: notificationSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  position: relative;
+  overflow: hidden;
+}
+
+.notification-card.warning { border-left: 4px solid #ffcc00; }
+.notification-card.error { border-left: 4px solid #ff4757; }
+.notification-card.info { border-left: 4px solid var(--magic-accent); }
+
+.notification-icon {
+  font-size: 1.5rem;
+}
+
+.notification-message {
+  color: #fff;
+  font-weight: 600;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.notification-progress {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  height: 3px;
+  background: var(--magic-accent);
+  width: 100%;
+  animation: notificationProgress 3s linear forwards;
+}
+
+.notification-card.warning .notification-progress { background: #ffcc00; }
+.notification-card.error .notification-progress { background: #ff4757; }
+
+@keyframes notificationSlideIn {
+  from { opacity: 0; transform: translateX(50px) scale(0.9); }
+  to { opacity: 1; transform: translateX(0) scale(1); }
+}
+
+@keyframes notificationProgress {
+  from { width: 100%; }
+  to { width: 0%; }
 }
 
 /* Hide mobile controls on desktop */
