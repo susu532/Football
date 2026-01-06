@@ -3,7 +3,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 
 export const MAP_DATA = [
-  { id: 'OceanFloor', name: 'Ocean Floor', path: '/maps_1/oceanfloor.glb', scale: 100, position: [0, 26, 0], emoji: '🌊', image: '/placeholders/Screenshots-20260105142140.png' , color: '#1b5a73', ambientIntensity: 0.35, ambientColor: '#0a2a3a', lightIntensity: 0.55, lightColor: '#3aa9d9', fogColor: '#02111f', fogDensity: 0.03, environmentPreset: 'night', backgroundColor: '#020b1a', showStars: false, skySparklesColor: '#2fc7ff', skySparklesOpacity: 0.14, skySparklesSpeed: 0.12, skySparklesCount: 260},
+  { id: 'OceanFloor', name: 'Ocean Floor', path: '/maps_1/oceanfloor.glb', scale: 100, position: [0, 26, 0], emoji: '🌊', image: '/placeholders/Screenshots-20260105142140.png' },
   { id: 'CityAtNight', name: 'City At Night', path: '/maps_1/city_at_night.glb', scale: 1, position: [30, -26.5, -35], emoji: '🌃', image: '/placeholders/Screenshots-20260105142231.png' },
   { id: 'CloudStation', name: 'Cloud Station', path: '/maps_1/cloud_station.glb', scale: 20, position: [-20, -20, 0], emoji: '☁️', image: '/placeholders/Screenshots-20260105142255.png' },
   { id: 'CreekFalls', name: 'Creek Falls', path: '/maps_1/creek_falls_world_maps.glb', scale: 2, position: [10, 0, -35], emoji: '🌲', image: '/placeholders/Screenshots-20260105142323.png' },
@@ -37,23 +37,16 @@ export function MapRenderer({ mapId }) {
     const cloned = gltf.scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
-        // Smooth shading
-        if (child.geometry) {
-          child.geometry.computeVertexNormals()
-        }
-
+        // REMOVED: computeVertexNormals to save CPU
         if (child.material) {
           const oldMat = child.material
-          // Use MeshStandardMaterial for better lighting and PBR properties
-          child.material = new THREE.MeshStandardMaterial({
+          // Use MeshLambertMaterial - much cheaper for CPU/GPU
+          child.material = new THREE.MeshLambertMaterial({
             map: oldMat.map,
             color: oldMat.color,
             transparent: oldMat.transparent,
             opacity: oldMat.opacity,
-            side: THREE.FrontSide,
-            roughness: 0.5,
-            metalness: 0.0,
-            envMapIntensity: 0.5
+            side: THREE.FrontSide
           })
           
           // Apply custom color if defined (e.g. for Ocean Floor)
@@ -62,7 +55,7 @@ export function MapRenderer({ mapId }) {
           }
 
           if (child.material.map) {
-            child.material.map.anisotropy = 16 // Restore high quality
+            child.material.map.anisotropy = 4 // Reduced from 16
             child.material.map.minFilter = THREE.LinearMipmapLinearFilter
             child.material.map.magFilter = THREE.LinearFilter
             child.material.map.needsUpdate = true
@@ -70,9 +63,9 @@ export function MapRenderer({ mapId }) {
           
           child.material.needsUpdate = true
         }
-        // Restore shadows for map models
+        // Disable all shadows for map models to boost performance
         child.castShadow = false
-        child.receiveShadow = true
+        child.receiveShadow = false
       }
     })
     return cloned
