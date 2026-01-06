@@ -121,10 +121,20 @@ export const PlayerController = React.forwardRef((props, ref) => {
       moveDir.current.normalize()
     }
 
-    // Handle jump (with edge detection to match server)
+    // 1. Apply Gravity first (matches server)
+    verticalVelocity.current -= GRAVITY * delta
+
+    // 2. Ground Check (reset jump count if on ground)
+    // Matches server: if (currentPos.y <= GROUND_Y + 0.05 && player.vy <= 0)
+    if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+      jumpCount.current = 0
+    }
+
+    // 3. Handle Jump (overrides gravity for this frame)
     if (input.jump && !prevJump.current && jumpCount.current < MAX_JUMPS) {
       const jumpMult = serverState?.jumpMult || 1
       const baseJumpForce = JUMP_FORCE * jumpMult
+      // Matches server: player.vy = player.jumpCount === 0 ? jumpForce : jumpForce * DOUBLE_JUMP_MULTIPLIER
       verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
       jumpCount.current++
       isOnGround.current = false
@@ -157,14 +167,12 @@ export const PlayerController = React.forwardRef((props, ref) => {
     velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
     velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
     
-    verticalVelocity.current -= GRAVITY * delta
-
-    // Calculate new physics position
+    // 4. Calculate new physics position
     let newX = physicsPosition.current.x + velocity.current.x * delta
     let newY = physicsPosition.current.y + verticalVelocity.current * delta
     let newZ = physicsPosition.current.z + velocity.current.z * delta
 
-    // Ground check
+    // 5. Ground Clamp
     if (newY <= GROUND_Y) {
       newY = GROUND_Y
       verticalVelocity.current = 0
