@@ -500,8 +500,7 @@ export default function Scene() {
         }}>
           ⚠️ POOR CONNECTION - PLAYERS MAY DESYNC
         </div>
-          ⚠️ POOR CONNECTION - PLAYERS MAY DESYNC
-        </div>
+
       )}
 
       {/* Mobile Debug Indicator */}
