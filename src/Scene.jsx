@@ -110,7 +110,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     }
   }, [])
 
-  useFrame((state) => {
+  useFrame(() => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
     const { azimuth, polar } = orbit.current
     orbit.current.distance = THREE.MathUtils.lerp(
@@ -565,20 +565,20 @@ export default function Scene() {
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={[1, 2]}
         gl={{ 
-          antialias: true, 
+          antialias: false, // Disable MSAA as we use FXAA
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
-          alpha: true,
+          alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: false
+          logarithmicDepthBuffer: true
         }}
       >
         <Suspense fallback={null}>
           {/* Post-processing */}
-          <EffectComposer multisampling={8}>
+          <EffectComposer multisampling={0}>
             <SMAA />
             <Bloom luminanceThreshold={1} mipmapBlur intensity={0.3} radius={0.4} />
             <Vignette eskil={false} offset={0.1} darkness={0.5} />
@@ -605,7 +605,7 @@ export default function Scene() {
                   position={[10, 20, 10]}
                   intensity={direct}
                   castShadow
-                  shadow-mapSize={[2048, 2048]} // Reverted from 4096 for stability
+                  shadow-mapSize={[4096, 4096]} // Higher resolution
                   shadow-bias={-0.0005} // Adjusted bias
                   shadow-normalBias={0.02} // Added normal bias for cleaner edges
                   shadow-camera-left={-16}
