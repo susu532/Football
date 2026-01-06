@@ -658,8 +658,8 @@ export default function Scene() {
           {/* Map-specific Lighting & Fog */}
           {(() => {
             const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
-            const ambient = mapConfig.ambientIntensity ?? 0.6
-            const direct = mapConfig.lightIntensity ?? 1.0
+            const ambient = mapConfig.ambientIntensity ?? 0.4
+            const direct = mapConfig.lightIntensity ?? 0.8
             const fogColor = mapConfig.fogColor ?? '#87CEEB'
             const fogDensity = mapConfig.fogDensity ?? 0.01
             const envPreset = mapConfig.environmentPreset ?? 'park'

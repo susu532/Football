@@ -11,8 +11,8 @@ export const MAP_DATA = [
     position: [0, 26, 0], 
     emoji: '🌊', 
     image: '/placeholders/Screenshots-20260105142140.png',
-    ambientIntensity: 0.3,
-    lightIntensity: 0.5,
+    ambientIntensity: 0.2,
+    lightIntensity: 0.4,
     environmentPreset: 'night',
     fogColor: '#001e0f',
     fogDensity: 0.02
@@ -25,8 +25,8 @@ export const MAP_DATA = [
     position: [30, -26.5, -35], 
     emoji: '🌃', 
     image: '/placeholders/Screenshots-20260105142231.png',
-    ambientIntensity: 0.2,
-    lightIntensity: 0.5,
+    ambientIntensity: 0.15,
+    lightIntensity: 0.4,
     environmentPreset: 'night'
   },
   { 
@@ -37,8 +37,8 @@ export const MAP_DATA = [
     position: [-20, -20, 0], 
     emoji: '☁️', 
     image: '/placeholders/Screenshots-20260105142255.png',
-    ambientIntensity: 0.8,
-    lightIntensity: 1.2,
+    ambientIntensity: 0.6,
+    lightIntensity: 1.0,
     environmentPreset: 'sunset'
   },
   { 
@@ -49,8 +49,8 @@ export const MAP_DATA = [
     position: [10, 0, -35], 
     emoji: '🌲', 
     image: '/placeholders/Screenshots-20260105142323.png',
-    ambientIntensity: 0.6,
-    lightIntensity: 1.0,
+    ambientIntensity: 0.5,
+    lightIntensity: 0.8,
     environmentPreset: 'park'
   },
   { 
@@ -61,8 +61,8 @@ export const MAP_DATA = [
     position: [0, -7.5, 0], 
     emoji: '🏟️', 
     image: '/placeholders/Screenshots-20260105142925.png',
-    ambientIntensity: 0.7,
-    lightIntensity: 1.1,
+    ambientIntensity: 0.5,
+    lightIntensity: 0.9,
     environmentPreset: 'park'
   },
   { 
@@ -73,8 +73,8 @@ export const MAP_DATA = [
     position: [10, 0, -26], 
     emoji: '🌲', 
     image: '/placeholders/Screenshots-20260105143032.png',
-    ambientIntensity: 0.5,
-    lightIntensity: 0.9,
+    ambientIntensity: 0.4,
+    lightIntensity: 0.7,
     environmentPreset: 'forest'
   },
   { 
@@ -85,8 +85,8 @@ export const MAP_DATA = [
     position: [0, -11.5, 0], 
     emoji: '⛏️', 
     image: '/placeholders/Screenshots-20260105143054.png',
-    ambientIntensity: 0.7,
-    lightIntensity: 1.0,
+    ambientIntensity: 0.5,
+    lightIntensity: 0.8,
     environmentPreset: 'park'
   },
   { 
@@ -97,8 +97,8 @@ export const MAP_DATA = [
     position: [0, 33, 0], 
     emoji: '🌑', 
     image: '/placeholders/Screenshots-20260105143316.png',
-    ambientIntensity: 0.1,
-    lightIntensity: 0.8,
+    ambientIntensity: 0.05,
+    lightIntensity: 0.6,
     environmentPreset: 'night',
     fogColor: '#000000',
     fogDensity: 0.0
@@ -111,8 +111,8 @@ export const MAP_DATA = [
     position: [0, -6.6, 0], 
     emoji: '🏝️', 
     image: '/placeholders/Screenshots-20260105143421.png',
-    ambientIntensity: 0.8,
-    lightIntensity: 1.3,
+    ambientIntensity: 0.6,
+    lightIntensity: 1.0,
     environmentPreset: 'sunset'
   },
   { 
@@ -123,8 +123,8 @@ export const MAP_DATA = [
     position: [0, -10, 100], 
     emoji: '🚢', 
     image: '/placeholders/Screenshots-20260105143500.png',
-    ambientIntensity: 0.9,
-    lightIntensity: 1.2,
+    ambientIntensity: 0.7,
+    lightIntensity: 1.0,
     environmentPreset: 'sunset'
   },
   { 
@@ -135,8 +135,8 @@ export const MAP_DATA = [
     position: [0, 0, 0], 
     emoji: '🌵', 
     image: '/placeholders/Screenshots-20260105143526.png',
-    ambientIntensity: 0.8,
-    lightIntensity: 1.4,
+    ambientIntensity: 0.6,
+    lightIntensity: 1.1,
     environmentPreset: 'sunset'
   },
   { 
@@ -147,8 +147,8 @@ export const MAP_DATA = [
     position: [0, 1.4, 0], 
     emoji: '🍄', 
     image: '/placeholders/Screenshots-20260105143551.png',
-    ambientIntensity: 0.8,
-    lightIntensity: 1.1,
+    ambientIntensity: 0.6,
+    lightIntensity: 0.9,
     environmentPreset: 'park'
   },
   { 
@@ -159,8 +159,8 @@ export const MAP_DATA = [
     position: [0, -8, 0], 
     emoji: '🏚️', 
     image: '/placeholders/Screenshots-20260105143806.png',
-    ambientIntensity: 0.5,
-    lightIntensity: 0.8,
+    ambientIntensity: 0.4,
+    lightIntensity: 0.6,
     environmentPreset: 'forest'
   },
 ]
