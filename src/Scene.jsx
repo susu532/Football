@@ -700,7 +700,7 @@ export default function Scene() {
           <MapComponents.MapRenderer mapId={selectedMap} />
 
           {/* Ball - interpolated from server state */}
-          <ClientBallVisual ballState={ballState} onKickMessage={onMessage} />
+          <ClientBallVisual ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} />
 
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />

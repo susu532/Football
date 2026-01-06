@@ -80,13 +80,14 @@ SoccerBall.displayName = 'SoccerBall'
 
 // ClientBallVisual - Visual-only ball with smooth interpolation from server state
 // Receives snapshots from Colyseus, interpolates smoothly
-export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage }, ref) => {
+export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, localPlayerRef }, ref) => {
   const groupRef = useRef()
   const targetPos = useRef(new THREE.Vector3(0, 2, 0))
   const targetRot = useRef(new THREE.Quaternion())
   const velocity = useRef(new THREE.Vector3(0, 0, 0))
   const kickFeedback = useRef(null)
   const lastUpdateTime = useRef(0)
+  const lastCollisionTime = useRef(0) // Cooldown for collision prediction
   
   useImperativeHandle(ref, () => groupRef.current)
 
@@ -113,6 +114,8 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage }, 
   useFrame((state, delta) => {
     if (!groupRef.current || !ballState) return
 
+    const now = state.clock.getElapsedTime()
+
     // 1. Sync targets from proxy
     targetPos.current.set(ballState.x, ballState.y, ballState.z)
     velocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
@@ -129,7 +132,48 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage }, 
       velocity.current.y -= 20 * delta
     }
 
-    // 2. Interpolation: Smoothly move visual toward target
+    // 3. LOCAL COLLISION PREDICTION (Visual Only)
+    // Check for collision with local player and apply visual deflection
+    if (localPlayerRef?.current?.position && now - lastCollisionTime.current > 0.1) {
+      const playerPos = localPlayerRef.current.position
+      const ballPos = groupRef.current.position
+      
+      const dx = ballPos.x - playerPos.x
+      const dy = ballPos.y - playerPos.y
+      const dz = ballPos.z - playerPos.z
+      const distSq = dx * dx + dz * dz // Horizontal distance squared
+      const dist = Math.sqrt(distSq + dy * dy) // Full 3D distance
+      
+      const collisionRadius = 1.5 // Player radius + ball radius
+      
+      if (dist < collisionRadius && dist > 0.1) {
+        // Check if ball is moving towards player (dot product)
+        const velToPlayer = dx * velocity.current.x + dz * velocity.current.z
+        
+        if (velToPlayer < 0) { // Ball is moving towards player
+          lastCollisionTime.current = now
+          
+          // Calculate reflection normal (away from player)
+          const nx = dx / dist
+          const ny = Math.max(0.3, dy / dist) // Bias upward for bounce feel
+          const nz = dz / dist
+          
+          // Simple deflection: reflect velocity component towards player
+          const dotVelNormal = velocity.current.x * nx + velocity.current.y * ny + velocity.current.z * nz
+          const bounceFactor = 0.8 // Energy retention
+          
+          velocity.current.x -= 2 * dotVelNormal * nx * bounceFactor
+          velocity.current.y = Math.abs(velocity.current.y * 0.5) + 3 // Add upward bounce
+          velocity.current.z -= 2 * dotVelNormal * nz * bounceFactor
+          
+          // Push ball slightly out to prevent tunneling
+          targetPos.current.x = playerPos.x + nx * collisionRadius * 1.1
+          targetPos.current.z = playerPos.z + nz * collisionRadius * 1.1
+        }
+      }
+    }
+
+    // 4. Interpolation: Smoothly move visual toward target
     // Use adaptive lerp based on distance (snap if too far)
     const distance = groupRef.current.position.distanceTo(targetPos.current)
     
@@ -143,13 +187,13 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage }, 
     
     groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-10 * delta))
     
-    // 3. Simple floor collision for visual prediction
+    // 5. Simple floor collision for visual prediction
     if (groupRef.current.position.y < 0.8) {
       groupRef.current.position.y = 0.8
       velocity.current.y = Math.abs(velocity.current.y) * 0.5 // Bounce
     }
 
-    // 4. Apply velocity damping (matches server linearDamping 1.5)
+    // 6. Apply velocity damping (matches server linearDamping 1.5)
     velocity.current.multiplyScalar(1 - 1.5 * delta)
   })
 
