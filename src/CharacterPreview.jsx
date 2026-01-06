@@ -43,7 +43,7 @@ function CharacterScene({ character, isSelected }) {
   
   return (
     <>
-      <PerspectiveCamera makeDefault position={[0, 1.5, 4]} fov={50} near={0.1} far={100} />
+      <PerspectiveCamera makeDefault position={[0, 1.5, 4]} fov={50} near={0.1} far={1000} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[5, 10, 5]} intensity={1} castShadow />
       <directionalLight position={[-5, 5, -5]} intensity={0.5} />
