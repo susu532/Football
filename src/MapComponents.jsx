@@ -3,7 +3,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 
 export const MAP_DATA = [
-  { id: 'OceanFloor', name: 'Ocean Floor', path: '/maps_1/oceanfloor.glb', scale: 100, position: [0, 26, 0], emoji: '🌊', image: '/placeholders/Screenshots-20260105142140.png', color: '#000b1a', ambientIntensity: 0.05, lightIntensity: 0.7, fogColor: '#000b1a', fogDensity: 0.01 },
+  { id: 'OceanFloor', name: 'Ocean Floor', path: '/maps_1/oceanfloor.glb', scale: 100, position: [0, 26, 0], emoji: '🌊', image: '/placeholders/Screenshots-20260105142140.png' },
   { id: 'CityAtNight', name: 'City At Night', path: '/maps_1/city_at_night.glb', scale: 1, position: [30, -26.5, -35], emoji: '🌃', image: '/placeholders/Screenshots-20260105142231.png' },
   { id: 'CloudStation', name: 'Cloud Station', path: '/maps_1/cloud_station.glb', scale: 20, position: [-20, -20, 0], emoji: '☁️', image: '/placeholders/Screenshots-20260105142255.png' },
   { id: 'CreekFalls', name: 'Creek Falls', path: '/maps_1/creek_falls_world_maps.glb', scale: 2, position: [10, 0, -35], emoji: '🌲', image: '/placeholders/Screenshots-20260105142323.png' },
