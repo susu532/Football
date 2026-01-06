@@ -626,7 +626,7 @@ export default function Scene() {
             return (
               <>
                 <Environment preset={envPreset} environmentIntensity={direct} />
-                <fogExp2 attach="fog" color={fogColor} density={fogDensity} />
+              
                 <ambientLight intensity={ambient} color={ambientColor} />
                 <directionalLight
                   position={[10, 20, 10]}
