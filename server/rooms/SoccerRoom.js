@@ -40,8 +40,8 @@ export class SoccerRoom extends Room {
     await RAPIER.init()
     this.setState(new GameState())
     
-    // Set patch rate to 30Hz (33ms) to prevent network congestion while maintaining smoothness
-    this.setPatchRate(33)
+    // Set patch rate to 60Hz (16ms) for smoother updates with 120Hz physics
+    this.setPatchRate(16)
 
     this.roomCreatedAt = Date.now()
 

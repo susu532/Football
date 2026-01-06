@@ -82,12 +82,12 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
   useFrame((_, delta) => {
     if (!groupRef.current || !player) return
     
-    const lambda = 15 // Interpolation speed (increased from 5 for snappier tracking)
+    const lambda = 10 // Interpolation speed (tuned for 60Hz updates)
     
     // Position interpolation - read directly from Colyseus proxy
     // Prediction: Extrapolate position based on velocity
     // This helps smooth out jumps and fast movements between server updates
-    const LOOKAHEAD = 0.05 // 50ms prediction to compensate for latency
+    const LOOKAHEAD = 0.032 // ~32ms prediction (2 frames at 60Hz)
     const predictedX = player.x + (player.vx || 0) * LOOKAHEAD
     const predictedY = player.y + (player.vy || 0) * LOOKAHEAD
     const predictedZ = player.z + (player.vz || 0) * LOOKAHEAD
