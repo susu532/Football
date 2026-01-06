@@ -27,11 +27,27 @@ export function MapRenderer({ mapId }) {
   // Cleanup on unmount or map change
   useEffect(() => {
     return () => {
+      // Explicitly dispose of the cloned scene's resources
+      if (scene) {
+        scene.traverse((child) => {
+          if (child.isMesh) {
+            if (child.geometry) child.geometry.dispose()
+            if (child.material) {
+              if (Array.isArray(child.material)) {
+                child.material.forEach(m => m.dispose())
+              } else {
+                child.material.dispose()
+              }
+            }
+          }
+        })
+      }
+      
       // Clear from cache to free memory
       useGLTF.clear(mapConfig.path)
       console.log(`Unloaded map: ${mapConfig.name}`)
     }
-  }, [mapConfig.path, mapConfig.name])
+  }, [mapConfig.path, mapConfig.name, scene])
 
   const scene = useMemo(() => {
     const cloned = gltf.scene.clone()
