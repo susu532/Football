@@ -116,108 +116,179 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
 
     const now = state.clock.getElapsedTime()
 
-    // 1. Sync targets from proxy
-    targetPos.current.set(ballState.x, ballState.y, ballState.z)
-    velocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
-    if (ballState.rx !== undefined) {
-      targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
+    // 1. Sync targets from proxy with LATENCY EXTRAPOLATION
+    // We want to render where the ball IS right now, not where it WAS 50ms ago.
+    // Assuming ~50ms latency (tunable or dynamic if we had ping)
+    const LATENCY_COMPENSATION = 0.06 // 60ms ahead
+    
+    // Only update target if the server state has changed significantly or it's a new frame
+    // But here we just overwrite. To smooth it, we should blend.
+    // For now, let's apply the compensation to the target.
+    
+    // Calculate the "server" position extrapolated to "now"
+    const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
+    const serverVel = new THREE.Vector3(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
+    
+    // Apply linear damping to extrapolation (approximate)
+    // v(t) = v0 * (1 - damping * t)
+    const dampingFactor = Math.max(0, 1 - 1.5 * LATENCY_COMPENSATION)
+    const extrapolatedVel = serverVel.clone().multiplyScalar(dampingFactor)
+    const extrapolatedPos = serverPos.clone().addScaledVector(serverVel, LATENCY_COMPENSATION) // Simple Euler for position
+    
+    // Update our target to this "present" state
+    targetPos.current.copy(extrapolatedPos)
+    
+    // If we haven't predicted a collision recently, we trust the server velocity (damped)
+    // But if we DID predict a collision, we want to keep our local velocity for a bit
+    // to avoid "snapping" back before the server confirms the hit.
+    if (now - lastCollisionTime.current > 0.2) {
+       // Blend server velocity into current velocity to correct drift
+       velocity.current.lerp(extrapolatedVel, 0.1)
     }
 
-    // 2. Prediction: Advance target position using velocity
-    // Helps smooth out the gap between snapshots
-    targetPos.current.addScaledVector(velocity.current, delta)
+    // 2. Prediction: Advance locally
+    // This runs every frame, so we are simulating forward from the last (extrapolated) server state
+    // PLUS any local impulses we applied.
     
-    // Apply gravity to prediction (matches server gravity -20)
-    if (targetPos.current.y > 0.8) {
+    // Apply gravity
+    if (groupRef.current.position.y > 0.8) {
       velocity.current.y -= 20 * delta
     }
+    
+    // Apply Damping (matches server 1.5)
+    velocity.current.multiplyScalar(Math.max(0, 1 - 1.5 * delta))
 
-    // 3. LOCAL COLLISION PREDICTION (Visual Only)
-    // Check for collision with local player and apply visual deflection
+    // Move visual
+    groupRef.current.position.addScaledVector(velocity.current, delta)
+    
+    // 3. MICRO-PRECISE COLLISION (AABB vs Sphere)
+    // Player Collider: Cuboid(0.6, 0.2, 0.6) at (x, 0.2, z) -> Bounds: [x-0.6, 0, z-0.6] to [x+0.6, 0.4, z+0.6]
+    // Ball Collider: Sphere(0.8)
+    
     if (localPlayerRef?.current?.position && now - lastCollisionTime.current > 0.1) {
-      const playerPos = localPlayerRef.current.position
-      const ballPos = groupRef.current.position
+      // Use physics position for accurate prediction if available, else visual position
+      const pPos = localPlayerRef.current.userData?.physicsPosition || localPlayerRef.current.position
+      const bPos = groupRef.current.position
       
-      const dx = ballPos.x - playerPos.x
-      const dy = ballPos.y - playerPos.y
-      const dz = ballPos.z - playerPos.z
-      const distSq = dx * dx + dz * dz // Horizontal distance squared
-      const dist = Math.sqrt(distSq + dy * dy) // Full 3D distance
+      // Player AABB (local coords relative to player center)
+      // Player center is at pPos. The collider is offset by y=0.2.
+      // But pPos is usually the bottom center or center? 
+      // In PlayerController, physicsPosition is the RigidBody position.
+      // Server: setTranslation(spawnX, 0.1, 0). Collider translation(0, 0.2, 0).
+      // So Collider Center is at Body + (0, 0.2, 0).
+      // If pPos is the Group position, it usually matches Body position.
       
-      const collisionRadius = 1.5 // Player radius + ball radius
+      const colliderCenter = pPos.clone().add(new THREE.Vector3(0, 0.2, 0))
+      const halfExtents = new THREE.Vector3(0.6, 0.2, 0.6)
       
-      if (dist < collisionRadius && dist > 0.1) {
-        // Check if ball is moving towards player (dot product) or if player is moving towards ball
-        const velToPlayer = dx * velocity.current.x + dz * velocity.current.z
+      // Find closest point on AABB to Sphere center
+      const closestX = Math.max(colliderCenter.x - halfExtents.x, Math.min(ballPos.x, colliderCenter.x + halfExtents.x))
+      const closestY = Math.max(colliderCenter.y - halfExtents.y, Math.min(ballPos.y, colliderCenter.y + halfExtents.y))
+      const closestZ = Math.max(colliderCenter.z - halfExtents.z, Math.min(ballPos.z, colliderCenter.z + halfExtents.z))
+      
+      const distSq = (closestX - ballPos.x)**2 + (closestY - ballPos.y)**2 + (closestZ - ballPos.z)**2
+      const radius = 0.8
+      
+      if (distSq < radius * radius) {
+        // COLLISION DETECTED
+        lastCollisionTime.current = now
         
-        // Only collide if moving towards each other or overlapping significantly
-        if (velToPlayer < 0 || dist < collisionRadius * 0.9) { 
-          lastCollisionTime.current = now
-          
-          // Calculate reflection normal (away from player)
-          const nx = dx / dist
-          const ny = Math.max(0.2, dy / dist) // Bias upward for bounce feel
-          const nz = dz / dist
-          
-          // Relative velocity (Ball - Player)
-          // We assume player velocity is available from ref, else 0
-          const playerVx = localPlayerRef.current.userData?.velocity?.x || 0
-          const playerVz = localPlayerRef.current.userData?.velocity?.z || 0
-          
-          const relVx = velocity.current.x - playerVx
-          const relVz = velocity.current.z - playerVz
-          
-          // Impulse calculation (simplified elastic collision)
-          // Ball mass ~3, Player mass ~infinite (kinematic)
-          const restitution = 0.8
-          const impulseStrength = 1.5 // Boost factor for game feel
-          
-          // Reflect relative velocity along normal
-          const dotRel = relVx * nx + velocity.current.y * ny + relVz * nz
-          
-          if (dotRel < 0) {
-             const j = -(1 + restitution) * dotRel
-             
-             velocity.current.x += j * nx * impulseStrength
-             velocity.current.y += j * ny * impulseStrength + 2 // Add vertical pop
-             velocity.current.z += j * nz * impulseStrength
-             
-             // Add player velocity transfer (friction/grip)
-             velocity.current.x += playerVx * 0.5
-             velocity.current.z += playerVz * 0.5
-          }
-          
-          // Push ball out to prevent tunneling
-          const overlap = collisionRadius - dist
-          targetPos.current.x += nx * overlap
-          targetPos.current.z += nz * overlap
+        const dist = Math.sqrt(distSq)
+        
+        // Normal from closest point to ball center
+        let nx = (ballPos.x - closestX)
+        let ny = (ballPos.y - closestY)
+        let nz = (ballPos.z - closestZ)
+        
+        // Normalize
+        if (dist > 0.0001) {
+          nx /= dist; ny /= dist; nz /= dist;
+        } else {
+          // Center overlap, push up
+          nx = 0; ny = 1; nz = 0;
         }
+        
+        // Relative Velocity
+        const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
+        const relVx = velocity.current.x - playerVel.x
+        const relVy = velocity.current.y - playerVel.y
+        const relVz = velocity.current.z - playerVel.z
+        
+        const velAlongNormal = relVx * nx + relVy * ny + relVz * nz
+        
+        if (velAlongNormal < 0) {
+          // Physics Resolution
+          // e = average(0.75, 0.0) = 0.375. Let's boost it for gameplay feel.
+          const restitution = 0.6 
+          const massBall = 3.0
+          // Player mass infinite -> 1/m_player = 0
+          
+          // J = -(1 + e) * v_rel_norm * m_ball
+          let j = -(1 + restitution) * velAlongNormal * massBall
+          
+          // Apply Impulse
+          // v_new = v_old + J / m * n
+          const impulseX = j * nx
+          const impulseY = j * ny
+          const impulseZ = j * nz
+          
+          velocity.current.x += impulseX / massBall
+          velocity.current.y += impulseY / massBall
+          velocity.current.z += impulseZ / massBall
+          
+          // Friction (Tangential impulse)
+          // t = v_rel - (v_rel . n) * n
+          const tx = relVx - velAlongNormal * nx
+          const ty = relVy - velAlongNormal * ny
+          const tz = relVz - velAlongNormal * nz
+          
+          // Friction coefficient (average of 0.5 and 2.0 = 1.25)
+          const mu = 0.8 // Tuned down slightly from 1.25 to prevent "sticking"
+          
+          velocity.current.x -= tx * mu
+          velocity.current.y -= ty * mu
+          velocity.current.z -= tz * mu
+          
+          // Extra "Pop" for gameplay (Rocket League style)
+          // If hitting from below or side, give a slight vertical boost
+          velocity.current.y += 2.0 
+        }
+        
+        // Penetration Resolution (Push out)
+        const overlap = radius - dist
+        groupRef.current.position.x += nx * overlap
+        groupRef.current.position.y += ny * overlap
+        groupRef.current.position.z += nz * overlap
       }
     }
 
-    // 4. Interpolation: Smoothly move visual toward target
-    // Use adaptive lerp based on distance (snap if too far)
-    const distance = groupRef.current.position.distanceTo(targetPos.current)
+    // 4. Interpolation / Correction
+    // Instead of lerping to target, we pull the visual towards the target if it drifts too far
+    // But we trust our local simulation for short term.
     
-    if (distance > 10) {
-      // Snap to position if too far (likely reconnect or major desync)
+    const distToTarget = groupRef.current.position.distanceTo(targetPos.current)
+    
+    if (distToTarget > 2.0) {
+      // Snap if way off (teleport/respawn)
       groupRef.current.position.copy(targetPos.current)
     } else {
-      // Tuned for 60Hz updates (smoother)
-      const lerpFactor = 1 - Math.exp(-10 * delta)
-      groupRef.current.position.lerp(targetPos.current, lerpFactor)
+      // Soft correction: Pull towards server state slowly
+      // If we are predicting well, this should be minimal.
+      // If we mispredicted, this will slide us back.
+      const correctionStrength = 2.0 * delta // Pull 2m/s/s roughly? No, this is lerp alpha.
+      // Use a small alpha
+      groupRef.current.position.lerp(targetPos.current, 0.1) 
     }
     
-    groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-10 * delta))
+    groupRef.current.quaternion.slerp(targetRot.current, 0.1)
     
-    // 5. Simple floor collision for visual prediction
+    // 5. Floor Collision
     if (groupRef.current.position.y < 0.8) {
       groupRef.current.position.y = 0.8
-      velocity.current.y = Math.abs(velocity.current.y) * 0.5 // Bounce
+      if (velocity.current.y < 0) {
+        velocity.current.y = -velocity.current.y * 0.6 // Restitution with floor
+      }
     }
-
-    // 6. Apply velocity damping (matches server linearDamping 1.5)
-    velocity.current.multiplyScalar(1 - 1.5 * delta)
   })
 
   return (
