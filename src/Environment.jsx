@@ -106,7 +106,7 @@ export function SoccerPitch({
   return (
     <group>
       {/* Grass Pitch */}
-      <mesh position={[0, 0, 0]}>
+      <mesh position={[0, 0, 0]} receiveShadow>
         <boxGeometry args={size} />
         <meshStandardMaterial 
           map={grassTexture}
@@ -234,7 +234,7 @@ export function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColo
           child.material.needsUpdate = true
         }
 
-        child.castShadow = false
+        child.castShadow = true
         child.receiveShadow = false
       }
     })

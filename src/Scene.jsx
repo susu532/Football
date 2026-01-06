@@ -674,6 +674,8 @@ export default function Scene() {
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
+                  castShadow
+                  shadow-mapSize={[1024, 1024]}
                 />
                 
                 {/* Soft grounding shadows */}
