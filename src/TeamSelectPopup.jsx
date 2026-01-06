@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import useStore from './store'
 import CharacterPreview from './CharacterPreview'
 import MapSelector from './MapSelector'
+import { MAP_DATA } from './MapComponents'
 
 // Random name generator
 const adjectives = ['Swift', 'Thunder', 'Shadow', 'Blaze', 'Storm', 'Frost', 'Iron', 'Steel', 'Phantom', 'Cyber', 'Nova', 'Turbo', 'Mega', 'Ultra', 'Epic']
@@ -251,90 +252,91 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
               </button>
             </div>
           </div>
-          
-         
+
           {rooming && (
             <div className="magic-section" style={{ marginTop: '20px' }}>
-              <div className="magic-section-title">Rooms (Max 4 players)</div>
-              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+              <div className="magic-section-title">Public Rooms (Max 4 players)</div>
+              
+              <div className="rooms-grid">
+                {(rooming.availableRooms || []).length === 0 ? (
+                  <div className="no-rooms-message">
+                    No public rooms found. Click “Refresh List”.
+                  </div>
+                ) : (
+                  (rooming.availableRooms || []).map((r) => {
+                    const mapInfo = MAP_DATA.find(m => m.id === r.metadata?.map) || MAP_DATA[0]
+                    return (
+                      <div key={r.roomId} className="room-card-modern">
+                        <div className="room-card-image" style={{ backgroundImage: `url(${mapInfo.image})` }}>
+                          <div className="room-card-overlay">
+                            <div className="room-card-map-name">{mapInfo.name}</div>
+                            <div className="room-card-counts">
+                              <span className="count-red">{r.metadata?.redCount ?? 0} Red</span>
+                              <span className="count-divider">/</span>
+                              <span className="count-blue">{r.metadata?.blueCount ?? 0} Blue</span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          className="room-join-btn"
+                          onClick={() => handleJoinPublicRoom(r.roomId)}
+                          disabled={isRoomBusy || r.clients >= r.maxClients}
+                        >
+                          {r.clients >= r.maxClients ? 'FULL' : 'JOIN ARENA'}
+                        </button>
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+
+              <div className="room-actions-bar">
                 <button
-                  className="magic-join-btn active"
+                  className="magic-action-btn"
                   onClick={handleCreatePublicRoom}
                   disabled={isRoomBusy}
-                  style={{ width: '15%', padding: '12px 14px' }}
                 >
-                  Create Public
+                  🌐 Create Public
                 </button>
                 <button
-                  className="magic-join-btn active"
+                  className="magic-action-btn"
                   onClick={handleCreatePrivateRoom}
                   disabled={isRoomBusy}
-                  style={{ width: '15%', padding: '12px 14px' }}
                 >
-                  Create Private
+                  🔒 Create Private
                 </button>
                 <button
-                  className="magic-join-btn"
+                  className="magic-action-btn secondary"
                   onClick={handleRefreshRooms}
                   disabled={isRoomBusy}
-                  style={{ width: '15%', padding: '12px 14px' }}
                 >
-                  Refresh List
+                  🔄 Refresh List
+                </button>
+              </div>
+
+              <div className="private-join-section">
+                <input
+                  type="text"
+                  className="magic-input small"
+                  value={privateJoinCode}
+                  onChange={(e) => setPrivateJoinCode(e.target.value)}
+                  placeholder="Private Code (e.g. A7K3)"
+                  maxLength={8}
+                />
+                <button
+                  className="magic-action-btn"
+                  onClick={handleJoinPrivateByCode}
+                  disabled={isRoomBusy}
+                >
+                  Join Private
                 </button>
               </div>
 
               {rooming.roomCode && (
-                <div style={{ marginTop: '12px', color: 'white', fontWeight: 'bold' }}>
-                  Private Code: <span style={{ letterSpacing: '2px' }}>{rooming.roomCode}</span>
+                <div className="active-room-code">
+                  Your Room Code: <span>{rooming.roomCode}</span>
                 </div>
               )}
-
-              <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
-                <input
-                  type="text"
-                  className="magic-input"
-                  value={privateJoinCode}
-                  onChange={(e) => setPrivateJoinCode(e.target.value)}
-                  placeholder="Join private code (e.g. A7K3)"
-                  maxLength={8}
-                  style={{ flex: 1 }}
-                />
-                <button
-                  className="magic-join-btn active"
-                  onClick={handleJoinPrivateByCode}
-                  disabled={isRoomBusy}
-                  style={{ width: 'auto', padding: '12px 14px' }}
-                >
-                  Join
-                </button>
-              </div>
-
-              <div style={{ marginTop: '12px', maxHeight: '140px', overflow: 'auto', background: 'rgba(0,0,0,0.25)', borderRadius: '12px', padding: '10px' }}>
-                {(rooming.availableRooms || []).length === 0 ? (
-                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>
-                    No public rooms found. Click “Refresh List”.
-                  </div>
-                ) : (
-                  (rooming.availableRooms || []).map((r) => (
-                    <div key={r.roomId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
-                      <div style={{ color: 'white', fontSize: '12px' }}>
-                        <div style={{ fontWeight: 'bold' }}>{r.metadata?.map || 'Unknown Map'}</div>
-                        <div style={{ opacity: 0.8 }}>
-                          {(r.metadata?.redCount ?? 0)} red / {(r.metadata?.blueCount ?? 0)} blue
-                        </div>
-                      </div>
-                      <button
-                        className="magic-join-btn active"
-                        onClick={() => handleJoinPublicRoom(r.roomId)}
-                        disabled={isRoomBusy || r.clients >= r.maxClients}
-                        style={{ width: 'auto', padding: '10px 12px' }}
-                      >
-                        Join
-                      </button>
-                    </div>
-                  ))
-                )}
-              </div>
             </div>
           )}
         </div>
