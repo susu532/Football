@@ -473,8 +473,8 @@ html,
 }
 
 .joystick-base {
-  width: 140px;
-  height: 140px;
+  width: 180px; /* Increased from 140px */
+  height: 180px;
   border-radius: 50%;
   background: var(--magic-card);
   backdrop-filter: blur(20px);
@@ -488,8 +488,8 @@ html,
 }
 
 .joystick-knob {
-  width: 60px;
-  height: 60px;
+  width: 80px; /* Increased from 60px */
+  height: 80px;
   border-radius: 50%;
   background: linear-gradient(135deg, var(--magic-accent), var(--magic-secondary));
   border: 2px solid rgba(255, 255, 255, 0.3);
@@ -502,13 +502,13 @@ html,
 .action-buttons {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 30px; /* Increased gap */
   pointer-events: auto;
 }
 
 .action-button {
-  width: 90px;
-  height: 90px;
+  width: 100px; /* Increased from 90px */
+  height: 100px;
   border-radius: 50%;
   border: 1px solid var(--magic-border);
   background: var(--magic-card);

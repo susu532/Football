@@ -444,7 +444,7 @@ export default function Scene() {
   }, [hasJoined, isLaunched, refreshAvailableRooms])
 
   return (
-    <div style={{ width: '100%', height: '100%', position: 'relative' }}>
+    <div style={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}>
       {!hasJoined ? (
         <TeamSelectPopup
           key="team-select-popup"
@@ -499,6 +499,23 @@ export default function Scene() {
           backdropFilter: 'blur(5px)'
         }}>
           ⚠️ POOR CONNECTION - PLAYERS MAY DESYNC
+        </div>
+          ⚠️ POOR CONNECTION - PLAYERS MAY DESYNC
+        </div>
+      )}
+
+      {/* Mobile Debug Indicator */}
+      {isMobile && (
+        <div style={{
+          position: 'absolute',
+          top: '5px',
+          left: '5px',
+          zIndex: 9999,
+          color: 'rgba(255,255,255,0.3)',
+          fontSize: '10px',
+          pointerEvents: 'none'
+        }}>
+          MOBILE MODE
         </div>
       )}
 

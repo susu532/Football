@@ -22,8 +22,8 @@ export default function MobileControls({
   const isCameraSwiping = useRef(false)
 
   // Joystick size constants
-  const JOYSTICK_SIZE = 120
-  const KNOB_SIZE = 50
+  const JOYSTICK_SIZE = 160 // Matches CSS width (approx internal usable area)
+  const KNOB_SIZE = 80 // Matches CSS width
   const MAX_DISTANCE = (JOYSTICK_SIZE - KNOB_SIZE) / 2
 
   const isDraggingRef = useRef(false)
