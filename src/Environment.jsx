@@ -260,7 +260,7 @@ export function GoalCelebrationEffect({ team }) {
 
   const teamColor = team === 'red' ? '#ff4757' : '#3742fa'
 
-  const goalX = team === 'red' ? 11.2 : -11.2
+  const goalX = team === 'red' ? 12.2 : -12.2
   const frontOffsetX = team === 'red' ? -0.85 : 0.85
   const ringRotY = team === 'red' ? -Math.PI / 2 : Math.PI / 2
 
