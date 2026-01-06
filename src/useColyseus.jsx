@@ -53,6 +53,8 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [room, setRoom] = useState(null)
   const [isConnected, setIsConnected] = useState(false)
   const [isLaunched, setIsLaunched] = useState(false)
+  const [roomCode, setRoomCode] = useState(null)
+  const [availableRooms, setAvailableRooms] = useState([])
   const [players, setPlayers] = useState([])
   const [ballState, setBallState] = useState({
     x: 0, y: 2, z: 0,
@@ -68,6 +70,127 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [ping, setPing] = useState(0)
 
   const roomRef = useRef(null)
+
+  const getHttpServerUrl = useCallback(() => {
+    if (!serverUrl) return ''
+    if (serverUrl.startsWith('ws://')) return 'http://' + serverUrl.slice('ws://'.length)
+    if (serverUrl.startsWith('wss://')) return 'https://' + serverUrl.slice('wss://'.length)
+    return serverUrl
+  }, [serverUrl])
+
+  const attachRoomHandlers = useCallback((joinedRoom) => {
+    setRoomCode(null)
+
+    joinedRoom.onMessage('room-code', (message) => {
+      if (message && message.code) {
+        setRoomCode(String(message.code))
+      }
+    })
+
+    // 1. Register Message Handlers FIRST
+    joinedRoom.onMessage('player-joined', (message) => {
+      console.log('Player joined:', message)
+    })
+
+    joinedRoom.onMessage('game-started', (message) => {
+      console.log('Game started:', message)
+    })
+
+    joinedRoom.onMessage('player-left', (message) => {
+      console.log('Player left:', message)
+    })
+
+    joinedRoom.onMessage('goal-scored', (message) => {
+      console.log('Goal scored:', message)
+    })
+
+    joinedRoom.onMessage('game-over', (message) => {
+      console.log('Game Over:', message)
+    })
+
+    joinedRoom.onMessage('game-reset', (message) => {
+      console.log('Game Reset:', message)
+    })
+
+    joinedRoom.onMessage('chat-message', (message) => {
+      // Handled by Chat.jsx
+    })
+
+    joinedRoom.onMessage('pong', () => {
+      const now = Date.now()
+      if (lastPingTime.current) {
+        setPing(now - lastPingTime.current)
+      }
+    })
+
+    // 2. Defensive State Sync
+    // We use onStateChange as a fallback because onAdd/onRemove can sometimes 
+    // fail if the schema prototype is lost during bundling/HMR.
+    joinedRoom.onStateChange((state) => {
+      if (!state) return
+
+      // Sync Players List (Efficiently)
+      if (state.players) {
+        const playerIds = []
+        state.players.forEach((p, id) => {
+          playerIds.push(id)
+        })
+
+        setPlayers(prev => {
+          const prevIds = prev.map(p => p.sessionId)
+          const hasChanged = playerIds.length !== prevIds.length || 
+                             !playerIds.every(id => prevIds.includes(id))
+          
+          if (hasChanged) {
+            const newPlayers = []
+            state.players.forEach((p) => newPlayers.push(p))
+            return newPlayers
+          }
+          return prev
+        })
+      }
+
+      // Sync Ball Proxy
+      if (state.ball && ballState !== state.ball) {
+        setBallState(state.ball)
+      }
+
+      // Sync Game Info
+      setScores({ red: state.redScore, blue: state.blueScore })
+      setGamePhase(state.gamePhase)
+      setGameTimer(state.timer)
+      if (state.selectedMap) setSelectedMap(state.selectedMap)
+
+      // Sync Power-ups (Only if collection changes)
+      if (state.powerUps) {
+        const powerUpIds = []
+        state.powerUps.forEach((p, id) => powerUpIds.push(id))
+        
+        setPowerUps(prev => {
+          const prevIds = prev.map(p => p.id)
+          const hasChanged = powerUpIds.length !== prevIds.length || 
+                             !powerUpIds.every(id => prevIds.includes(id))
+          
+          if (hasChanged) {
+            const newPowerUps = []
+            state.powerUps.forEach((p) => newPowerUps.push(p))
+            console.log('Power-ups updated:', newPowerUps.length)
+            return newPowerUps
+          }
+          return prev
+        })
+      }
+    })
+  }, [ballState])
+
+  const connectToRoom = useCallback((joinedRoom) => {
+    roomRef.current = joinedRoom
+    setRoom(joinedRoom)
+    setMySessionId(joinedRoom.sessionId)
+    setIsConnected(true)
+    attachRoomHandlers(joinedRoom)
+    return joinedRoom
+  }, [attachRoomHandlers])
 
   // Initialize Colyseus client
   useEffect(() => {
@@ -88,110 +211,79 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
     try {
       const joinedRoom = await client.joinOrCreate('soccer', options, GameState)
-      roomRef.current = joinedRoom
-      setRoom(joinedRoom)
-      setMySessionId(joinedRoom.sessionId)
-      setIsConnected(true)
-
-      // 1. Register Message Handlers FIRST
-      joinedRoom.onMessage('player-joined', (message) => {
-        console.log('Player joined:', message)
-      })
-
-      joinedRoom.onMessage('game-started', (message) => {
-        console.log('Game started:', message)
-      })
-
-      joinedRoom.onMessage('player-left', (message) => {
-        console.log('Player left:', message)
-      })
-
-      joinedRoom.onMessage('goal-scored', (message) => {
-        console.log('Goal scored:', message)
-      })
-
-      joinedRoom.onMessage('game-over', (message) => {
-        console.log('Game Over:', message)
-      })
-
-      joinedRoom.onMessage('game-reset', (message) => {
-        console.log('Game Reset:', message)
-      })
-
-      joinedRoom.onMessage('chat-message', (message) => {
-        // Handled by Chat.jsx
-      })
-
-      joinedRoom.onMessage('pong', () => {
-        const now = Date.now()
-        if (lastPingTime.current) {
-          setPing(now - lastPingTime.current)
-        }
-      })
-
-      // 2. Defensive State Sync
-      // We use onStateChange as a fallback because onAdd/onRemove can sometimes 
-      // fail if the schema prototype is lost during bundling/HMR.
-      joinedRoom.onStateChange((state) => {
-        if (!state) return
-
-        // Sync Players List (Efficiently)
-        if (state.players) {
-          const playerIds = []
-          state.players.forEach((p, id) => {
-            playerIds.push(id)
-          })
-
-          setPlayers(prev => {
-            const prevIds = prev.map(p => p.sessionId)
-            const hasChanged = playerIds.length !== prevIds.length || 
-                               !playerIds.every(id => prevIds.includes(id))
-            
-            if (hasChanged) {
-              const newPlayers = []
-              state.players.forEach((p) => newPlayers.push(p))
-              return newPlayers
-            }
-            return prev
-          })
-        }
-
-        // Sync Ball Proxy
-        if (state.ball && ballState !== state.ball) {
-          setBallState(state.ball)
-        }
-
-        // Sync Game Info
-        setScores({ red: state.redScore, blue: state.blueScore })
-        setGamePhase(state.gamePhase)
-        setGameTimer(state.timer)
-        if (state.selectedMap) setSelectedMap(state.selectedMap)
-
-        // Sync Power-ups (Only if collection changes)
-        if (state.powerUps) {
-          const powerUpIds = []
-          state.powerUps.forEach((p, id) => powerUpIds.push(id))
-          
-          setPowerUps(prev => {
-            const prevIds = prev.map(p => p.id)
-            const hasChanged = powerUpIds.length !== prevIds.length || 
-                               !powerUpIds.every(id => prevIds.includes(id))
-            
-            if (hasChanged) {
-              const newPowerUps = []
-              state.powerUps.forEach((p) => newPowerUps.push(p))
-              console.log('Power-ups updated:', newPowerUps.length)
-              return newPowerUps
-            }
-            return prev
-          })
-        }
-      })
-
-      return joinedRoom
+      return connectToRoom(joinedRoom)
     } catch (error) {
       console.error('Failed to join room:', error)
       return null
+    }
+  }, [client, connectToRoom])
+
+  const createPublicRoom = useCallback(async (options = {}) => {
+    if (!client) return null
+    try {
+      const joinedRoom = await client.create('soccer', { ...options, isPublic: true }, GameState)
+      return connectToRoom(joinedRoom)
+    } catch (error) {
+      console.error('Failed to create public room:', error)
+      return null
+    }
+  }, [client, connectToRoom])
+
+  const createPrivateRoom = useCallback(async (options = {}) => {
+    if (!client) return null
+    try {
+      const joinedRoom = await client.create('soccer', { ...options, isPublic: false }, GameState)
+      return connectToRoom(joinedRoom)
+    } catch (error) {
+      console.error('Failed to create private room:', error)
+      return null
+    }
+  }, [client, connectToRoom])
+
+  const joinRoomById = useCallback(async (roomId, options = {}) => {
+    if (!client) return null
+    try {
+      const joinedRoom = await client.joinById(roomId, options, GameState)
+      return connectToRoom(joinedRoom)
+    } catch (error) {
+      console.error('Failed to join room by id:', error)
+      return null
+    }
+  }, [client, connectToRoom])
+
+  const joinPrivateRoomByCode = useCallback(async (code, options = {}) => {
+    if (!client) return null
+
+    const normalized = String(code || '').trim().toUpperCase()
+    if (!normalized) return null
+
+    try {
+      const httpUrl = getHttpServerUrl()
+      const res = await fetch(`${httpUrl}/rooms/resolve/${encodeURIComponent(normalized)}`)
+      if (!res.ok) {
+        console.error('Failed to resolve room code:', normalized)
+        return null
+      }
+      const data = await res.json()
+      if (!data || !data.roomId) return null
+      return joinRoomById(data.roomId, options)
+    } catch (error) {
+      console.error('Failed to join room by code:', error)
+      return null
+    }
+  }, [client, getHttpServerUrl, joinRoomById])
+
+  const refreshAvailableRooms = useCallback(async () => {
+    if (!client) return []
+    try {
+      const rooms = await client.getAvailableRooms('soccer')
+      const publicRooms = (rooms || []).filter(r => r?.metadata?.isPublic !== false)
+      setAvailableRooms(publicRooms)
+      return publicRooms
+    } catch (error) {
+      console.error('Failed to list rooms:', error)
+      setAvailableRooms([])
+      return []
     }
   }, [client])
 
@@ -222,6 +314,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setRoom(null)
       setIsConnected(false)
       setPlayers([])
+      setRoomCode(null)
     }
   }, [])
 
@@ -299,6 +392,8 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     joinRoom,
     leaveRoom,
     room,
+    roomCode,
+    availableRooms,
 
     // State
     players,
@@ -318,6 +413,11 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     sendChat,
     startGame,
     endGame,
-    onMessage
+    onMessage,
+    createPublicRoom,
+    createPrivateRoom,
+    joinRoomById,
+    joinPrivateRoomByCode,
+    refreshAvailableRooms
   }
 }

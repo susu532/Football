@@ -185,7 +185,14 @@ export default function Scene() {
     onMessage,
     powerUps,
     selectedMap,
-    ping: realPing
+    ping: realPing,
+    roomCode,
+    availableRooms,
+    createPublicRoom,
+    createPrivateRoom,
+    joinRoomById,
+    joinPrivateRoomByCode,
+    refreshAvailableRooms
   } = useColyseus(SERVER_URL)
 
   // Adaptive shadow quality
@@ -383,7 +390,19 @@ export default function Scene() {
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
       {!hasJoined ? (
-        <TeamSelectPopup key="team-select-popup" defaultName="" />
+        <TeamSelectPopup
+          key="team-select-popup"
+          defaultName=""
+          rooming={{
+            roomCode,
+            availableRooms,
+            createPublicRoom,
+            createPrivateRoom,
+            joinRoomById,
+            joinPrivateRoomByCode,
+            refreshAvailableRooms
+          }}
+        />
       ) : (
         <div className="game-content-wrapper" style={{ width: '100%', height: '100%' }}>
           {/* Connection Status */}

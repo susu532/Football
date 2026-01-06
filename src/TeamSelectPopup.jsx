@@ -14,7 +14,7 @@ function generateRandomName() {
   return `${adj}${noun}${num}`
 }
 
-export default function TeamSelectPopup({ defaultName }) {
+export default function TeamSelectPopup({ defaultName, rooming }) {
   const joinGame = useStore((s) => s.joinGame)
   const hasJoined = useStore((s) => s.hasJoined)
   const setPlayerCharacter = useStore((s) => s.setPlayerCharacter)
@@ -28,6 +28,8 @@ export default function TeamSelectPopup({ defaultName }) {
   })
   const [selectedMap, setSelectedMap] = useState('OceanFloor')
   const [playerName, setPlayerName] = useState(defaultName || '')
+  const [privateJoinCode, setPrivateJoinCode] = useState('')
+  const [isRoomBusy, setIsRoomBusy] = useState(false)
   
   useEffect(() => {
     if (!defaultName) {
@@ -47,16 +49,103 @@ export default function TeamSelectPopup({ defaultName }) {
     }
   }
 
-  const handleJoin = () => {
+  const validateInputs = () => {
     if (!selectedTeam) {
       alert('Please select a team!')
-      return
+      return false
     }
     if (!playerName.trim()) {
       alert('Please enter a name!')
+      return false
+    }
+    return true
+  }
+
+  const handleJoin = () => {
+    if (!validateInputs()) return
+    joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
+  }
+
+  const handleCreatePublicRoom = async () => {
+    if (!rooming) return
+    if (!validateInputs()) return
+    setIsRoomBusy(true)
+    const joined = await rooming.createPublicRoom({
+      name: playerName.trim(),
+      team: selectedTeam,
+      character: selectedCharacter,
+      map: selectedMap
+    })
+    setIsRoomBusy(false)
+    if (joined) {
+      joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
+    } else {
+      alert('Failed to create public room')
+    }
+  }
+
+  const handleCreatePrivateRoom = async () => {
+    if (!rooming) return
+    if (!validateInputs()) return
+    setIsRoomBusy(true)
+    const joined = await rooming.createPrivateRoom({
+      name: playerName.trim(),
+      team: selectedTeam,
+      character: selectedCharacter,
+      map: selectedMap
+    })
+    setIsRoomBusy(false)
+    if (joined) {
+      joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
+    } else {
+      alert('Failed to create private room')
+    }
+  }
+
+  const handleRefreshRooms = async () => {
+    if (!rooming) return
+    setIsRoomBusy(true)
+    await rooming.refreshAvailableRooms()
+    setIsRoomBusy(false)
+  }
+
+  const handleJoinPublicRoom = async (roomId) => {
+    if (!rooming) return
+    if (!validateInputs()) return
+    setIsRoomBusy(true)
+    const joined = await rooming.joinRoomById(roomId, {
+      name: playerName.trim(),
+      team: selectedTeam,
+      character: selectedCharacter
+    })
+    setIsRoomBusy(false)
+    if (joined) {
+      joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
+    } else {
+      alert('Failed to join room')
+    }
+  }
+
+  const handleJoinPrivateByCode = async () => {
+    if (!rooming) return
+    if (!validateInputs()) return
+    const code = privateJoinCode.trim().toUpperCase()
+    if (!code) {
+      alert('Enter a room code')
       return
     }
-    joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
+    setIsRoomBusy(true)
+    const joined = await rooming.joinPrivateRoomByCode(code, {
+      name: playerName.trim(),
+      team: selectedTeam,
+      character: selectedCharacter
+    })
+    setIsRoomBusy(false)
+    if (joined) {
+      joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
+    } else {
+      alert('Invalid code or room not found')
+    }
   }
   
   return (
@@ -157,6 +246,89 @@ export default function TeamSelectPopup({ defaultName }) {
           >
             🎮 Enter Arena
           </button>
+
+          {rooming && (
+            <div className="magic-section" style={{ marginTop: '20px' }}>
+              <div className="magic-section-title">Rooms (Max 4 players)</div>
+              <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+                <button
+                  className="magic-join-btn active"
+                  onClick={handleCreatePublicRoom}
+                  disabled={isRoomBusy}
+                  style={{ width: 'auto', padding: '12px 14px' }}
+                >
+                  Create Public
+                </button>
+                <button
+                  className="magic-join-btn active"
+                  onClick={handleCreatePrivateRoom}
+                  disabled={isRoomBusy}
+                  style={{ width: 'auto', padding: '12px 14px' }}
+                >
+                  Create Private
+                </button>
+                <button
+                  className="magic-join-btn"
+                  onClick={handleRefreshRooms}
+                  disabled={isRoomBusy}
+                  style={{ width: 'auto', padding: '12px 14px' }}
+                >
+                  Refresh List
+                </button>
+              </div>
+
+              {rooming.roomCode && (
+                <div style={{ marginTop: '12px', color: 'white', fontWeight: 'bold' }}>
+                  Private Code: <span style={{ letterSpacing: '2px' }}>{rooming.roomCode}</span>
+                </div>
+              )}
+
+              <div style={{ marginTop: '12px', display: 'flex', gap: '10px' }}>
+                <input
+                  type="text"
+                  className="magic-input"
+                  value={privateJoinCode}
+                  onChange={(e) => setPrivateJoinCode(e.target.value)}
+                  placeholder="Join private code (e.g. A7K3)"
+                  maxLength={8}
+                  style={{ flex: 1 }}
+                />
+                <button
+                  className="magic-join-btn active"
+                  onClick={handleJoinPrivateByCode}
+                  disabled={isRoomBusy}
+                  style={{ width: 'auto', padding: '12px 14px' }}
+                >
+                  Join
+                </button>
+              </div>
+
+              <div style={{ marginTop: '12px', maxHeight: '140px', overflow: 'auto', background: 'rgba(0,0,0,0.25)', borderRadius: '12px', padding: '10px' }}>
+                {(rooming.availableRooms || []).length === 0 ? (
+                  <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '12px' }}>
+                    No public rooms found. Click “Refresh List”.
+                  </div>
+                ) : (
+                  (rooming.availableRooms || []).map((r) => (
+                    <div key={r.roomId} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 6px', borderBottom: '1px solid rgba(255,255,255,0.08)' }}>
+                      <div style={{ color: 'white', fontSize: '12px' }}>
+                        <div style={{ fontWeight: 'bold' }}>{r.metadata?.map || 'Unknown Map'}</div>
+                        <div style={{ opacity: 0.8 }}>{r.clients}/{r.maxClients} players</div>
+                      </div>
+                      <button
+                        className="magic-join-btn active"
+                        onClick={() => handleJoinPublicRoom(r.roomId)}
+                        disabled={isRoomBusy || r.clients >= r.maxClients}
+                        style={{ width: 'auto', padding: '10px 12px' }}
+                      >
+                        Join
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          )}
         </div>
         
       </div>
