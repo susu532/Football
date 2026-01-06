@@ -58,7 +58,7 @@ const CharacterSkin = React.forwardRef(({
             transparent: false,
             opacity: 1.0,
             side: THREE.FrontSide,
-            roughness: 0.5,
+            roughness: 0.8, // Increased for matte look
             metalness: 0.0,
             flatShading: false
           })

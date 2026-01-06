@@ -228,10 +228,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             </div>
           </div>
 
-          <MapSelector 
-            selectedMapId={selectedMap} 
-            onSelect={setSelectedMap} 
-          />
+         
           
           <div className="magic-section">
             <div className="magic-section-title">Player Identity</div>
@@ -255,9 +252,12 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
           {rooming && (
             <div className="magic-section" style={{ marginTop: '20px' }}>
-              <div className="magic-section-title">Public Rooms (Max 4 players)</div>
+              <div className="magic-section-header">
+                <div className="magic-section-title">Public Rooms</div>
+               
+              </div>
               
-              <div className="rooms-grid">
+              <div className="rooms-slider">
                 {(rooming.availableRooms || []).length === 0 ? (
                   <div className="no-rooms-message">
                     No public rooms found. Click “Refresh List”.
@@ -289,7 +289,10 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
                   })
                 )}
               </div>
-
+ <MapSelector 
+            selectedMapId={selectedMap} 
+            onSelect={setSelectedMap} 
+          />
               <div className="room-actions-bar">
                 <button
                   className="magic-action-btn"
@@ -305,13 +308,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
                 >
                   🔒 Create Private
                 </button>
-                <button
-                  className="magic-action-btn secondary"
-                  onClick={handleRefreshRooms}
-                  disabled={isRoomBusy}
-                >
-                  🔄 Refresh List
-                </button>
+              
               </div>
 
               <div className="private-join-section">

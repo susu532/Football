@@ -663,18 +663,18 @@ export default function Scene() {
           {/* Map-specific Lighting & Fog */}
           {(() => {
             const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
-            const ambient = mapConfig.ambientIntensity ?? 0.5 // Increased for daytime
-            const direct = mapConfig.lightIntensity ?? 1.0 // Increased for daytime
-            const fogColor = mapConfig.fogColor ?? '#87CEEB' // Match sky blue
+            const ambient = mapConfig.ambientIntensity ?? 0.4 // Reduced from 0.5
+            const direct = mapConfig.lightIntensity ?? 0.8 // Reduced from 1.0
+            const fogColor = mapConfig.fogColor ?? '#87CEEB'
             const fogDensity = mapConfig.fogDensity ?? 0.01
-            const envPreset = mapConfig.environmentPreset ?? 'park' // Park preset for daytime
+            const envPreset = mapConfig.environmentPreset ?? 'park'
             const ambientColor = mapConfig.ambientColor
             const lightColor = mapConfig.lightColor
 
             return (
               <>
-               <Environment preset={envPreset} environmentIntensity={direct} />
-                <fogExp2 attach="fog" color={fogColor} density={fogDensity} />
+               <Environment preset={envPreset} environmentIntensity={direct * 0.5} />
+                
                 <ambientLight intensity={ambient} color={ambientColor} />
                 <directionalLight
                   position={[10, 20, 10]}
