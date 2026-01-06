@@ -269,7 +269,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
               <div className="rooms-slider">
                 {(rooming.availableRooms || []).length === 0 ? (
                   <div className="no-rooms-message">
-                    No public rooms found. Click “Refresh List”.
+                    No public rooms found.Refresh List.
                   </div>
                 ) : (
                   (rooming.availableRooms || []).map((r) => {
