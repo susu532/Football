@@ -24,6 +24,7 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
     isFreeLook = null, 
     characterType = 'cat',
     onLocalInteraction = null,
+    onLocalKick = null, // Receive the kick handler
     serverState = null
   } = props
   
@@ -55,6 +56,7 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
         isFreeLook={isFreeLook}
         characterType={characterType}
         onLocalInteraction={onLocalInteraction}
+        onLocalKick={onLocalKick} // Pass it down
         serverState={serverState}
       />
       {playerName && (
