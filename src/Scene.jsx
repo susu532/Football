@@ -641,7 +641,7 @@ export default function Scene() {
           {/* No client-side physics - server handles all physics */}
 
           {/* Visuals (rendered for all) */}
-         <GameSkybox />
+         
           
           {/* Map-specific Lighting & Fog */}
           {(() => {
