@@ -658,8 +658,8 @@ export default function Scene() {
           {/* Map-specific Lighting & Fog */}
           {(() => {
             const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
-            const ambient = mapConfig.ambientIntensity ?? 0.4 // Reduced from 0.5
-            const direct = mapConfig.lightIntensity ?? 0.8 // Reduced from 1.0
+            const ambient = mapConfig.ambientIntensity ?? 0.6
+            const direct = mapConfig.lightIntensity ?? 1.0
             const fogColor = mapConfig.fogColor ?? '#87CEEB'
             const fogDensity = mapConfig.fogDensity ?? 0.01
             const envPreset = mapConfig.environmentPreset ?? 'park'
@@ -674,15 +674,6 @@ export default function Scene() {
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
-                
-                  castShadow
-                  shadow-mapSize={[1024, 1024]}
-                  shadow-bias={-0.0005} // Adjusted bias
-                  shadow-normalBias={0.02} // Added normal bias for cleaner edges
-                  shadow-camera-left={-16}
-                  shadow-camera-right={16}
-                  shadow-camera-top={11}
-                  shadow-camera-bottom={-11}
                 />
                 
                 {/* Soft grounding shadows */}
