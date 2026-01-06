@@ -1,5 +1,5 @@
-import React, { useMemo, useEffect } from 'react'
-import { useThree } from '@react-three/fiber'
+import React, { useMemo, useEffect, useRef } from 'react'
+import { useThree, useFrame } from '@react-three/fiber'
 import { Stars, Sparkles, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier'
@@ -248,6 +248,87 @@ export function SoccerGoal({ position = [0, 0, 0], rotation = [0, 0, 0], netColo
       rotation={rotation} 
       scale={0.01} 
     />
+  )
+}
+
+export function GoalCelebrationEffect({ team }) {
+  const startTime = useRef(null)
+  const ringRef = useRef(null)
+  const ringMatRef = useRef(null)
+  const glowRef = useRef(null)
+  const glowMatRef = useRef(null)
+
+  const teamColor = team === 'red' ? '#ff4757' : '#3742fa'
+
+  const goalX = team === 'red' ? 11.2 : -11.2
+  const frontOffsetX = team === 'red' ? -0.85 : 0.85
+  const ringRotY = team === 'red' ? -Math.PI / 2 : Math.PI / 2
+
+  useFrame(({ clock }) => {
+    if (startTime.current == null) startTime.current = clock.getElapsedTime()
+    const t = clock.getElapsedTime() - startTime.current
+    const duration = 1.35
+    const p = THREE.MathUtils.clamp(t / duration, 0, 1)
+    const ease = 1 - Math.pow(1 - p, 3)
+
+    if (ringRef.current) {
+      const s = 0.35 + ease * 2.4
+      ringRef.current.scale.set(s, s, s)
+      ringRef.current.rotation.z = t * 2.0
+    }
+
+    if (ringMatRef.current) {
+      ringMatRef.current.opacity = (1 - p) * 0.95
+    }
+
+    if (glowRef.current) {
+      const gs = 0.2 + ease * 1.6
+      glowRef.current.scale.set(gs, gs, gs)
+    }
+
+    if (glowMatRef.current) {
+      glowMatRef.current.opacity = (1 - p) * 0.65
+    }
+  })
+
+  return (
+    <group position={[goalX + frontOffsetX, 0.9, 0]} rotation={[0, ringRotY, 0]}>
+      <mesh ref={glowRef} rotation={[0, 0, 0]}>
+        <circleGeometry args={[0.9, 48]} />
+        <meshBasicMaterial
+          ref={glowMatRef}
+          color={teamColor}
+          transparent
+          opacity={0.65}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+
+      <mesh ref={ringRef} rotation={[0, 0, 0]}>
+        <ringGeometry args={[0.85, 1.15, 64]} />
+        <meshBasicMaterial
+          ref={ringMatRef}
+          color={teamColor}
+          transparent
+          opacity={0.95}
+          blending={THREE.AdditiveBlending}
+          depthWrite={false}
+        />
+      </mesh>
+
+      <pointLight color={teamColor} intensity={6} distance={8} decay={2} />
+
+      <Sparkles
+        count={120}
+        scale={[2.4, 2.2, 4.2]}
+        position={[0, 0, 0]}
+        size={7}
+        speed={1.6}
+        opacity={0.85}
+        color={teamColor}
+      />
+    </group>
   )
 }
 

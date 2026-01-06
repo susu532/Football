@@ -20,7 +20,7 @@ import Chat from './Chat'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
-import { SoccerPitch, SoccerGoal, GameSkybox } from './Environment'
+import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect } from './Environment'
 
 const CSS_ANIMATIONS = `
   @keyframes popIn {
@@ -247,7 +247,7 @@ export default function Scene() {
     if (!isConnected) return
 
     const unsubGoal = onMessage('goal-scored', (data) => {
-      setCelebration({ team: data.team })
+      setCelebration({ team: data.team, id: Date.now() })
       
       const audio = new Audio('/winner-game-sound-404167.mp3')
       audio.volume = 0.03
@@ -628,6 +628,9 @@ export default function Scene() {
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />
           <SoccerGoal position={[11.2, 0, 0]} rotation={[0, -Math.PI, 0]} netColor="#4444ff" />
+
+          {/* Goal celebration (front net zone effect) */}
+          {celebration && <GoalCelebrationEffect key={celebration.id} team={celebration.team} />}
 
           {/* Local Player */}
           {me && (
