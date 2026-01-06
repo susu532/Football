@@ -334,12 +334,12 @@ export function GoalCelebrationEffect({ team }) {
 
 export function GameSkybox() {
   useThree(({ scene }) => {
-    scene.background = new THREE.Color('#050510')
+    scene.background = new THREE.Color('#87CEEB') // Sky Blue
   })
   return (
     <>
-      <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
-      <Sparkles count={200} scale={[30, 10, 20]} size={2} speed={0.2} opacity={0.2} />
+      {/* Stars removed for daytime */}
+      <Sparkles count={100} scale={[30, 10, 20]} size={1.5} speed={0.1} opacity={0.1} />
     </>
   )
 }

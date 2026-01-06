@@ -261,7 +261,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
                   className="magic-join-btn active"
                   onClick={handleCreatePublicRoom}
                   disabled={isRoomBusy}
-                  style={{ width: 'auto', padding: '12px 14px' }}
+                  style={{ width: '15%', padding: '12px 14px' }}
                 >
                   Create Public
                 </button>
@@ -269,7 +269,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
                   className="magic-join-btn active"
                   onClick={handleCreatePrivateRoom}
                   disabled={isRoomBusy}
-                  style={{ width: 'auto', padding: '12px 14px' }}
+                  style={{ width: '15%', padding: '12px 14px' }}
                 >
                   Create Private
                 </button>
@@ -277,7 +277,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
                   className="magic-join-btn"
                   onClick={handleRefreshRooms}
                   disabled={isRoomBusy}
-                  style={{ width: 'auto', padding: '12px 14px' }}
+                  style={{ width: '15%', padding: '12px 14px' }}
                 >
                   Refresh List
                 </button>
