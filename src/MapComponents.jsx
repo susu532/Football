@@ -37,35 +37,35 @@ export function MapRenderer({ mapId }) {
     const cloned = gltf.scene.clone()
     cloned.traverse((child) => {
       if (child.isMesh) {
-        if (child.geometry) child.geometry.computeVertexNormals()
+        // REMOVED: computeVertexNormals to save CPU
         if (child.material) {
-          child.material = child.material.clone()
+          const oldMat = child.material
+          // Use MeshLambertMaterial - much cheaper for CPU/GPU
+          child.material = new THREE.MeshLambertMaterial({
+            map: oldMat.map,
+            color: oldMat.color,
+            transparent: oldMat.transparent,
+            opacity: oldMat.opacity,
+            side: THREE.FrontSide
+          })
           
           // Apply custom color if defined (e.g. for Ocean Floor)
           if (mapConfig.color) {
             child.material.color.set(mapConfig.color)
-            // Reduce roughness for more "watery" or shiny look if colored
-            child.material.roughness = 0.4
-            child.material.metalness = 0.3
-          } else {
-            // Apply matte finish to all other map models
-            child.material.roughness = 0.5
-            child.material.metalness = 0.0
-            child.material.envMapIntensity = 0.5
           }
 
           if (child.material.map) {
-            child.material.map.anisotropy = 16
+            child.material.map.anisotropy = 4 // Reduced from 16
             child.material.map.minFilter = THREE.LinearMipmapLinearFilter
             child.material.map.magFilter = THREE.LinearFilter
             child.material.map.needsUpdate = true
           }
           
-          child.material.flatShading = false
           child.material.needsUpdate = true
         }
-        child.castShadow = true
-        child.receiveShadow = true
+        // Disable all shadows for map models to boost performance
+        child.castShadow = false
+        child.receiveShadow = false
       }
     })
     return cloned
