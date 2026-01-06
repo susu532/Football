@@ -3,7 +3,7 @@ import { useGLTF } from '@react-three/drei'
 import * as THREE from 'three'
 
 export const MAP_DATA = [
-  { id: 'OceanFloor', name: 'Ocean Floor', path: '/maps_1/oceanfloor.glb', scale: 100, position: [0, 26, 0], emoji: '🌊', image: '/placeholders/Screenshots-20260105142140.png', color: '#1b5a73', ambientIntensity: 0.1, ambientColor: '#0a2a3a', lightIntensity: 1.0, lightColor: '#3aa9d9', fogColor: '#02111f', fogDensity: 0.01, environmentPreset: 'night', backgroundColor: '#020b1a', showStars: false, skySparklesColor: '#2fc7ff', skySparklesOpacity: 0.14, skySparklesSpeed: 0.12, skySparklesCount: 260 },
+  { id: 'OceanFloor', name: 'Ocean Floor', path: '/maps_1/oceanfloor.glb', scale: 100, position: [0, 26, 0], emoji: '🌊', image: '/placeholders/Screenshots-20260105142140.png', color: '#1b5a73', ambientIntensity: 0.05, ambientColor: '#0a2a3a', lightIntensity: 1.5, lightColor: '#3aa9d9', fogColor: '#02111f', fogDensity: 0.01, environmentPreset: 'night', backgroundColor: '#020b1a', showStars: false, skySparklesColor: '#2fc7ff', skySparklesOpacity: 0.14, skySparklesSpeed: 0.12, skySparklesCount: 260 },
   { id: 'CityAtNight', name: 'City At Night', path: '/maps_1/city_at_night.glb', scale: 1, position: [30, -26.5, -35], emoji: '🌃', image: '/placeholders/Screenshots-20260105142231.png' },
   { id: 'CloudStation', name: 'Cloud Station', path: '/maps_1/cloud_station.glb', scale: 20, position: [-20, -20, 0], emoji: '☁️', image: '/placeholders/Screenshots-20260105142255.png' },
   { id: 'CreekFalls', name: 'Creek Falls', path: '/maps_1/creek_falls_world_maps.glb', scale: 2, position: [10, 0, -35], emoji: '🌲', image: '/placeholders/Screenshots-20260105142323.png' },
