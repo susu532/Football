@@ -87,9 +87,10 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
     // Position interpolation - read directly from Colyseus proxy
     // Prediction: Extrapolate position based on velocity
     // This helps smooth out jumps and fast movements between server updates
-    const predictedX = player.x + (player.vx || 0) * delta
-    const predictedY = player.y + (player.vy || 0) * delta
-    const predictedZ = player.z + (player.vz || 0) * delta
+    const LOOKAHEAD = 0.05 // 50ms prediction to compensate for latency
+    const predictedX = player.x + (player.vx || 0) * LOOKAHEAD
+    const predictedY = player.y + (player.vy || 0) * LOOKAHEAD
+    const predictedZ = player.z + (player.vz || 0) * LOOKAHEAD
 
     groupRef.current.position.x = THREE.MathUtils.damp(
       groupRef.current.position.x, 
