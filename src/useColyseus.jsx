@@ -274,9 +274,15 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   }, [client, getHttpServerUrl, joinRoomById])
 
   const refreshAvailableRooms = useCallback(async () => {
-    if (!client) return []
     try {
-      const rooms = await client.getAvailableRooms('soccer')
+      const httpUrl = getHttpServerUrl()
+      if (!httpUrl) return []
+      const res = await fetch(`${httpUrl}/rooms/public`)
+      if (!res.ok) {
+        setAvailableRooms([])
+        return []
+      }
+      const rooms = await res.json()
       const publicRooms = (rooms || []).filter(r => r?.metadata?.isPublic !== false)
       setAvailableRooms(publicRooms)
       return publicRooms
@@ -285,7 +291,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setAvailableRooms([])
       return []
     }
-  }, [client])
+  }, [getHttpServerUrl])
 
   const lastPingTime = useRef(0)
   const pingInterval = useRef(null)
