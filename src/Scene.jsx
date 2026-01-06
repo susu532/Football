@@ -196,12 +196,7 @@ export default function Scene() {
     refreshAvailableRooms
   } = useColyseus(SERVER_URL)
 
-  // Adaptive shadow quality
-  const [shadowMapSize, setShadowMapSize] = useState(2048)
-  useEffect(() => {
-    const isMobile = window.innerWidth < 768 || 'ontouchstart' in window
-    setShadowMapSize(isMobile ? 1024 : 2048)
-  }, [])
+
 
   // Remote players filter
   const remotePlayers = React.useMemo(() => {
@@ -681,7 +676,7 @@ export default function Scene() {
                   intensity={direct}
                 
                   castShadow
-                  shadow-mapSize={[4096, 4096]} // Higher resolution
+                  shadow-mapSize={[1024, 1024]}
                   shadow-bias={-0.0005} // Adjusted bias
                   shadow-normalBias={0.02} // Added normal bias for cleaner edges
                   shadow-camera-left={-16}
