@@ -582,7 +582,19 @@ export default function Scene() {
           {/* No client-side physics - server handles all physics */}
 
           {/* Visuals (rendered for all) */}
-          <GameSkybox />
+          {(() => {
+            const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
+            return (
+              <GameSkybox
+                backgroundColor={mapConfig.backgroundColor}
+                showStars={mapConfig.showStars ?? true}
+                sparklesColor={mapConfig.skySparklesColor}
+                sparklesOpacity={mapConfig.skySparklesOpacity ?? 0.2}
+                sparklesSpeed={mapConfig.skySparklesSpeed ?? 0.2}
+                sparklesCount={mapConfig.skySparklesCount ?? 200}
+              />
+            )
+          })()}
           
           {/* Map-specific Lighting & Fog */}
           {(() => {
@@ -591,15 +603,19 @@ export default function Scene() {
             const direct = mapConfig.lightIntensity ?? 0.6 // Increased from 0.4
             const fogColor = mapConfig.fogColor ?? '#050510'
             const fogDensity = mapConfig.fogDensity ?? 0.01
+            const envPreset = mapConfig.environmentPreset ?? 'city'
+            const ambientColor = mapConfig.ambientColor
+            const lightColor = mapConfig.lightColor
 
             return (
               <>
-                
-                <Environment preset="city" environmentIntensity={direct} />
-                <ambientLight intensity={ambient} />
+                <Environment preset={envPreset} environmentIntensity={direct} />
+                <fogExp2 attach="fog" color={fogColor} density={fogDensity} />
+                <ambientLight intensity={ambient} color={ambientColor} />
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
+                  color={lightColor}
                   castShadow
                   shadow-mapSize={[4096, 4096]} // Higher resolution
                   shadow-bias={-0.0005} // Adjusted bias
