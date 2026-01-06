@@ -20,7 +20,7 @@ import Chat from './Chat'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
-import { SoccerPitch, SoccerGoal, GameSkybox } from './Environment'
+import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect } from './Environment'
 
 const CSS_ANIMATIONS = `
   @keyframes popIn {
@@ -628,6 +628,9 @@ export default function Scene() {
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />
           <SoccerGoal position={[11.2, 0, 0]} rotation={[0, -Math.PI, 0]} netColor="#4444ff" />
+
+          {/* Goal Celebration Effect */}
+          <GoalCelebrationEffect team={celebration?.team} active={!!celebration} />
 
           {/* Local Player */}
           {me && (

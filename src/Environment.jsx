@@ -1,6 +1,6 @@
 import React, { useMemo, useEffect } from 'react'
 import { useThree } from '@react-three/fiber'
-import { Stars, Sparkles, useGLTF, RoundedBox } from '@react-three/drei'
+import { Stars, Sparkles, useGLTF, RoundedBox, Text, Float } from '@react-three/drei'
 import * as THREE from 'three'
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier'
 
@@ -260,5 +260,53 @@ export function GameSkybox() {
       <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
       <Sparkles count={200} scale={[30, 10, 20]} size={2} speed={0.2} opacity={0.2} />
     </>
+  )
+}
+
+export function GoalCelebrationEffect({ team, active }) {
+  const position = team === 'red' ? [-11.2, 2, 0] : [11.2, 2, 0]
+  const color = team === 'red' ? '#ff4757' : '#3742fa'
+  
+  if (!active) return null
+
+  return (
+    <group position={position}>
+      {/* Floating Text */}
+      <Float speed={4} rotationIntensity={1} floatIntensity={2}>
+        <Text
+          fontSize={1.5}
+          color={color}
+          anchorX="center"
+          anchorY="middle"
+          outlineWidth={0.1}
+          outlineColor="#ffffff"
+        >
+          GOAL!
+        </Text>
+      </Float>
+
+      {/* Explosion of Sparkles */}
+      <Sparkles 
+        count={300} 
+        scale={[5, 5, 5]} 
+        size={8} 
+        speed={3} 
+        color={color} 
+        opacity={1}
+      />
+      
+      {/* Secondary Sparkles for depth */}
+      <Sparkles 
+        count={100} 
+        scale={[3, 3, 3]} 
+        size={4} 
+        speed={1.5} 
+        color="#ffffff" 
+        opacity={0.8}
+      />
+
+      {/* Point light for the burst effect */}
+      <pointLight intensity={10} color={color} distance={10} />
+    </group>
   )
 }
