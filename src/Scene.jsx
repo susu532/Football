@@ -822,7 +822,7 @@ export default function Scene() {
             <ClientPlayerVisual key={p.sessionId} player={p} />
           ))}
 
-          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
+          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} isMobile={isMobile} />
 
           {/* Power-ups from server */}
           {powerUps && powerUps.map(p => (
@@ -1057,18 +1057,6 @@ export default function Scene() {
         }}>
           {collectedEmoji}
         </div>
-      )}
-      {/* Camera Controller */}
-      <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} isMobile={isMobile} />
-      
-      {/* Mobile Controls */}
-      {hasJoined && (
-        <MobileControls
-          onMove={handleMobileMove}
-          onJump={handleMobileJump}
-          onKick={handleMobileKick}
-          onCameraMove={handleMobileCameraMove}
-        />
       )}
     </div>
   )
