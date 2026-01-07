@@ -707,7 +707,7 @@ export default function Scene() {
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={dpr}
         gl={{ 
-          antialias: true, // Re-enable AA for stability
+          antialias: !isMobile, // Disable AA on mobile for performance/stability
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
@@ -715,9 +715,10 @@ export default function Scene() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: !isMobile // Disable on mobile (can cause black screen on some Adreno GPUs)
+          logarithmicDepthBuffer: !isMobile
         }}
       >
+        <color attach="background" args={['#0a0a12']} />
         <Suspense fallback={null}>
           {/* Post-processing - Conditional for mobile */}
           {!isMobile && (
@@ -728,22 +729,29 @@ export default function Scene() {
             </EffectComposer>
           )}
 
-          {/* No client-side physics - server handles all physics */}
-
-          {/* Visuals (rendered for all) */}
-         
-          
           {/* Map-specific Lighting & Fog */}
           {(() => {
             const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
             const ambient = mapConfig.ambientIntensity ?? 0.4
             const direct = mapConfig.lightIntensity ?? 0.8
-            const fogColor = mapConfig.fogColor ?? '#87CEEB'
-            const fogDensity = mapConfig.fogDensity ?? 0.01
             const envPreset = mapConfig.environmentPreset ?? 'park'
             const ambientColor = mapConfig.ambientColor
-            const lightColor = mapConfig.lightColor
+            
+            // Mobile: Simplified lighting (No HDRI, just lights)
+            if (isMobile) {
+              return (
+                <>
+                  <ambientLight intensity={ambient + 0.2} color={ambientColor} />
+                  <directionalLight
+                    position={[10, 20, 10]}
+                    intensity={direct}
+                    castShadow={false}
+                  />
+                </>
+              )
+            }
 
+            // Desktop: Full High-Fidelity Lighting
             return (
               <>
                <Environment preset={envPreset} environmentIntensity={direct * 0.5} />
@@ -752,22 +760,19 @@ export default function Scene() {
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
-                  castShadow={!isMobile} // Disable directional shadows on mobile
-                  shadow-mapSize={isMobile ? [512, 512] : [1024, 1024]}
+                  castShadow={true}
+                  shadow-mapSize={[1024, 1024]}
                 />
                 
-                {/* Soft grounding shadows - Disabled on mobile for stability */}
-                {!isMobile && (
-                  <ContactShadows 
-                    position={[0, 0.01, 0]} 
-                    opacity={0.6} 
-                    scale={32} 
-                    blur={2} 
-                    far={4} 
-                    resolution={512} 
-                    color="#000000"
-                  />
-                )}
+                <ContactShadows 
+                  position={[0, 0.01, 0]} 
+                  opacity={0.6} 
+                  scale={32} 
+                  blur={2} 
+                  far={4} 
+                  resolution={512} 
+                  color="#000000"
+                />
               </>
             )
           })()}
