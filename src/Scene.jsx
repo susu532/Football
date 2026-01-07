@@ -220,7 +220,6 @@ export default function Scene() {
 
   // Refs
   const playerRef = useRef()
-  const ballRef = useRef() // Ref for the ball to apply local impulses
   const isFreeLook = useRef(false)
   const cameraOrbit = useRef(null)
   const lastLocalInteraction = useRef(0)
@@ -409,18 +408,6 @@ export default function Scene() {
     if (powerUpKey) {
       setCollectedEmoji(POWER_UP_TYPES[powerUpKey].label)
       setTimeout(() => setCollectedEmoji(null), 15000)
-    }
-  }, [])
-
-  // Instant client-side kick prediction
-  const handleLocalKick = useCallback((impulse) => {
-    // Find the ball component and apply impulse locally
-    // We need a ref to the ball. We can't use querySelector easily in React Three Fiber.
-    // But we have ClientBallVisual in the render tree.
-    // We need to add a ref to ClientBallVisual.
-    // Let's assume we add 'ballRef' to Scene scope.
-    if (ballRef.current && ballRef.current.applyImpulse) {
-      ballRef.current.applyImpulse(impulse)
     }
   }, [])
 
@@ -761,7 +748,7 @@ export default function Scene() {
           <MapComponents.MapRenderer mapId={selectedMap} />
 
           {/* Ball - interpolated from server state */}
-          <ClientBallVisual ref={ballRef} ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} />
+          <ClientBallVisual ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} />
 
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />
@@ -777,7 +764,6 @@ export default function Scene() {
               me={me}
               sendInput={sendInput}
               sendKick={sendKick}
-              onLocalKick={handleLocalKick} // Pass the kick handler
               playerName={playerName}
               playerTeam={playerTeam}
               teamColor={teamColor}

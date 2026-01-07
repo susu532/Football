@@ -141,7 +141,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
     prevJump.current = input.jump
 
-    // Handle kick - send to server AND local prediction
+    // Handle kick - send to server
     if (input.kick && sendKick) {
       if (onLocalInteraction) onLocalInteraction()
       
@@ -151,23 +151,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const kickMult = serverState?.kickMult || 1
       const kickPower = 65 * kickMult
       
-      const impulse = {
-        x: forwardX * kickPower + velocity.current.x * 2,
-        y: 0.5 * kickPower,
-        z: forwardZ * kickPower + velocity.current.z * 2
-      }
-
-      // 1. Send to server (Authoritative)
       sendKick({
-        impulseX: impulse.x,
-        impulseY: impulse.y,
-        impulseZ: impulse.z
+        impulseX: forwardX * kickPower + velocity.current.x * 2,
+        impulseY: 0.5 * kickPower,
+        impulseZ: forwardZ * kickPower + velocity.current.z * 2
       })
-
-      // 2. Apply locally immediately (Prediction)
-      if (props.onLocalKick) {
-        props.onLocalKick(impulse)
-      }
     }
 
     // Apply physics (local prediction)
