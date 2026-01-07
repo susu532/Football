@@ -238,6 +238,39 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.y += (serverImpulse.y - predictedVelocity.current.y) * 0.3
           predictedVelocity.current.z += (serverImpulse.z - predictedVelocity.current.z) * 0.3
         }
+      })
+      return unsubscribe
+    }
+  }, [onKickMessage])
+
+  useFrame((state, delta) => {
+    if (!ballState || !groupRef.current) return
+
+    const now = state.clock.elapsedTime
+    
+    // 1. Update target from server state
+    targetPos.current.set(ballState.x, ballState.y, ballState.z)
+    if (ballState.qx !== undefined) {
+      targetRot.current.set(ballState.qx, ballState.qy, ballState.qz, ballState.qw)
+    }
+    serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
+
+    // 2. Apply predicted velocity (physics simulation)
+    const vel = predictedVelocity.current
+    
+    // Gravity
+    if (groupRef.current.position.y > BALL_RADIUS + 0.01) {
+      vel.y -= GRAVITY * delta
+    }
+
+    // Move predicted position
+    groupRef.current.position.x += vel.x * delta
+    groupRef.current.position.y += vel.y * delta
+    groupRef.current.position.z += vel.z * delta
+
+    // 3. Collision Prediction with Local Player
+    if (localPlayerRef.current && now - lastCollisionTime.current > COLLISION_COOLDOWN) {
+      const playerPos = localPlayerRef.current.position
       const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
       const ballPos = groupRef.current.position
       
@@ -261,6 +294,7 @@ export const ClientBallVisual = React.forwardRef(({
       const sweepT = sweepSphereToAABB(ballPos, ballEnd, BALL_RADIUS, boxCenter, halfExtents)
       
       // Anticipatory collision
+      const dynamicLookahead = BASE_LOOKAHEAD + (ping / 1000) * 0.5
       const futureBall = predictFuturePosition(ballPos, vel, dynamicLookahead, GRAVITY)
       const futureBox = {
         x: boxCenter.x + (playerVel.x || 0) * dynamicLookahead,
@@ -434,6 +468,8 @@ export const ClientBallVisual = React.forwardRef(({
 
     // 7. Linear damping
     predictedVelocity.current.multiplyScalar(1 - LINEAR_DAMPING * delta)
+    
+    collisionThisFrame.current = false
   })
 
   return (
