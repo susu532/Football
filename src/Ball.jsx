@@ -152,9 +152,10 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
     // If we haven't predicted a collision recently, we trust the server velocity (damped)
     // But if we DID predict a collision, we want to keep our local velocity for a bit
     // to avoid "snapping" back before the server confirms the hit.
-    if (now - lastCollisionTime.current > 0.2) {
+    if (now - lastCollisionTime.current > 0.3) {
        // Blend server velocity into current velocity to correct drift
-       velocity.current.lerp(extrapolatedVel, 0.1)
+       const vLerp = 1 - Math.exp(-1.5 * delta)
+       velocity.current.lerp(extrapolatedVel, vLerp)
     }
 
     // 2. Prediction: Advance locally
@@ -289,11 +290,12 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
             velocity.current.y += 1.5 
           }
           
-          // Penetration Resolution (Push out)
+          // Penetration Resolution (Push out) - Softened to prevent jitter
           const overlap = radius - dist
-          groupRef.current.position.x += nx * overlap
-          groupRef.current.position.y += ny * overlap
-          groupRef.current.position.z += nz * overlap
+          const pushFactor = 0.5 // Only push out halfway per frame to smooth it
+          groupRef.current.position.x += nx * overlap * pushFactor
+          groupRef.current.position.y += ny * overlap * pushFactor
+          groupRef.current.position.z += nz * overlap * pushFactor
           
           // Break after first collision to prevent multiple hits in one frame
           break 
@@ -301,14 +303,26 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       }
     }
 
-    // 4. Interpolation / Correction
+    // 4. Interpolation / Correction (Adaptive)
     const distToTarget = groupRef.current.position.distanceTo(targetPos.current)
     
-    if (distToTarget > 2.0) {
+    if (distToTarget > 4.0) {
+      // Large error: snap to server state
       groupRef.current.position.copy(targetPos.current)
+      velocity.current.copy(extrapolatedVel)
     } else {
-      const correctionStrength = 2.0 * delta 
-      groupRef.current.position.lerp(targetPos.current, 0.1) 
+      // Adaptive lerp: slower if we are predicting a collision or near a player
+      const pPos = localPlayerRef?.current?.position
+      const distToPlayer = pPos ? groupRef.current.position.distanceTo(pPos) : 10
+      
+      // If we are near the player or recently collided, we trust local physics more
+      const isInteracting = distToPlayer < 2.5 || (now - lastCollisionTime.current < 0.5)
+      
+      // Use frame-rate independent lerp factor
+      const baseLerp = isInteracting ? 0.5 : 2.5
+      const lerpFactor = 1 - Math.exp(-baseLerp * delta)
+      
+      groupRef.current.position.lerp(targetPos.current, lerpFactor) 
     }
     
     // Apply Angular Velocity to Rotation
@@ -320,7 +334,8 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       // Damping for angular velocity
       velocity.current.ang.multiplyScalar(1 - 1.5 * delta)
     } else {
-       groupRef.current.quaternion.slerp(targetRot.current, 0.1)
+       const rLerp = 1 - Math.exp(-2.0 * delta)
+       groupRef.current.quaternion.slerp(targetRot.current, rLerp)
     }
     
     // 5. Floor Collision
