@@ -443,8 +443,40 @@ export default function Scene() {
     refreshAvailableRooms()
   }, [hasJoined, isLaunched, refreshAvailableRooms])
 
+  // Landscape enforcement
+  const [isPortrait, setIsPortrait] = useState(false)
+  useEffect(() => {
+    const checkOrientation = () => {
+      setIsPortrait(window.innerHeight > window.innerWidth && window.innerWidth < 900)
+    }
+    checkOrientation()
+    window.addEventListener('resize', checkOrientation)
+    return () => window.removeEventListener('resize', checkOrientation)
+  }, [])
+
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}>
+      {/* Landscape Warning Overlay */}
+      {isPortrait && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          zIndex: 99999,
+          background: '#0a0a12',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'white',
+          textAlign: 'center',
+          padding: '20px'
+        }}>
+          <div style={{ fontSize: '48px', marginBottom: '20px' }}>📱➡️🔄</div>
+          <h2 style={{ marginBottom: '10px' }}>Please Rotate Your Device</h2>
+          <p style={{ color: '#888' }}>This game is designed for landscape mode.</p>
+        </div>
+      )}
+
       {!hasJoined ? (
         <TeamSelectPopup
           key="team-select-popup"
