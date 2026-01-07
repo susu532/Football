@@ -152,6 +152,7 @@ export const ClientBallVisual = React.forwardRef(({
   const lastCollisionTime = useRef(0)
   const collisionThisFrame = useRef(false)
   const lastCollisionNormal = useRef(new THREE.Vector3())
+  const serverPosSmoothed = useRef(null) // For jitter smoothing EMA
   
   useImperativeHandle(ref, () => {
     const obj = groupRef.current || {}
@@ -197,23 +198,33 @@ export const ClientBallVisual = React.forwardRef(({
     const now = state.clock.getElapsedTime()
     collisionThisFrame.current = false
 
-    // === PING-AWARE PARAMETERS ===
-    // Scale anticipation with ping (more lookahead at higher latency)
+    // === S-TIER PING-AWARE PARAMETERS ===
     const pingSeconds = ping / 1000
     const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
     
-    // Slower reconciliation at high ping to trust local prediction more
-    const pingFactor = Math.max(0.3, 1 - ping / 300)
-    const reconcileRate = 1 - Math.exp(-12 * pingFactor * delta)
+    // === JITTER SMOOTHING: EMA on server position ===
+    const emaFactor = 0.15 // Lower = smoother, Higher = more responsive
+    const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
+    if (!serverPosSmoothed.current) {
+      serverPosSmoothed.current = serverPos.clone()
+    } else {
+      serverPosSmoothed.current.lerp(serverPos, emaFactor)
+    }
 
-    // 1. Sync server state
-    targetPos.current.set(ballState.x, ballState.y, ballState.z)
+    // 1. Sync server state with EMA smoothing
+    targetPos.current.copy(serverPosSmoothed.current)
     serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
     if (ballState.rx !== undefined) {
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
 
-    // 2. Ping-aware velocity reconciliation
+    // === VELOCITY-WEIGHTED RECONCILIATION ===
+    // Fast ball = trust prediction more, slow ball = trust server more
+    const speed = serverVelocity.current.length()
+    const velocityFactor = Math.max(0.3, 1 - speed / 40) // 0.3 at high speed, 1.0 at rest
+    const pingFactor = Math.max(0.3, 1 - ping / 300)
+    const reconcileRate = 1 - Math.exp(-12 * pingFactor * velocityFactor * delta)
+    
     predictedVelocity.current.lerp(serverVelocity.current, reconcileRate)
 
     // 3. Advance prediction with physics
@@ -224,7 +235,35 @@ export const ClientBallVisual = React.forwardRef(({
       predictedVelocity.current.y -= GRAVITY * delta
     }
 
-    // 4. PING-AWARE COLLISION PREDICTION
+    // === WALL/ARENA COLLISION PREDICTION ===
+    const ARENA_HALF_WIDTH = 14.5
+    const ARENA_HALF_DEPTH = 9.5
+    const GOAL_HALF_WIDTH = 2.5
+    const GOAL_X = 11.2
+    
+    // X walls (with goal gaps)
+    if (Math.abs(targetPos.current.x) > ARENA_HALF_WIDTH) {
+      const inGoalZone = Math.abs(targetPos.current.z) < GOAL_HALF_WIDTH && targetPos.current.y < 4
+      if (!inGoalZone) {
+        predictedVelocity.current.x *= -BALL_RESTITUTION
+        targetPos.current.x = Math.sign(targetPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
+      }
+    }
+    
+    // Z walls
+    if (Math.abs(targetPos.current.z) > ARENA_HALF_DEPTH) {
+      predictedVelocity.current.z *= -BALL_RESTITUTION
+      targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
+    }
+
+    // === VELOCITY CLAMPING ===
+    const MAX_LINEAR_VEL = 50
+    const velMag = predictedVelocity.current.length()
+    if (velMag > MAX_LINEAR_VEL) {
+      predictedVelocity.current.multiplyScalar(MAX_LINEAR_VEL / velMag)
+    }
+
+    // 4. PING-AWARE COLLISION PREDICTION with DYNAMIC RADIUS
     const timeSinceCollision = now - lastCollisionTime.current
     
     if (localPlayerRef?.current?.position && timeSinceCollision > COLLISION_COOLDOWN) {
@@ -232,7 +271,13 @@ export const ClientBallVisual = React.forwardRef(({
       const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
       const ballPos = groupRef.current.position
       
-      // DYNAMIC anticipatory collision with ping-scaled lookahead
+      // === DYNAMIC COLLISION RADIUS for giant power-up ===
+      const isGiant = localPlayerRef.current.userData?.giant || false
+      const giantScale = isGiant ? 10 : 1
+      const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
+      const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
+      
+      // Anticipatory collision with dynamic lookahead
       const futureBall = predictFuturePosition(ballPos, vel, dynamicLookahead, GRAVITY)
       const futurePlayer = {
         x: playerPos.x + (playerVel.x || 0) * dynamicLookahead,
@@ -251,13 +296,13 @@ export const ClientBallVisual = React.forwardRef(({
       const fdz = futureBall.z - futurePlayer.z
       const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
       
-      // Sweep test
+      // Sweep test with dynamic radius
       const ballEnd = targetPos.current.clone()
-      const sweepT = sweepSphereToSphere(ballPos, ballEnd, playerPos, COMBINED_RADIUS)
+      const sweepT = sweepSphereToSphere(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
       
       // Collision conditions
-      const isCurrentCollision = currentDist < COMBINED_RADIUS
-      const isAnticipatedCollision = futureDist < COMBINED_RADIUS && futureDist < currentDist
+      const isCurrentCollision = currentDist < dynamicCombinedRadius
+      const isAnticipatedCollision = futureDist < dynamicCombinedRadius && futureDist < currentDist
       const isSweepCollision = sweepT !== null
       
       if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision) && currentDist > 0.05) {
@@ -292,12 +337,12 @@ export const ClientBallVisual = React.forwardRef(({
           collisionThisFrame.current = true
           lastCollisionNormal.current.set(nx, ny, nz)
           
-          // RAPIER-matched impulse with boost
+          // RAPIER-matched impulse with boost (scaled for giant)
           const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
-          const boostFactor = 1.2
+          const boostFactor = isGiant ? 2.0 : 1.2 // Giant kicks harder
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor
-          predictedVelocity.current.y += impulseMag * ny * boostFactor + 1.5
+          predictedVelocity.current.y += impulseMag * ny * boostFactor + (isGiant ? 3 : 1.5)
           predictedVelocity.current.z += impulseMag * nz * boostFactor
           
           // Player velocity transfer
@@ -305,7 +350,7 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z += (playerVel.z || 0) * 0.5
           
           // INSTANT position correction
-          const overlap = COMBINED_RADIUS - contactDist + 0.02
+          const overlap = dynamicCombinedRadius - contactDist + 0.02
           if (overlap > 0) {
             targetPos.current.x += nx * overlap
             targetPos.current.y += ny * overlap * 0.5
@@ -335,11 +380,14 @@ export const ClientBallVisual = React.forwardRef(({
     
     groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-15 * delta))
     
-    // 6. Floor collision
+    // 6. Floor collision with friction
     if (groupRef.current.position.y < BALL_RADIUS) {
       groupRef.current.position.y = BALL_RADIUS
       if (predictedVelocity.current.y < 0) {
         predictedVelocity.current.y = Math.abs(predictedVelocity.current.y) * BALL_RESTITUTION
+        // Floor friction
+        predictedVelocity.current.x *= 0.85
+        predictedVelocity.current.z *= 0.85
       }
     }
 
