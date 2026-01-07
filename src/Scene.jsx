@@ -671,31 +671,29 @@ export default function Scene() {
 
       {/* 3D Canvas */}
       <Canvas 
-        shadows={!isMobile}
+        shadows
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
-        dpr={isMobile ? 0.7 : [1, 2]}
+        dpr={[1, 2]}
         gl={{ 
-          antialias: true, // Re-enable AA for stability
+          antialias: true,
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
-          precision: isMobile ? 'mediump' : 'highp',
+          precision: 'highp',
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: !isMobile // Disable on mobile (can cause black screen on some Adreno GPUs)
+          logarithmicDepthBuffer: true
         }}
       >
         <Suspense fallback={null}>
-          {/* Post-processing - Conditional for mobile */}
-          {!isMobile && (
-            <EffectComposer multisampling={4}>
-              <SMAA />
-              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
-              <Vignette eskil={false} offset={0.1} darkness={0.5} />
-            </EffectComposer>
-          )}
+          {/* Post-processing - Enabled for all */}
+          <EffectComposer multisampling={4}>
+            <SMAA />
+            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+            <Vignette eskil={false} offset={0.1} darkness={0.5} />
+          </EffectComposer>
 
           {/* No client-side physics - server handles all physics */}
 
@@ -721,22 +719,20 @@ export default function Scene() {
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
-                  castShadow={!isMobile} // Disable directional shadows on mobile
-                  shadow-mapSize={isMobile ? [512, 512] : [1024, 1024]}
+                  castShadow
+                  shadow-mapSize={[1024, 1024]}
                 />
                 
-                {/* Soft grounding shadows - Disabled on mobile for stability */}
-                {!isMobile && (
-                  <ContactShadows 
-                    position={[0, 0.01, 0]} 
-                    opacity={0.6} 
-                    scale={32} 
-                    blur={2} 
-                    far={4} 
-                    resolution={512} 
-                    color="#000000"
-                  />
-                )}
+                {/* Soft grounding shadows */}
+                <ContactShadows 
+                  position={[0, 0.01, 0]} 
+                  opacity={0.6} 
+                  scale={32} 
+                  blur={2} 
+                  far={4} 
+                  resolution={512} 
+                  color="#000000"
+                />
               </>
             )
           })()}
@@ -745,8 +741,8 @@ export default function Scene() {
           
 
 
-          <SoccerPitch isMobile={isMobile} />
-          {!isMobile && <MapComponents.MapRenderer mapId={selectedMap} />}
+          <SoccerPitch isMobile={false} />
+          <MapComponents.MapRenderer mapId={selectedMap} />
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} />
