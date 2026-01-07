@@ -675,11 +675,11 @@ export default function Scene() {
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={isMobile ? 0.7 : [1, 2]}
         gl={{ 
-          antialias: true,
+           antialias: !isMobile, // Disable AA on mobile for performance
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
-          precision: 'highp',
+          precision: isMobile ? 'mediump' : 'highp', // Lower precision on mobile
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
