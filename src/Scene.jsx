@@ -745,7 +745,7 @@ export default function Scene() {
 
 
           <SoccerPitch />
-          <MapComponents.MapRenderer mapId={selectedMap} />
+          {!isMobile && <MapComponents.MapRenderer mapId={selectedMap} />}
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} />
