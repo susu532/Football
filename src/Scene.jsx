@@ -148,9 +148,16 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, isMobile }) {
     // Use pre-allocated vector and frame-rate independent damp
     if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
       cameraTarget.current.set(x, y, z)
-      camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
-      camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
-      camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
+      
+      if (isMobile) {
+        // Instant snap on mobile to avoid lag/NaN issues
+        camera.position.copy(cameraTarget.current)
+      } else {
+        // Smooth damp on desktop
+        camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
+        camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
+        camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
+      }
       
       if (Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
         camera.lookAt(p.x, p.y + 1, p.z)
@@ -1090,6 +1097,20 @@ export default function Scene() {
           <div>Cam: {cameraOrbit.current ? `${cameraOrbit.current.azimuth.toFixed(2)}, ${cameraOrbit.current.polar.toFixed(2)}` : 'null'}</div>
           <div>Input: {JSON.stringify(InputManager.mobileInput)}</div>
           <div>Pos: {playerRef.current?.position ? `${playerRef.current.position.x.toFixed(2)}, ${playerRef.current.position.z.toFixed(2)}` : 'null'}</div>
+          <div style={{ marginTop: '4px' }}>
+            <button 
+              onClick={() => {
+                if (cameraOrbit.current) {
+                  cameraOrbit.current.azimuth = 0
+                  cameraOrbit.current.polar = Math.PI / 4
+                  cameraOrbit.current.distance = 15
+                }
+              }}
+              style={{ pointerEvents: 'auto', padding: '2px 6px', background: '#333', color: 'white', border: '1px solid #666' }}
+            >
+              RESET CAM
+            </button>
+          </div>
         </div>
       )}
 
