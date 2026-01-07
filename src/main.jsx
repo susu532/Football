@@ -3,6 +3,14 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
 
+// Suppress noisy GLTF extension warnings
+const originalWarn = console.warn;
+console.warn = (...args) => {
+  if (args[0] && typeof args[0] === 'string' && args[0].includes('KHR_materials_pbrSpecularGlossiness')) return;
+  originalWarn(...args);
+};
+
+
 function renderApp() {
   const rootEl = document.getElementById('root')
   if (!rootEl) {

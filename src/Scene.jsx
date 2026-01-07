@@ -68,12 +68,16 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     }
 
     const onClick = (e) => {
+      // Only request pointer lock if we have joined the game and are not on mobile
+      if (!hasJoined || isMobile) return
+
       // Ignore clicks on buttons, inputs, or interactive elements
       if (
         e.target.tagName === 'BUTTON' || 
         e.target.tagName === 'INPUT' || 
         e.target.closest('button') || 
-        e.target.closest('.interactive-ui')
+        e.target.closest('.interactive-ui') ||
+        e.target.closest('.team-select-popup') // Explicitly ignore team select
       ) {
         return
       }
@@ -81,12 +85,20 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
       // Request lock
       if (document.pointerLockElement !== document.body) {
         try {
-          const maybePromise = document.body.requestPointerLock()
-          if (maybePromise && typeof maybePromise.catch === 'function') {
-            maybePromise.catch((err) => {
-              console.warn('Pointer lock request rejected:', err)
-            })
-          }
+          // Use a small timeout to ensure we are not in a race condition with other events
+          setTimeout(() => {
+            if (document.pointerLockElement !== document.body) {
+              const maybePromise = document.body.requestPointerLock()
+              if (maybePromise && typeof maybePromise.catch === 'function') {
+                maybePromise.catch((err) => {
+                  // Only log if it's not the "exited before completed" error which is harmless
+                  if (err.name !== 'SecurityError') {
+                    console.warn('Pointer lock request rejected:', err)
+                  }
+                })
+              }
+            }
+          }, 10)
         } catch (err) {
           console.warn('Pointer lock request failed:', err)
         }
@@ -704,7 +716,7 @@ export default function Scene() {
           {!isMobile && (
             <EffectComposer multisampling={4}>
               <SMAA />
-              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+              <Bloom luminanceThreshold={1.01} mipmapBlur intensity={0.4} radius={0.7} />
               <Vignette eskil={false} offset={0.1} darkness={0.5} />
             </EffectComposer>
           )}
@@ -743,9 +755,9 @@ export default function Scene() {
                     position={[0, 0.01, 0]} 
                     opacity={0.6} 
                     scale={32} 
-                    blur={2} 
-                    far={4} 
-                    resolution={512} 
+                    blur={2.5} 
+                    far={5} 
+                    resolution={256} 
                     color="#000000"
                   />
                 )}

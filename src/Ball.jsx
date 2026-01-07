@@ -345,7 +345,7 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
         width={0.6}
         length={8}
         color="#ffffff"
-        attenuation={(t) => t * t}
+        attenuation={(t) => t * t + 0.01}
       >
         <SoccerBall onKickFeedback={kickFeedback} />
       </Trail>
