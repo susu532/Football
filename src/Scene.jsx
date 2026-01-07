@@ -146,12 +146,21 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, isMobile }) {
     const z = p.z + distance * Math.sin(polar) * Math.cos(azimuth)
     
     // Use pre-allocated vector and frame-rate independent damp
-    cameraTarget.current.set(x, y, z)
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
-    
-    camera.lookAt(p.x, p.y + 1, p.z)
+    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
+      cameraTarget.current.set(x, y, z)
+      camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
+      camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
+      camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
+      
+      if (Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
+        camera.lookAt(p.x, p.y + 1, p.z)
+      }
+    } else {
+      // Fallback if NaN detected
+      console.warn('Camera NaN detected, resetting')
+      camera.position.set(0, 10, 10)
+      camera.lookAt(0, 0, 0)
+    }
   }, 1) // Priority 1: Run after player physics (Priority 0)
 
   return null
@@ -395,8 +404,12 @@ export default function Scene() {
 
   const handleMobileCameraMove = useCallback((dx, dy) => {
     if (cameraOrbit.current) {
-      cameraOrbit.current.azimuth -= dx * 0.01
-      cameraOrbit.current.polar -= dy * 0.01
+      // Safety check for NaN/Infinity
+      if (!Number.isFinite(dx) || !Number.isFinite(dy)) return
+      
+      const sensitivity = 0.01
+      cameraOrbit.current.azimuth -= dx * sensitivity
+      cameraOrbit.current.polar -= dy * sensitivity
       cameraOrbit.current.polar = Math.max(0.2, Math.min(Math.PI / 2, cameraOrbit.current.polar))
     }
   }, [])
@@ -1076,6 +1089,7 @@ export default function Scene() {
           <div>isMobile: {String(isMobile)}</div>
           <div>Cam: {cameraOrbit.current ? `${cameraOrbit.current.azimuth.toFixed(2)}, ${cameraOrbit.current.polar.toFixed(2)}` : 'null'}</div>
           <div>Input: {JSON.stringify(InputManager.mobileInput)}</div>
+          <div>Pos: {playerRef.current?.position ? `${playerRef.current.position.x.toFixed(2)}, ${playerRef.current.position.z.toFixed(2)}` : 'null'}</div>
         </div>
       )}
 
