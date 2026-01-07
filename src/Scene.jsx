@@ -675,11 +675,11 @@ export default function Scene() {
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={isMobile ? 0.7 : [1, 2]}
         gl={{ 
-          antialias: !isMobile, // Disable AA on mobile for performance
+          antialias: true,
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
-          precision: isMobile ? 'mediump' : 'highp', // Lower precision on mobile
+          precision: 'highp',
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
@@ -688,14 +688,12 @@ export default function Scene() {
         }}
       >
         <Suspense fallback={null}>
-          {/* Post-processing - Desktop Only (Ultra Performance Mode) */}
-          {!isMobile && (
-            <EffectComposer multisampling={4}>
-              <SMAA />
-              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
-              <Vignette eskil={false} offset={0.1} darkness={0.5} />
-            </EffectComposer>
-          )}
+          {/* Post-processing - Optimized for Mobile vs Desktop */}
+          <EffectComposer multisampling={isMobile ? 0 : 4}>
+            {isMobile ? <FXAA /> : <SMAA />}
+            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+            <Vignette eskil={false} offset={0.1} darkness={0.5} />
+          </EffectComposer>
 
           {/* No client-side physics - server handles all physics */}
 
