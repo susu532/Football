@@ -92,6 +92,7 @@ export function SoccerPitch({
   size = [30, 0.2, 20],
   wallHeight = 10,
   wallThickness = 0.4,
+  isMobile = false
 }) {
   const grassTexture = useMemo(() => generateGrassTexture(), [])
   
@@ -117,15 +118,17 @@ export function SoccerPitch({
       </mesh>
 
       {/* Atmospheric Sparkles (Fireflies/Dew) */}
-      <Sparkles 
-        count={100} 
-        scale={[28, 2, 18]} 
-        position={[0, 1, 0]} 
-        size={4} 
-        speed={0.4} 
-        opacity={0.4} 
-        color="#ccffcc"
-      />
+      {!isMobile && (
+        <Sparkles 
+          count={100} 
+          scale={[28, 2, 18]} 
+          position={[0, 1, 0]} 
+          size={4} 
+          speed={0.4} 
+          opacity={0.4} 
+          color="#ccffcc"
+        />
+      )}
       <mesh position={[0, 0.12, 0]} rotation={[-Math.PI/2, 0, 0]}>
         <planeGeometry args={[0.1, 20]} />
         <meshStandardMaterial color="#fff" transparent opacity={0.5} />

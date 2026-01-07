@@ -673,12 +673,13 @@ export default function Scene() {
       <Canvas 
         shadows={!isMobile}
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
-        dpr={dpr}
+        dpr={isMobile ? 0.7 : [1, 2]}
         gl={{ 
           antialias: true, // Re-enable AA for stability
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
+          precision: isMobile ? 'mediump' : 'highp',
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
@@ -744,7 +745,7 @@ export default function Scene() {
           
 
 
-          <SoccerPitch />
+          <SoccerPitch isMobile={isMobile} />
           {!isMobile && <MapComponents.MapRenderer mapId={selectedMap} />}
 
           {/* Ball - interpolated from server state */}
