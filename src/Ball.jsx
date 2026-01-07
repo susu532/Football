@@ -180,6 +180,7 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       // Use physics position for accurate prediction if available, else visual position
       const pPos = localPlayerRef.current.userData?.physicsPosition || localPlayerRef.current.position
       const bPos = groupRef.current.position
+      const ballPos = bPos // Fix ReferenceError: ballPos was used but not defined
       
       // Player AABB (local coords relative to player center)
       // Player center is at pPos. The collider is offset by y=0.2.
