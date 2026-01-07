@@ -684,7 +684,7 @@ export default function Scene() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: true
+          logarithmicDepthBuffer: !isMobile // Disable on mobile (causes black screen on Adreno)
         }}
       >
         <Suspense fallback={null}>
