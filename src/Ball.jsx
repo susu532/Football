@@ -168,7 +168,7 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
     if (localPlayerRef?.current?.position && now - lastCollisionTime.current > 0.1) {
       // Use physics position for accurate prediction if available, else visual position
       const pPos = localPlayerRef.current.userData?.physicsPosition || localPlayerRef.current.position
-      const ballPos = groupRef.current.position
+      const bPos = groupRef.current.position
       
       // Player AABB (local coords relative to player center)
       // Player center is at pPos. The collider is offset by y=0.2.

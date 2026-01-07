@@ -70,54 +70,52 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
 LocalPlayer.displayName = 'LocalPlayer'
 
 // ClientPlayerVisual - Visual-only remote player with smooth interpolation
-import { SnapshotBuffer } from './SnapshotBuffer'
-
 export const ClientPlayerVisual = React.forwardRef((props, ref) => {
   const { player } = props
   const groupRef = useRef()
-  const buffer = useRef(new SnapshotBuffer(100)) // 100ms buffer
 
   useImperativeHandle(ref, () => groupRef.current)
   
   const teamColor = player.team === 'red' ? '#ff4444' : player.team === 'blue' ? '#4488ff' : '#888'
 
-  // Update buffer when server state changes
-  // Note: Colyseus updates the 'player' object in place, so we need to poll it or use a listener.
-  // Since this component re-renders or useFrame runs, we can check for changes.
-  // Better approach: In useFrame, we push the CURRENT server state to the buffer.
-  // But we need the timestamp of the update.
-  // Assuming 'player' is a schema proxy, it's always "current".
-  // We'll push the current state with the current time.
-  
-  useFrame((state, delta) => {
+  // Smooth interpolation each frame
+  useFrame((_, delta) => {
     if (!groupRef.current || !player) return
     
-    const now = state.clock.getElapsedTime() * 1000 // ms
+    const lambda = 10 // Interpolation speed (tuned for 60Hz updates)
     
-    // Add current server state to buffer
-    // We assume the server state arrived "recently". Ideally we'd use the server timestamp.
-    // But since we don't have it easily here, we use local time.
-    // This effectively buffers the *arrival* of packets.
-    buffer.current.addSnapshot({
-      x: player.x,
-      y: player.y,
-      z: player.z,
-      rotY: player.rotY,
-      vx: player.vx,
-      vy: player.vy,
-      vz: player.vz
-    }, now)
+    // Position interpolation - read directly from Colyseus proxy
+    // Prediction: Extrapolate position based on velocity
+    // This helps smooth out jumps and fast movements between server updates
+    const LOOKAHEAD = 0.032 // ~32ms prediction (2 frames at 60Hz)
+    const predictedX = player.x + (player.vx || 0) * LOOKAHEAD
+    const predictedY = player.y + (player.vy || 0) * LOOKAHEAD
+    const predictedZ = player.z + (player.vz || 0) * LOOKAHEAD
+
+    groupRef.current.position.x = THREE.MathUtils.damp(
+      groupRef.current.position.x, 
+      predictedX, 
+      lambda, 
+      delta
+    )
+    groupRef.current.position.y = THREE.MathUtils.damp(
+      groupRef.current.position.y, 
+      predictedY, 
+      lambda, 
+      delta
+    )
+    groupRef.current.position.z = THREE.MathUtils.damp(
+      groupRef.current.position.z, 
+      predictedZ, 
+      lambda, 
+      delta
+    )
     
-    // Get interpolated state for 100ms ago
-    const interpolated = buffer.current.getInterpolatedState(now)
-    
-    if (interpolated) {
-      groupRef.current.position.set(interpolated.x, interpolated.y, interpolated.z)
-      groupRef.current.rotation.y = interpolated.rotY || 0
-    } else {
-      // Fallback if buffer empty (e.g. start)
-      groupRef.current.position.set(player.x, player.y, player.z)
-    }
+    // Rotation interpolation (handle wrapping)
+    let rotDiff = player.rotY - groupRef.current.rotation.y
+    while (rotDiff > Math.PI) rotDiff -= Math.PI * 2
+    while (rotDiff < -Math.PI) rotDiff += Math.PI * 2
+    groupRef.current.rotation.y += rotDiff * Math.min(1, lambda * delta)
   })
 
   // Initialize position on mount
