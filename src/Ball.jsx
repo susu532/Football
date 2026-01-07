@@ -218,16 +218,14 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
         
         if (velAlongNormal < 0) {
           // Physics Resolution
-          // e = average(0.75, 0.0) = 0.375. Let's boost it for gameplay feel.
-          const restitution = 0.6 
+          // Match server restitution (0.75)
+          const restitution = 0.75 
           const massBall = 3.0
-          // Player mass infinite -> 1/m_player = 0
           
           // J = -(1 + e) * v_rel_norm * m_ball
           let j = -(1 + restitution) * velAlongNormal * massBall
           
           // Apply Impulse
-          // v_new = v_old + J / m * n
           const impulseX = j * nx
           const impulseY = j * ny
           const impulseZ = j * nz
@@ -237,21 +235,17 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
           velocity.current.z += impulseZ / massBall
           
           // Friction (Tangential impulse)
-          // t = v_rel - (v_rel . n) * n
           const tx = relVx - velAlongNormal * nx
           const ty = relVy - velAlongNormal * ny
           const tz = relVz - velAlongNormal * nz
           
-          // Friction coefficient (average of 0.5 and 2.0 = 1.25)
-          const mu = 0.8 // Tuned down slightly from 1.25 to prevent "sticking"
+          const mu = 0.5 // Match server friction
           
           velocity.current.x -= tx * mu
           velocity.current.y -= ty * mu
           velocity.current.z -= tz * mu
           
-          // Extra "Pop" for gameplay (Rocket League style)
-          // If hitting from below or side, give a slight vertical boost
-          velocity.current.y += 2.0 
+          // REMOVED: Artificial pop to match server physics
         }
         
         // Penetration Resolution (Push out)
@@ -263,22 +257,19 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
     }
 
     // 4. Interpolation / Correction
-    // Instead of lerping to target, we pull the visual towards the target if it drifts too far
-    // But we trust our local simulation for short term.
-    
+    // Only correct if we drift too far from server state
     const distToTarget = groupRef.current.position.distanceTo(targetPos.current)
     
     if (distToTarget > 2.0) {
       // Snap if way off (teleport/respawn)
       groupRef.current.position.copy(targetPos.current)
-    } else {
-      // Soft correction: Pull towards server state slowly
-      // If we are predicting well, this should be minimal.
-      // If we mispredicted, this will slide us back.
-      const correctionStrength = 2.0 * delta // Pull 2m/s/s roughly? No, this is lerp alpha.
-      // Use a small alpha
-      groupRef.current.position.lerp(targetPos.current, 0.1) 
+      velocity.current.copy(extrapolatedVel)
+    } else if (distToTarget > 0.5) {
+      // Soft correction if error is noticeable but not huge
+      // Pull towards target slowly
+      groupRef.current.position.lerp(targetPos.current, 5 * delta)
     }
+    // If error is small (< 0.5), trust local physics completely for smoothness
     
     groupRef.current.quaternion.slerp(targetRot.current, 0.1)
     
