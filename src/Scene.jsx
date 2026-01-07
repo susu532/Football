@@ -4,7 +4,7 @@
 import React, { useRef, useEffect, useState, Suspense, useCallback, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
 import { Html, Loader, Environment, Preload, ContactShadows } from '@react-three/drei'
-import { EffectComposer, SMAA, Bloom, Vignette } from '@react-three/postprocessing'
+import { EffectComposer, SMAA, FXAA, Bloom, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
 
@@ -688,14 +688,12 @@ export default function Scene() {
         }}
       >
         <Suspense fallback={null}>
-          {/* Post-processing - Conditional for mobile (Performance) */}
-          {!isMobile && (
-            <EffectComposer multisampling={4}>
-              <SMAA />
-              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
-              <Vignette eskil={false} offset={0.1} darkness={0.5} />
-            </EffectComposer>
-          )}
+          {/* Post-processing - Optimized for Mobile vs Desktop */}
+          <EffectComposer multisampling={isMobile ? 0 : 4}>
+            {isMobile ? <FXAA /> : <SMAA />}
+            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+            <Vignette eskil={false} offset={0.1} darkness={0.5} />
+          </EffectComposer>
 
           {/* No client-side physics - server handles all physics */}
 
