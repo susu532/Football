@@ -187,6 +187,7 @@ export default function Scene() {
     powerUps,
     selectedMap,
     ping: realPing,
+    pingJitter,
     roomCode,
     availableRooms,
     createPublicRoom,
@@ -752,7 +753,7 @@ export default function Scene() {
           {isMobile && <MobileSky />}
 
           {/* Ball - interpolated from server state */}
-          <ClientBallVisual ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} />
+          <ClientBallVisual ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} ping={realPing} pingJitter={pingJitter} />
 
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />

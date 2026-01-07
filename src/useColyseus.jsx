@@ -68,6 +68,8 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [mySessionId, setMySessionId] = useState(null)
   const [powerUps, setPowerUps] = useState([]) // Array for easier mapping
   const [ping, setPing] = useState(0)
+  const [pingJitter, setPingJitter] = useState(0)
+  const pingHistory = useRef([])
 
   const roomRef = useRef(null)
 
@@ -119,7 +121,18 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     joinedRoom.onMessage('pong', () => {
       const now = Date.now()
       if (lastPingTime.current) {
-        setPing(now - lastPingTime.current)
+        const sample = now - lastPingTime.current
+        
+        // Rolling average with 10 samples for stability
+        pingHistory.current.push(sample)
+        if (pingHistory.current.length > 10) pingHistory.current.shift()
+        
+        const avg = pingHistory.current.reduce((a, b) => a + b, 0) / pingHistory.current.length
+        const variance = pingHistory.current.reduce((acc, p) => acc + (p - avg) ** 2, 0) / pingHistory.current.length
+        const jitter = Math.sqrt(variance)
+        
+        setPing(Math.round(avg))
+        setPingJitter(Math.round(jitter))
       }
     })
 
@@ -302,7 +315,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       pingInterval.current = setInterval(() => {
         lastPingTime.current = Date.now()
         room.send('ping')
-      }, 2000)
+      }, 500) // 4x faster for adaptive collision prediction
     } else {
       if (pingInterval.current) clearInterval(pingInterval.current)
     }
@@ -412,6 +425,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     me,
     powerUps,
     ping,
+    pingJitter, // For adaptive collision smoothing
 
     // Actions
     sendInput,

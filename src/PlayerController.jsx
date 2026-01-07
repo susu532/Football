@@ -244,7 +244,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
         z: moveDir.current.z,
         jump: input.jump,
         rotY: groupRef.current.rotation.y,
-        seq: inputSequence.current
+        seq: inputSequence.current,
+        ts: Date.now()
       })
     }
   })
