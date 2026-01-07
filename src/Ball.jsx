@@ -238,46 +238,6 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.y += (serverImpulse.y - predictedVelocity.current.y) * 0.3
           predictedVelocity.current.z += (serverImpulse.z - predictedVelocity.current.z) * 0.3
         }
-      })
-      return unsubscribe
-    }
-  }, [onKickMessage])
-
-  useFrame((state, delta) => {
-    if (!groupRef.current || !ballState) return
-
-    const now = state.clock.getElapsedTime()
-    collisionThisFrame.current = false
-
-    // === PING-AWARE PARAMETERS ===
-    const pingSeconds = ping / 1000
-    const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
-    const pingFactor = Math.max(0.3, 1 - ping / 300)
-    const reconcileRate = 1 - Math.exp(-12 * pingFactor * delta)
-
-    // 1. Sync server state
-    targetPos.current.set(ballState.x, ballState.y, ballState.z)
-    serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
-    if (ballState.rx !== undefined) {
-      targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
-    }
-
-    // 2. Ping-aware velocity reconciliation
-    predictedVelocity.current.lerp(serverVelocity.current, reconcileRate)
-
-    // 3. Advance prediction with physics
-    const vel = predictedVelocity.current
-    targetPos.current.addScaledVector(vel, delta)
-    
-    if (targetPos.current.y > BALL_RADIUS) {
-      predictedVelocity.current.y -= GRAVITY * delta
-    }
-
-    // 4. S-TIER DIRECTIONAL COLLISION PREDICTION (Sphere-to-AABB)
-    const timeSinceCollision = now - lastCollisionTime.current
-    
-    if (localPlayerRef?.current?.position && timeSinceCollision > COLLISION_COOLDOWN) {
-      const playerPos = localPlayerRef.current.position
       const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
       const ballPos = groupRef.current.position
       
@@ -385,26 +345,45 @@ export const ClientBallVisual = React.forwardRef(({
           let boostFactor = 1.2
           let verticalBoost = 1.5
           
+          // === DYNAMIC PHYSICS REFINEMENT ===
+          const impactSpeed = Math.abs(approachSpeed)
+          const impactIntensity = Math.min(1, impactSpeed / 15)
+
           if (isTop) {
             // Header - strong vertical, minimal lateral
             boostFactor = 0.8
             verticalBoost = 3.0
-          } else if (isFront) {
-            // Front - strong forward push
-            boostFactor = 1.3
-            verticalBoost = 1.5
-          } else if (isSide) {
-            // Side - strong lateral
-            boostFactor = 1.25
-            verticalBoost = 1.3
-          } else if (isBehind) {
-            // Behind - backward bounce
-            boostFactor = 1.1
-            verticalBoost = 1.2
+          } else {
+            // Ground interactions
+            if (impactSpeed < 5) {
+              // Dribble mode: Keep ball glued to ground
+              verticalBoost = 0.1 
+            } else {
+              // Sprint/Kick mode: Pop up based on intensity
+              verticalBoost = 1.5 * impactIntensity
+            }
+
+            // Directional tuning
+            if (isFront) {
+              boostFactor = 1.3
+            } else if (isSide) {
+              boostFactor = 1.25
+            } else if (isBehind) {
+              boostFactor = 1.1
+            }
           }
           
+          // Velocity Scaling: Reward momentum
+          const velocityFactor = 1 + Math.min(0.5, impactSpeed / 20)
+          boostFactor *= velocityFactor
+          
           // RAPIER-matched impulse
-          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
+          let impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
+          
+          // Dribble Damping: "Sticky" feet for close control
+          if (impactSpeed < 8 && ballPos.y < BALL_RADIUS * 1.5) {
+             impulseMag *= 0.6
+          }
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor
           predictedVelocity.current.y += impulseMag * ny * boostFactor + verticalBoost
