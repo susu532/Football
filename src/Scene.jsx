@@ -37,7 +37,7 @@ const CSS_ANIMATIONS = `
 const SERVER_URL = import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567'
 
 // Camera Controller
-function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
+function CameraController({ targetRef, isFreeLook, cameraOrbit, isMobile }) {
   const { camera } = useThree()
   const orbit = useRef({
     azimuth: 0,
@@ -68,6 +68,9 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     }
 
     const onClick = (e) => {
+      // Disable pointer lock on mobile
+      if (isMobile) return
+
       // Ignore clicks on buttons, inputs, or interactive elements
       if (
         e.target.tagName === 'BUTTON' || 
@@ -1054,6 +1057,18 @@ export default function Scene() {
         }}>
           {collectedEmoji}
         </div>
+      )}
+      {/* Camera Controller */}
+      <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} isMobile={isMobile} />
+      
+      {/* Mobile Controls */}
+      {hasJoined && (
+        <MobileControls
+          onMove={handleMobileMove}
+          onJump={handleMobileJump}
+          onKick={handleMobileKick}
+          onCameraMove={handleMobileCameraMove}
+        />
       )}
     </div>
   )
