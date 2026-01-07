@@ -133,6 +133,11 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, isMobile }) {
   }, [])
 
   useFrame((_, delta) => {
+    // Debug frame counter
+    if (typeof window !== 'undefined') {
+      window.debugFrameCount = (window.debugFrameCount || 0) + 1
+    }
+
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
     const { azimuth, polar } = orbit.current
     orbit.current.distance = THREE.MathUtils.lerp(
@@ -729,8 +734,18 @@ export default function Scene() {
         shadows={!isMobile}
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={dpr}
-        gl={{ 
-          antialias: !isMobile, // Disable AA on mobile for performance/stability
+        gl={isMobile ? {
+          // Ultra-safe mobile config
+          antialias: false,
+          depth: true,
+          stencil: false,
+          alpha: false,
+          powerPreference: 'default',
+          preserveDrawingBuffer: false,
+          failIfMajorPerformanceCaveat: false
+        } : { 
+          // Desktop high-fidelity config
+          antialias: true,
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
@@ -738,7 +753,7 @@ export default function Scene() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: !isMobile
+          logarithmicDepthBuffer: true
         }}
       >
         <color attach="background" args={['#0a0a12']} />
@@ -854,7 +869,7 @@ export default function Scene() {
           ))}
 
           {/* Preload models to avoid pop-in and improve slow network handling */}
-          <Preload all />
+          {!isMobile && <Preload all />}
         </Suspense>
       </Canvas>
 
@@ -1097,6 +1112,7 @@ export default function Scene() {
           <div>Cam: {cameraOrbit.current ? `${cameraOrbit.current.azimuth.toFixed(2)}, ${cameraOrbit.current.polar.toFixed(2)}` : 'null'}</div>
           <div>Input: {JSON.stringify(InputManager.mobileInput)}</div>
           <div>Pos: {playerRef.current?.position ? `${playerRef.current.position.x.toFixed(2)}, ${playerRef.current.position.z.toFixed(2)}` : 'null'}</div>
+          <div>Frames: {window.debugFrameCount || 0}</div>
           <div style={{ marginTop: '4px' }}>
             <button 
               onClick={() => {
