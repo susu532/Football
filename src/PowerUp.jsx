@@ -21,7 +21,7 @@ export function PowerUp({ position, type, onCollect }) {
     }
   })
 
-  const config = POWER_UP_TYPES[type]
+  const config = POWER_UP_TYPES[type] || { color: '#ffffff', label: '?', id: 'unknown' }
 
   return (
     <group position={position}>

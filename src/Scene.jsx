@@ -675,16 +675,15 @@ export default function Scene() {
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={isMobile ? 0.7 : [1, 2]}
         gl={{ 
-          antialias: true, // Re-enable AA for stability
+          antialias: true,
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
-          precision: isMobile ? 'mediump' : 'highp',
           alpha: false,
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: !isMobile // Disable on mobile (can cause black screen on some Adreno GPUs)
+          logarithmicDepthBuffer: true
         }}
       >
         <Suspense fallback={null}>
