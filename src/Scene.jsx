@@ -708,14 +708,14 @@ export default function Scene() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: !isMobile // Disable on mobile (can cause black screen on some Adreno GPUs)
+          logarithmicDepthBuffer: false // Disable to avoid precision warnings on some drivers
         }}
       >
         <Suspense fallback={null}>
           {/* Post-processing - Conditional for mobile */}
           {!isMobile && (
             <EffectComposer multisampling={4}>
-              <SMAA />
+
               <Bloom luminanceThreshold={1.01} mipmapBlur intensity={0.4} radius={0.7} />
               <Vignette eskil={false} offset={0.1} darkness={0.5} />
             </EffectComposer>
