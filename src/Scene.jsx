@@ -1058,6 +1058,36 @@ export default function Scene() {
           {collectedEmoji}
         </div>
       )}
+      {/* Debug Overlay for Mobile */}
+      {isMobile && (
+        <div style={{
+          position: 'absolute',
+          top: '10px',
+          left: '10px',
+          zIndex: 999999,
+          color: 'lime',
+          fontFamily: 'monospace',
+          fontSize: '10px',
+          background: 'rgba(0,0,0,0.8)',
+          padding: '4px',
+          pointerEvents: 'none'
+        }}>
+          <div>MOBILE DEBUG</div>
+          <div>isMobile: {String(isMobile)}</div>
+          <div>Cam: {cameraOrbit.current ? `${cameraOrbit.current.azimuth.toFixed(2)}, ${cameraOrbit.current.polar.toFixed(2)}` : 'null'}</div>
+          <div>Input: {JSON.stringify(InputManager.mobileInput)}</div>
+        </div>
+      )}
+
+      {/* Mobile Controls - RESTORED */}
+      {hasJoined && (
+        <MobileControls
+          onMove={handleMobileMove}
+          onJump={handleMobileJump}
+          onKick={handleMobileKick}
+          onCameraMove={handleMobileCameraMove}
+        />
+      )}
     </div>
   )
 }
