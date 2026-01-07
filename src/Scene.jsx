@@ -20,7 +20,7 @@ import Chat from './Chat'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
-import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect } from './Environment'
+import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect, MobileSky } from './Environment'
 
 const CSS_ANIMATIONS = `
   @keyframes popIn {
@@ -744,7 +744,12 @@ export default function Scene() {
 
 
           <SoccerPitch isMobile={false} />
+          
+          {/* Disable heavy maps on mobile for performance */}
           {!isMobile && <MapComponents.MapRenderer mapId={selectedMap} />}
+
+          {/* Mobile-only lightweight skybox */}
+          {isMobile && <MobileSky />}
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} />

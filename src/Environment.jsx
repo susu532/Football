@@ -343,3 +343,18 @@ export function GameSkybox() {
     </>
   )
 }
+
+// Lightweight sky for mobile to replace the black void
+export function MobileSky() {
+  useThree(({ scene }) => {
+    // Dark space-like background for depth
+    scene.background = new THREE.Color('#05050a')
+  })
+
+  return (
+    <>
+      <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
+      <Sparkles count={50} scale={[40, 20, 40]} size={2} speed={0.2} opacity={0.2} color="#ffffff" />
+    </>
+  )
+}
