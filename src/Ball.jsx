@@ -87,12 +87,8 @@ const BASE_LOOKAHEAD = 0.05 // 50ms base anticipation
 const MAX_LOOKAHEAD = 0.15 // 150ms max anticipation at high ping
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = 0.8
-
-// Player hitbox dimensions (match server cuboid exactly)
-const PLAYER_HALF_WIDTH = 0.6   // X half-extent
-const PLAYER_HALF_HEIGHT = 0.4  // Y half-extent (total height 0.8 centered at 0.2)
-const PLAYER_HALF_DEPTH = 0.6   // Z half-extent
-const PLAYER_CENTER_Y_OFFSET = 0.2 // Collider center offset from player position
+const PLAYER_RADIUS = 0.7
+const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
 const BALL_RESTITUTION = 0.75
@@ -104,85 +100,31 @@ const LERP_NORMAL = 25 // Snappy base
 const LERP_COLLISION = 80 // Near-instant snap on collision
 const LERP_SNAP_THRESHOLD = 8
 
-// Sphere-to-AABB collision detection (matches server cuboid)
-const sphereToAABB = (spherePos, sphereRadius, boxCenter, halfExtents) => {
-  // Find closest point on AABB to sphere center
-  const closestX = Math.max(boxCenter.x - halfExtents.x, 
-                    Math.min(spherePos.x, boxCenter.x + halfExtents.x))
-  const closestY = Math.max(boxCenter.y - halfExtents.y, 
-                    Math.min(spherePos.y, boxCenter.y + halfExtents.y))
-  const closestZ = Math.max(boxCenter.z - halfExtents.z, 
-                    Math.min(spherePos.z, boxCenter.z + halfExtents.z))
+// Sub-frame sweep test
+const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
+  const dx = ballEnd.x - ballStart.x
+  const dy = ballEnd.y - ballStart.y
+  const dz = ballEnd.z - ballStart.z
   
-  const dx = spherePos.x - closestX
-  const dy = spherePos.y - closestY
-  const dz = spherePos.z - closestZ
-  const distSq = dx * dx + dy * dy + dz * dz
+  const fx = ballStart.x - playerPos.x
+  const fy = ballStart.y - playerPos.y
+  const fz = ballStart.z - playerPos.z
   
-  if (distSq < sphereRadius * sphereRadius) {
-    const dist = Math.sqrt(distSq)
-    const invDist = dist > 0.001 ? 1 / dist : 0
-    return {
-      colliding: true,
-      normal: { x: dx * invDist, y: dy * invDist, z: dz * invDist },
-      penetration: sphereRadius - dist,
-      closestPoint: { x: closestX, y: closestY, z: closestZ }
-    }
-  }
-  return { colliding: false }
-}
-
-// Swept sphere-to-AABB for high-speed collision (prevents tunneling)
-const sweepSphereToAABB = (sphereStart, sphereEnd, sphereRadius, boxCenter, halfExtents) => {
-  // Minkowski sum: expand box by sphere radius
-  const minX = boxCenter.x - halfExtents.x - sphereRadius
-  const maxX = boxCenter.x + halfExtents.x + sphereRadius
-  const minY = boxCenter.y - halfExtents.y - sphereRadius
-  const maxY = boxCenter.y + halfExtents.y + sphereRadius
-  const minZ = boxCenter.z - halfExtents.z - sphereRadius
-  const maxZ = boxCenter.z + halfExtents.z + sphereRadius
+  const a = dx * dx + dy * dy + dz * dz
+  const b = 2 * (fx * dx + fy * dy + fz * dz)
+  const c = fx * fx + fy * fy + fz * fz - combinedRadius * combinedRadius
   
-  // Ray direction
-  const dx = sphereEnd.x - sphereStart.x
-  const dy = sphereEnd.y - sphereStart.y
-  const dz = sphereEnd.z - sphereStart.z
+  if (a < 0.0001) return null
   
-  // Slab intersection
-  let tMin = 0, tMax = 1
+  const discriminant = b * b - 4 * a * c
+  if (discriminant < 0) return null
   
-  // X slab
-  if (Math.abs(dx) > 0.0001) {
-    const t1 = (minX - sphereStart.x) / dx
-    const t2 = (maxX - sphereStart.x) / dx
-    tMin = Math.max(tMin, Math.min(t1, t2))
-    tMax = Math.min(tMax, Math.max(t1, t2))
-  } else if (sphereStart.x < minX || sphereStart.x > maxX) {
-    return null
-  }
+  const sqrtDisc = Math.sqrt(discriminant)
+  const t1 = (-b - sqrtDisc) / (2 * a)
+  const t2 = (-b + sqrtDisc) / (2 * a)
   
-  // Y slab
-  if (Math.abs(dy) > 0.0001) {
-    const t1 = (minY - sphereStart.y) / dy
-    const t2 = (maxY - sphereStart.y) / dy
-    tMin = Math.max(tMin, Math.min(t1, t2))
-    tMax = Math.min(tMax, Math.max(t1, t2))
-  } else if (sphereStart.y < minY || sphereStart.y > maxY) {
-    return null
-  }
-  
-  // Z slab
-  if (Math.abs(dz) > 0.0001) {
-    const t1 = (minZ - sphereStart.z) / dz
-    const t2 = (maxZ - sphereStart.z) / dz
-    tMin = Math.max(tMin, Math.min(t1, t2))
-    tMax = Math.min(tMax, Math.max(t1, t2))
-  } else if (sphereStart.z < minZ || sphereStart.z > maxZ) {
-    return null
-  }
-  
-  if (tMin <= tMax && tMin >= 0 && tMin <= 1) {
-    return tMin
-  }
+  if (t1 >= 0 && t1 <= 1) return t1
+  if (t2 >= 0 && t2 <= 1) return t2
   return null
 }
 
@@ -193,7 +135,8 @@ const predictFuturePosition = (pos, vel, time, gravity) => ({
   z: pos.z + vel.z * time
 })
 
-// ClientBallVisual - PING-AWARE 0-ping prediction with AABB collision
+// ClientBallVisual - PING-AWARE 0-ping prediction
+// Now accepts ping prop for latency-scaled prediction
 export const ClientBallVisual = React.forwardRef(({ 
   ballState, 
   onKickMessage, 
@@ -212,8 +155,10 @@ export const ClientBallVisual = React.forwardRef(({
   
   useImperativeHandle(ref, () => {
     const obj = groupRef.current || {}
+    // Expose instant kick predictor for PlayerController
     obj.userData = obj.userData || {}
     obj.userData.predictKick = (impulse) => {
+      // INSTANT local kick response - before server roundtrip
       predictedVelocity.current.x += impulse.x * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.y += impulse.y * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.z += impulse.z * IMPULSE_PREDICTION_FACTOR
@@ -222,18 +167,21 @@ export const ClientBallVisual = React.forwardRef(({
     return obj
   })
 
-  // Kick message handler
+  // Kick message handler - confirms/corrects local prediction
   useEffect(() => {
     if (onKickMessage) {
       const unsubscribe = onKickMessage('ball-kicked', (data) => {
         if (kickFeedback.current) kickFeedback.current()
         
         if (data.impulse) {
+          // Server confirmation - blend with existing prediction
+          // Only add difference to avoid double-impulse
           const serverImpulse = {
             x: data.impulse.x * IMPULSE_PREDICTION_FACTOR,
             y: data.impulse.y * IMPULSE_PREDICTION_FACTOR,
             z: data.impulse.z * IMPULSE_PREDICTION_FACTOR
           }
+          // Soft correction toward server impulse
           predictedVelocity.current.x += (serverImpulse.x - predictedVelocity.current.x) * 0.3
           predictedVelocity.current.y += (serverImpulse.y - predictedVelocity.current.y) * 0.3
           predictedVelocity.current.z += (serverImpulse.z - predictedVelocity.current.z) * 0.3
@@ -250,8 +198,11 @@ export const ClientBallVisual = React.forwardRef(({
     collisionThisFrame.current = false
 
     // === PING-AWARE PARAMETERS ===
+    // Scale anticipation with ping (more lookahead at higher latency)
     const pingSeconds = ping / 1000
     const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
+    
+    // Slower reconciliation at high ping to trust local prediction more
     const pingFactor = Math.max(0.3, 1 - ping / 300)
     const reconcileRate = 1 - Math.exp(-12 * pingFactor * delta)
 
@@ -273,7 +224,7 @@ export const ClientBallVisual = React.forwardRef(({
       predictedVelocity.current.y -= GRAVITY * delta
     }
 
-    // 4. S-TIER DIRECTIONAL COLLISION PREDICTION (Sphere-to-AABB)
+    // 4. PING-AWARE COLLISION PREDICTION
     const timeSinceCollision = now - lastCollisionTime.current
     
     if (localPlayerRef?.current?.position && timeSinceCollision > COLLISION_COOLDOWN) {
@@ -281,83 +232,53 @@ export const ClientBallVisual = React.forwardRef(({
       const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
       const ballPos = groupRef.current.position
       
-      // Player box center (offset for collider position)
-      const boxCenter = {
-        x: playerPos.x,
-        y: playerPos.y + PLAYER_CENTER_Y_OFFSET,
-        z: playerPos.z
-      }
-      const halfExtents = {
-        x: PLAYER_HALF_WIDTH,
-        y: PLAYER_HALF_HEIGHT,
-        z: PLAYER_HALF_DEPTH
-      }
-      
-      // Test current collision (Sphere-to-AABB)
-      const collision = sphereToAABB(ballPos, BALL_RADIUS, boxCenter, halfExtents)
-      
-      // Swept test for high-speed
-      const ballEnd = targetPos.current.clone()
-      const sweepT = sweepSphereToAABB(ballPos, ballEnd, BALL_RADIUS, boxCenter, halfExtents)
-      
-      // Anticipatory collision
+      // DYNAMIC anticipatory collision with ping-scaled lookahead
       const futureBall = predictFuturePosition(ballPos, vel, dynamicLookahead, GRAVITY)
-      const futureBox = {
-        x: boxCenter.x + (playerVel.x || 0) * dynamicLookahead,
-        y: boxCenter.y + (playerVel.y || 0) * dynamicLookahead,
-        z: boxCenter.z + (playerVel.z || 0) * dynamicLookahead
+      const futurePlayer = {
+        x: playerPos.x + (playerVel.x || 0) * dynamicLookahead,
+        y: playerPos.y + (playerVel.y || 0) * dynamicLookahead,
+        z: playerPos.z + (playerVel.z || 0) * dynamicLookahead
       }
-      const futureCollision = sphereToAABB(futureBall, BALL_RADIUS, futureBox, halfExtents)
       
-      if (collision.colliding || sweepT !== null || futureCollision.colliding) {
-        let nx, ny, nz, penetration
+      // Distance checks
+      const dx = ballPos.x - playerPos.x
+      const dy = ballPos.y - playerPos.y
+      const dz = ballPos.z - playerPos.z
+      const currentDist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      
+      const fdx = futureBall.x - futurePlayer.x
+      const fdy = futureBall.y - futurePlayer.y
+      const fdz = futureBall.z - futurePlayer.z
+      const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
+      
+      // Sweep test
+      const ballEnd = targetPos.current.clone()
+      const sweepT = sweepSphereToSphere(ballPos, ballEnd, playerPos, COMBINED_RADIUS)
+      
+      // Collision conditions
+      const isCurrentCollision = currentDist < COMBINED_RADIUS
+      const isAnticipatedCollision = futureDist < COMBINED_RADIUS && futureDist < currentDist
+      const isSweepCollision = sweepT !== null
+      
+      if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision) && currentDist > 0.05) {
+        let nx, ny, nz, contactDist
         
-        if (collision.colliding) {
-          nx = collision.normal.x
-          ny = collision.normal.y
-          nz = collision.normal.z
-          penetration = collision.penetration
-        } else if (sweepT !== null && sweepT > 0) {
-          // Contact point from sweep
-          const contactPt = {
-            x: ballPos.x + (ballEnd.x - ballPos.x) * sweepT,
-            y: ballPos.y + (ballEnd.y - ballPos.y) * sweepT,
-            z: ballPos.z + (ballEnd.z - ballPos.z) * sweepT
-          }
-          const sweepCol = sphereToAABB(contactPt, BALL_RADIUS, boxCenter, halfExtents)
-          if (sweepCol.colliding) {
-            nx = sweepCol.normal.x
-            ny = sweepCol.normal.y
-            nz = sweepCol.normal.z
-            penetration = sweepCol.penetration
-          } else {
-            // Fallback normal
-            const dx = contactPt.x - boxCenter.x
-            const dy = contactPt.y - boxCenter.y
-            const dz = contactPt.z - boxCenter.z
-            const d = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1
-            nx = dx / d
-            ny = dy / d
-            nz = dz / d
-            penetration = 0.05
-          }
-        } else if (futureCollision.colliding) {
-          nx = futureCollision.normal.x
-          ny = futureCollision.normal.y
-          nz = futureCollision.normal.z
-          penetration = futureCollision.penetration * 0.5 // Anticipatory - reduced
-        }
-        
-        // Ensure valid normal
-        if (nx === undefined || (nx === 0 && ny === 0 && nz === 0)) {
-          const dx = ballPos.x - boxCenter.x
-          const dy = ballPos.y - boxCenter.y
-          const dz = ballPos.z - boxCenter.z
-          const d = Math.sqrt(dx*dx + dy*dy + dz*dz) || 1
-          nx = dx / d
-          ny = Math.max(0.1, dy / d)
-          nz = dz / d
-          penetration = 0.05
+        if (isSweepCollision && sweepT > 0) {
+          const contactPt = ballPos.clone().lerp(ballEnd, sweepT)
+          const cx = contactPt.x - playerPos.x
+          const cy = contactPt.y - playerPos.y
+          const cz = contactPt.z - playerPos.z
+          contactDist = Math.sqrt(cx * cx + cy * cy + cz * cz)
+          const invD = 1 / Math.max(contactDist, 0.1)
+          nx = cx * invD
+          ny = Math.max(0.1, cy * invD)
+          nz = cz * invD
+        } else {
+          contactDist = currentDist
+          const invD = 1 / Math.max(currentDist, 0.1)
+          nx = dx * invD
+          ny = Math.max(0.1, dy * invD)
+          nz = dz * invD
         }
         
         // Relative velocity
@@ -366,48 +287,17 @@ export const ClientBallVisual = React.forwardRef(({
         const relVz = vel.z - (playerVel.z || 0)
         const approachSpeed = relVx * nx + relVy * ny + relVz * nz
         
-        if (approachSpeed < 0 || collision.colliding) {
+        if (approachSpeed < 0 || isCurrentCollision) {
           lastCollisionTime.current = now
           collisionThisFrame.current = true
           lastCollisionNormal.current.set(nx, ny, nz)
           
-          // === DIRECTIONAL IMPULSE RESPONSE ===
-          const absNx = Math.abs(nx)
-          const absNy = Math.abs(ny)
-          const absNz = Math.abs(nz)
-          
-          // Determine contact direction
-          const isTop = absNy > 0.6 && ny > 0
-          const isFront = absNz > 0.5 && nz > 0
-          const isSide = absNx > 0.5
-          const isBehind = absNz > 0.5 && nz < 0
-          
-          let boostFactor = 1.2
-          let verticalBoost = 1.5
-          
-          if (isTop) {
-            // Header - strong vertical, minimal lateral
-            boostFactor = 0.8
-            verticalBoost = 3.0
-          } else if (isFront) {
-            // Front - strong forward push
-            boostFactor = 1.3
-            verticalBoost = 1.5
-          } else if (isSide) {
-            // Side - strong lateral
-            boostFactor = 1.25
-            verticalBoost = 1.3
-          } else if (isBehind) {
-            // Behind - backward bounce
-            boostFactor = 1.1
-            verticalBoost = 1.2
-          }
-          
-          // RAPIER-matched impulse
+          // RAPIER-matched impulse with boost
           const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
+          const boostFactor = 1.2
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor
-          predictedVelocity.current.y += impulseMag * ny * boostFactor + verticalBoost
+          predictedVelocity.current.y += impulseMag * ny * boostFactor + 1.5
           predictedVelocity.current.z += impulseMag * nz * boostFactor
           
           // Player velocity transfer
@@ -415,15 +305,15 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z += (playerVel.z || 0) * 0.5
           
           // INSTANT position correction
-          if (penetration > 0) {
-            const pushOut = penetration + 0.02
-            targetPos.current.x += nx * pushOut
-            targetPos.current.y += ny * pushOut * 0.5
-            targetPos.current.z += nz * pushOut
+          const overlap = COMBINED_RADIUS - contactDist + 0.02
+          if (overlap > 0) {
+            targetPos.current.x += nx * overlap
+            targetPos.current.y += ny * overlap * 0.5
+            targetPos.current.z += nz * overlap
             
             // Immediate visual push
-            groupRef.current.position.x += nx * pushOut * 0.8
-            groupRef.current.position.z += nz * pushOut * 0.8
+            groupRef.current.position.x += nx * overlap * 0.8
+            groupRef.current.position.z += nz * overlap * 0.8
           }
         }
       }
