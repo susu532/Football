@@ -735,16 +735,16 @@ export default function Scene() {
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={dpr}
         gl={isMobile ? {
-          // Ultra-safe mobile config
-          antialias: false,
-          depth: true,
+          // Robust Mobile Config
+          antialias: false, // Performance
           stencil: false,
+          depth: true,
           alpha: false,
-          powerPreference: 'default',
-          preserveDrawingBuffer: false,
-          failIfMajorPerformanceCaveat: false
+          powerPreference: 'high-performance', // Try to get the best GPU available
+          failIfMajorPerformanceCaveat: true, // We want to know if it fails
+          preserveDrawingBuffer: false
         } : { 
-          // Desktop high-fidelity config
+          // Desktop High-Fidelity Config
           antialias: true,
           stencil: false, 
           depth: true, 
@@ -868,8 +868,13 @@ export default function Scene() {
             />
           ))}
 
-          {/* Preload models to avoid pop-in and improve slow network handling */}
-          {!isMobile && <Preload all />}
+          {/* Smart Preload: Only preload critical assets on mobile to save memory */}
+          {/* On Desktop, preload everything for smoothness */}
+          {isMobile ? (
+            <Preload /> 
+          ) : (
+            <Preload all />
+          )}
         </Suspense>
       </Canvas>
 
