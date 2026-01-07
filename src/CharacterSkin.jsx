@@ -13,6 +13,7 @@ const CharacterSkin = React.forwardRef(({
   characterType = 'cat',
   invisible = false,
   giant = false,
+  isRemote = false,
   children
 }, ref) => {
   const internalRef = useRef()
@@ -77,7 +78,7 @@ const CharacterSkin = React.forwardRef(({
   useFrame(() => {
     if (!internalRef.current) return
     const currentIsInvisible = player ? player.invisible : invisible
-    const targetOpacity = currentIsInvisible ? 0.0 : 1.0
+    const targetOpacity = currentIsInvisible ? (isRemote ? 0.0 : 0.3) : 1.0
     
     // Only update if opacity changed significantly
     internalRef.current.traverse((child) => {
