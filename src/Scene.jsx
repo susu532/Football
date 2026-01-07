@@ -37,7 +37,7 @@ const CSS_ANIMATIONS = `
 const SERVER_URL = import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567'
 
 // Camera Controller
-function CameraController({ targetRef, isFreeLook, cameraOrbit, isMobile }) {
+function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
   const { camera } = useThree()
   const orbit = useRef({
     azimuth: 0,
@@ -68,9 +68,6 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, isMobile }) {
     }
 
     const onClick = (e) => {
-      // Disable pointer lock on mobile
-      if (isMobile) return
-
       // Ignore clicks on buttons, inputs, or interactive elements
       if (
         e.target.tagName === 'BUTTON' || 
@@ -133,11 +130,6 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, isMobile }) {
   }, [])
 
   useFrame((_, delta) => {
-    // Debug frame counter
-    if (typeof window !== 'undefined') {
-      window.debugFrameCount = (window.debugFrameCount || 0) + 1
-    }
-
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
     const { azimuth, polar } = orbit.current
     orbit.current.distance = THREE.MathUtils.lerp(
@@ -151,28 +143,12 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, isMobile }) {
     const z = p.z + distance * Math.sin(polar) * Math.cos(azimuth)
     
     // Use pre-allocated vector and frame-rate independent damp
-    if (Number.isFinite(x) && Number.isFinite(y) && Number.isFinite(z)) {
-      cameraTarget.current.set(x, y, z)
-      
-      if (isMobile) {
-        // Instant snap on mobile to avoid lag/NaN issues
-        camera.position.copy(cameraTarget.current)
-      } else {
-        // Smooth damp on desktop
-        camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
-        camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
-        camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
-      }
-      
-      if (Number.isFinite(p.x) && Number.isFinite(p.y) && Number.isFinite(p.z)) {
-        camera.lookAt(p.x, p.y + 1, p.z)
-      }
-    } else {
-      // Fallback if NaN detected
-      console.warn('Camera NaN detected, resetting')
-      camera.position.set(0, 10, 10)
-      camera.lookAt(0, 0, 0)
-    }
+    cameraTarget.current.set(x, y, z)
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
+    
+    camera.lookAt(p.x, p.y + 1, p.z)
   }, 1) // Priority 1: Run after player physics (Priority 0)
 
   return null
@@ -416,12 +392,8 @@ export default function Scene() {
 
   const handleMobileCameraMove = useCallback((dx, dy) => {
     if (cameraOrbit.current) {
-      // Safety check for NaN/Infinity
-      if (!Number.isFinite(dx) || !Number.isFinite(dy)) return
-      
-      const sensitivity = 0.01
-      cameraOrbit.current.azimuth -= dx * sensitivity
-      cameraOrbit.current.polar -= dy * sensitivity
+      cameraOrbit.current.azimuth -= dx * 0.01
+      cameraOrbit.current.polar -= dy * 0.01
       cameraOrbit.current.polar = Math.max(0.2, Math.min(Math.PI / 2, cameraOrbit.current.polar))
     }
   }, [])
@@ -471,40 +443,8 @@ export default function Scene() {
     refreshAvailableRooms()
   }, [hasJoined, isLaunched, refreshAvailableRooms])
 
-  // Landscape enforcement
-  const [isPortrait, setIsPortrait] = useState(false)
-  useEffect(() => {
-    const checkOrientation = () => {
-      setIsPortrait(window.innerHeight > window.innerWidth && window.innerWidth < 900)
-    }
-    checkOrientation()
-    window.addEventListener('resize', checkOrientation)
-    return () => window.removeEventListener('resize', checkOrientation)
-  }, [])
-
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative', touchAction: 'none' }}>
-      {/* Landscape Warning Overlay */}
-      {isPortrait && (
-        <div style={{
-          position: 'absolute',
-          inset: 0,
-          zIndex: 99999,
-          background: '#0a0a12',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          textAlign: 'center',
-          padding: '20px'
-        }}>
-          <div style={{ fontSize: '48px', marginBottom: '20px' }}>📱➡️🔄</div>
-          <h2 style={{ marginBottom: '10px' }}>Please Rotate Your Device</h2>
-          <p style={{ color: '#888' }}>This game is designed for landscape mode.</p>
-        </div>
-      )}
-
       {!hasJoined ? (
         <TeamSelectPopup
           key="team-select-popup"
@@ -734,18 +674,8 @@ export default function Scene() {
         shadows={!isMobile}
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
         dpr={dpr}
-        gl={isMobile ? {
-          // Robust Mobile Config
-          antialias: false, // Performance
-          stencil: false,
-          depth: true,
-          alpha: false,
-          powerPreference: 'high-performance', // Try to get the best GPU available
-          failIfMajorPerformanceCaveat: true, // We want to know if it fails
-          preserveDrawingBuffer: false
-        } : { 
-          // Desktop High-Fidelity Config
-          antialias: true,
+        gl={{ 
+          antialias: true, // Re-enable AA for stability
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
@@ -753,10 +683,9 @@ export default function Scene() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: true
+          logarithmicDepthBuffer: !isMobile // Disable on mobile (can cause black screen on some Adreno GPUs)
         }}
       >
-        <color attach="background" args={['#0a0a12']} />
         <Suspense fallback={null}>
           {/* Post-processing - Conditional for mobile */}
           {!isMobile && (
@@ -767,29 +696,22 @@ export default function Scene() {
             </EffectComposer>
           )}
 
+          {/* No client-side physics - server handles all physics */}
+
+          {/* Visuals (rendered for all) */}
+         
+          
           {/* Map-specific Lighting & Fog */}
           {(() => {
             const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
             const ambient = mapConfig.ambientIntensity ?? 0.4
             const direct = mapConfig.lightIntensity ?? 0.8
+            const fogColor = mapConfig.fogColor ?? '#87CEEB'
+            const fogDensity = mapConfig.fogDensity ?? 0.01
             const envPreset = mapConfig.environmentPreset ?? 'park'
             const ambientColor = mapConfig.ambientColor
-            
-            // Mobile: Simplified lighting (No HDRI, just lights)
-            if (isMobile) {
-              return (
-                <>
-                  <ambientLight intensity={ambient + 0.2} color={ambientColor} />
-                  <directionalLight
-                    position={[10, 20, 10]}
-                    intensity={direct}
-                    castShadow={false}
-                  />
-                </>
-              )
-            }
+            const lightColor = mapConfig.lightColor
 
-            // Desktop: Full High-Fidelity Lighting
             return (
               <>
                <Environment preset={envPreset} environmentIntensity={direct * 0.5} />
@@ -798,19 +720,22 @@ export default function Scene() {
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
-                  castShadow={true}
-                  shadow-mapSize={[1024, 1024]}
+                  castShadow={!isMobile} // Disable directional shadows on mobile
+                  shadow-mapSize={isMobile ? [512, 512] : [1024, 1024]}
                 />
                 
-                <ContactShadows 
-                  position={[0, 0.01, 0]} 
-                  opacity={0.6} 
-                  scale={32} 
-                  blur={2} 
-                  far={4} 
-                  resolution={512} 
-                  color="#000000"
-                />
+                {/* Soft grounding shadows - Disabled on mobile for stability */}
+                {!isMobile && (
+                  <ContactShadows 
+                    position={[0, 0.01, 0]} 
+                    opacity={0.6} 
+                    scale={32} 
+                    blur={2} 
+                    far={4} 
+                    resolution={512} 
+                    color="#000000"
+                  />
+                )}
               </>
             )
           })()}
@@ -857,7 +782,7 @@ export default function Scene() {
             <ClientPlayerVisual key={p.sessionId} player={p} />
           ))}
 
-          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} isMobile={isMobile} />
+          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
 
           {/* Power-ups from server */}
           {powerUps && powerUps.map(p => (
@@ -868,13 +793,8 @@ export default function Scene() {
             />
           ))}
 
-          {/* Smart Preload: Only preload critical assets on mobile to save memory */}
-          {/* On Desktop, preload everything for smoothness */}
-          {isMobile ? (
-            <Preload /> 
-          ) : (
-            <Preload all />
-          )}
+          {/* Preload models to avoid pop-in and improve slow network handling */}
+          <Preload all />
         </Suspense>
       </Canvas>
 
@@ -1097,52 +1017,6 @@ export default function Scene() {
         }}>
           {collectedEmoji}
         </div>
-      )}
-      {/* Debug Overlay for Mobile */}
-      {isMobile && (
-        <div style={{
-          position: 'absolute',
-          top: '10px',
-          left: '10px',
-          zIndex: 999999,
-          color: 'lime',
-          fontFamily: 'monospace',
-          fontSize: '10px',
-          background: 'rgba(0,0,0,0.8)',
-          padding: '4px',
-          pointerEvents: 'none'
-        }}>
-          <div>MOBILE DEBUG</div>
-          <div>isMobile: {String(isMobile)}</div>
-          <div>Cam: {cameraOrbit.current ? `${cameraOrbit.current.azimuth.toFixed(2)}, ${cameraOrbit.current.polar.toFixed(2)}` : 'null'}</div>
-          <div>Input: {JSON.stringify(InputManager.mobileInput)}</div>
-          <div>Pos: {playerRef.current?.position ? `${playerRef.current.position.x.toFixed(2)}, ${playerRef.current.position.z.toFixed(2)}` : 'null'}</div>
-          <div>Frames: {window.debugFrameCount || 0}</div>
-          <div style={{ marginTop: '4px' }}>
-            <button 
-              onClick={() => {
-                if (cameraOrbit.current) {
-                  cameraOrbit.current.azimuth = 0
-                  cameraOrbit.current.polar = Math.PI / 4
-                  cameraOrbit.current.distance = 15
-                }
-              }}
-              style={{ pointerEvents: 'auto', padding: '2px 6px', background: '#333', color: 'white', border: '1px solid #666' }}
-            >
-              RESET CAM
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Mobile Controls - RESTORED */}
-      {hasJoined && (
-        <MobileControls
-          onMove={handleMobileMove}
-          onJump={handleMobileJump}
-          onKick={handleMobileKick}
-          onCameraMove={handleMobileCameraMove}
-        />
       )}
     </div>
   )

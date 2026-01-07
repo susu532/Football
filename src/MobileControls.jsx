@@ -14,53 +14,49 @@ export default function MobileControls({
   const joystickRef = useRef(null)
   const knobRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
+  const dragStart = useRef({ x: 0, y: 0 })
   const joystickCenter = useRef({ x: 0, y: 0 })
   
   // Camera swipe state
-  const cameraLastPos = useRef({ x: 0, y: 0 })
+  const cameraLastTouch = useRef({ x: 0, y: 0 })
   const isCameraSwiping = useRef(false)
-  const activeCameraPointerId = useRef(null)
 
   // Joystick size constants
-  const JOYSTICK_SIZE = 160 
-  const KNOB_SIZE = 80 
+  const JOYSTICK_SIZE = 160 // Matches CSS width (approx internal usable area)
+  const KNOB_SIZE = 80 // Matches CSS width
   const MAX_DISTANCE = (JOYSTICK_SIZE - KNOB_SIZE) / 2
 
   const isDraggingRef = useRef(false)
-  const activeJoystickPointerId = useRef(null)
 
-  // --- JOYSTICK HANDLERS (Pointer Events) ---
-
-  const handleJoystickDown = useCallback((e) => {
-    // Prevent default to stop scrolling/zooming
-    e.preventDefault()
+  // Handle joystick touch start
+  const handleJoystickStart = useCallback((e) => {
+    // Stop propagation to prevent window touchstart (camera swipe) from firing
     e.stopPropagation()
     
-    // Capture pointer
-    e.target.setPointerCapture(e.pointerId)
-    activeJoystickPointerId.current = e.pointerId
+    // For pointer events, clientX/Y are directly on the event
+    // For touch events (if somehow triggered), they are in touches[0]
+    const clientX = e.clientX || (e.touches && e.touches[0].clientX)
+    const clientY = e.clientY || (e.touches && e.touches[0].clientY)
     
     const rect = joystickRef.current.getBoundingClientRect()
+    
     joystickCenter.current = {
       x: rect.left + rect.width / 2,
       y: rect.top + rect.height / 2
     }
-    
+    dragStart.current = { x: clientX, y: clientY }
     setIsDragging(true)
     isDraggingRef.current = true
-    
-    // Initial move processing
-    handleJoystickMove(e)
   }, [])
 
+  // Handle joystick touch move
   const handleJoystickMove = useCallback((e) => {
-    if (!isDraggingRef.current) return
-    if (e.pointerId !== activeJoystickPointerId.current) return
-    
+    if (!isDragging) return
     e.preventDefault()
     
-    const dx = e.clientX - joystickCenter.current.x
-    const dy = e.clientY - joystickCenter.current.y
+    const touch = e.touches ? e.touches[0] : e
+    const dx = touch.clientX - joystickCenter.current.x
+    const dy = touch.clientY - joystickCenter.current.y
     
     // Calculate distance and clamp
     const distance = Math.sqrt(dx * dx + dy * dy)
@@ -82,16 +78,12 @@ export default function MobileControls({
     if (onMove) {
       onMove(normalizedX, normalizedY)
     }
-  }, [MAX_DISTANCE, onMove])
+  }, [isDragging, MAX_DISTANCE, onMove])
 
-  const handleJoystickUp = useCallback((e) => {
-    if (e.pointerId !== activeJoystickPointerId.current) return
-    
-    e.preventDefault()
+  // Handle joystick touch end
+  const handleJoystickEnd = useCallback(() => {
     setIsDragging(false)
     isDraggingRef.current = false
-    activeJoystickPointerId.current = null
-    
     if (knobRef.current) {
       knobRef.current.style.transform = 'translate(0, 0)'
     }
@@ -100,67 +92,86 @@ export default function MobileControls({
     }
   }, [onMove])
 
-  // --- CAMERA HANDLERS (Pointer Events) ---
+  // Camera swipe handlers - for the main game area
+  const handleCameraStart = useCallback((e) => {
+    // If we are already dragging the joystick, ignore
+    if (isDraggingRef.current) return
 
-  const handleCameraDown = useCallback((e) => {
-    // Ignore if touching controls
-    if (e.target.closest('.mobile-controls')) return
+    // Only handle single touch not on controls
+    // We check the target and all its parents up to the control container
+    if (e.target.closest('.mobile-controls') || 
+        e.target.closest('.joystick-container') || 
+        e.target.closest('.action-buttons') ||
+        e.target.closest('.action-button')) {
+      return
+    }
     
-    // Only accept primary pointer if not already swiping
-    if (activeCameraPointerId.current !== null) return
+    if (e.touches && e.touches.length !== 1) return
     
-    activeCameraPointerId.current = e.pointerId
-    cameraLastPos.current = { x: e.clientX, y: e.clientY }
+    const touch = e.touches ? e.touches[0] : e
+    cameraLastTouch.current = { x: touch.clientX, y: touch.clientY }
     isCameraSwiping.current = true
   }, [])
 
   const handleCameraMove = useCallback((e) => {
     if (!isCameraSwiping.current) return
-    if (e.pointerId !== activeCameraPointerId.current) return
     
-    const dx = e.clientX - cameraLastPos.current.x
-    const dy = e.clientY - cameraLastPos.current.y
+    // Extra safety: if we are dragging the joystick, don't move camera
+    if (isDraggingRef.current) return
     
-    cameraLastPos.current = { x: e.clientX, y: e.clientY }
+    const touch = e.touches ? e.touches[0] : e
+    const dx = touch.clientX - cameraLastTouch.current.x
+    const dy = touch.clientY - cameraLastTouch.current.y
+    
+    cameraLastTouch.current = { x: touch.clientX, y: touch.clientY }
     
     if (onCameraMove) {
       onCameraMove(dx, dy)
     }
   }, [onCameraMove])
 
-  const handleCameraUp = useCallback((e) => {
-    if (e.pointerId !== activeCameraPointerId.current) return
-    
+  const handleCameraEnd = useCallback(() => {
     isCameraSwiping.current = false
-    activeCameraPointerId.current = null
   }, [])
 
-  // Global Camera Listeners
+  // Add global touch listeners for camera swipe
   useEffect(() => {
-    window.addEventListener('pointerdown', handleCameraDown)
-    window.addEventListener('pointermove', handleCameraMove)
-    window.addEventListener('pointerup', handleCameraUp)
-    window.addEventListener('pointercancel', handleCameraUp)
+    window.addEventListener('touchstart', handleCameraStart, { passive: false })
+    window.addEventListener('touchmove', handleCameraMove, { passive: false })
+    window.addEventListener('touchend', handleCameraEnd)
     
     return () => {
-      window.removeEventListener('pointerdown', handleCameraDown)
-      window.removeEventListener('pointermove', handleCameraMove)
-      window.removeEventListener('pointerup', handleCameraUp)
-      window.removeEventListener('pointercancel', handleCameraUp)
+      window.removeEventListener('touchstart', handleCameraStart)
+      window.removeEventListener('touchmove', handleCameraMove)
+      window.removeEventListener('touchend', handleCameraEnd)
     }
-  }, [handleCameraDown, handleCameraMove, handleCameraUp])
+  }, [handleCameraStart, handleCameraMove, handleCameraEnd])
+
+  // Add document-level listeners for joystick (to handle drag outside element)
+  useEffect(() => {
+    if (isDragging) {
+      document.addEventListener('touchmove', handleJoystickMove, { passive: false })
+      document.addEventListener('touchend', handleJoystickEnd)
+      document.addEventListener('mousemove', handleJoystickMove)
+      document.addEventListener('mouseup', handleJoystickEnd)
+    }
+    
+    return () => {
+      document.removeEventListener('touchmove', handleJoystickMove)
+      document.removeEventListener('touchend', handleJoystickEnd)
+      document.removeEventListener('mousemove', handleJoystickMove)
+      document.removeEventListener('mouseup', handleJoystickEnd)
+    }
+  }, [isDragging, handleJoystickMove, handleJoystickEnd])
 
   return (
-    <div className="mobile-controls">
+    <div className="mobile-controls" onPointerDown={(e) => e.stopPropagation()}>
       {/* Virtual Joystick - Bottom Left */}
       <div 
         ref={joystickRef}
         className="joystick-container"
-        onPointerDown={handleJoystickDown}
-        onPointerMove={handleJoystickMove}
-        onPointerUp={handleJoystickUp}
-        onPointerCancel={handleJoystickUp}
-        onPointerLeave={handleJoystickUp}
+        onPointerDown={handleJoystickStart}
+        onTouchStart={(e) => e.stopPropagation()} // Stop bubbling to window touchstart
         style={{ touchAction: 'none' }}
       >
         <div className="joystick-base">
@@ -177,6 +188,7 @@ export default function MobileControls({
             e.stopPropagation()
             onJump && onJump() 
           }}
+          onTouchStart={(e) => e.stopPropagation()} // Stop bubbling to window touchstart
           style={{ touchAction: 'none' }}
         >
           <span className="button-icon">🦘</span>
@@ -190,6 +202,7 @@ export default function MobileControls({
             e.stopPropagation()
             onKick && onKick() 
           }}
+          onTouchStart={(e) => e.stopPropagation()} // Stop bubbling to window touchstart
           style={{ touchAction: 'none' }}
         >
           <span className="button-icon">⚽</span>
