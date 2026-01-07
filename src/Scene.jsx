@@ -37,7 +37,7 @@ const CSS_ANIMATIONS = `
 const SERVER_URL = import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567'
 
 // Camera Controller
-function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
+function CameraController({ targetRef, isFreeLook, cameraOrbit, hasJoined, isMobile }) {
   const { camera } = useThree()
   const orbit = useRef({
     azimuth: 0,
@@ -139,7 +139,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
       document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('wheel', onWheel)
     }
-  }, [])
+  }, [hasJoined, isMobile])
 
   useFrame((_, delta) => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
@@ -808,7 +808,7 @@ export default function Scene() {
             <ClientPlayerVisual key={p.sessionId} player={p} />
           ))}
 
-          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
+          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} hasJoined={hasJoined} isMobile={isMobile} />
 
           {/* Power-ups from server */}
           {powerUps && powerUps.map(p => (
