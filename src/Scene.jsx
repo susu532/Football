@@ -671,9 +671,9 @@ export default function Scene() {
 
       {/* 3D Canvas */}
       <Canvas 
-        shadows
+        shadows={!isMobile}
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
-        dpr={[1, 2]}
+        dpr={isMobile ? 0.7 : [1, 2]}
         gl={{ 
           antialias: true,
           stencil: false, 
@@ -721,8 +721,8 @@ export default function Scene() {
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
-                  castShadow
-                  shadow-mapSize={isMobile ? [512, 512] : [1024, 1024]}
+                  castShadow={!isMobile}
+                  shadow-mapSize={[1024, 1024]}
                 />
                 
                 {/* Soft grounding shadows - Disabled on mobile for performance */}
