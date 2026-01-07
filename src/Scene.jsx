@@ -17,6 +17,7 @@ import MobileControls from './MobileControls'
 import InputManager from './InputManager'
 import * as MapComponents from './MapComponents'
 import Chat from './Chat'
+import CameraController from './CameraController'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
