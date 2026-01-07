@@ -157,7 +157,7 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
         teamColor={teamColor}
         isRemote={true}
         invisible={player.invisible}
-        shield={player.shield}
+        giant={player.giant}
       />
       {player.name && !player.invisible && (
         <Html position={[0, 2.2, 0]} center distanceFactor={8}>

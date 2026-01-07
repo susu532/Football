@@ -78,29 +78,29 @@ export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, re
 })
 SoccerBall.displayName = 'SoccerBall'
 
-// === S-TIER MICRO-PRECISE COLLISION PREDICTION ===
-// Designed for 0-ping visual feel at any latency
+// === S-TIER PING-AWARE COLLISION PREDICTION ===
+// Designed for 0-ping visual feel at ANY latency
 
-// Collision constants tuned to match RAPIER server physics
-const COLLISION_COOLDOWN = 0.008 // Half frame - allows rapid micro-touches
-const ANTICIPATION_LOOKAHEAD = 0.05 // 50ms ahead - predict collision before it happens
-const IMPULSE_PREDICTION_FACTOR = 0.85 // Matched to server impulse response
+// Collision constants - ultra-aggressive for instant feel
+const COLLISION_COOLDOWN = 0.004 // 4ms - near-instant re-collision
+const BASE_LOOKAHEAD = 0.05 // 50ms base anticipation
+const MAX_LOOKAHEAD = 0.15 // 150ms max anticipation at high ping
+const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = 0.8
 const PLAYER_RADIUS = 0.7
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
-const BALL_MASS = 3.0
 const BALL_RESTITUTION = 0.75
 const GRAVITY = 20
 const LINEAR_DAMPING = 1.5
 
-// Interpolation tuning for instant response
-const LERP_NORMAL = 18 // Standard interpolation
-const LERP_COLLISION = 50 // Aggressive snap on collision
-const LERP_SNAP_THRESHOLD = 8 // Distance to hard snap
+// Ultra-aggressive interpolation for instant response
+const LERP_NORMAL = 25 // Snappy base
+const LERP_COLLISION = 80 // Near-instant snap on collision
+const LERP_SNAP_THRESHOLD = 8
 
-// Sub-frame sweep test with lookahead
+// Sub-frame sweep test
 const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
   const dx = ballEnd.x - ballStart.x
   const dy = ballEnd.y - ballStart.y
@@ -123,52 +123,68 @@ const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
   const t1 = (-b - sqrtDisc) / (2 * a)
   const t2 = (-b + sqrtDisc) / (2 * a)
   
-  // Return first valid intersection
   if (t1 >= 0 && t1 <= 1) return t1
   if (t2 >= 0 && t2 <= 1) return t2
   return null
 }
 
-// Anticipatory trajectory prediction
-const predictFuturePosition = (pos, vel, time, gravity) => {
-  return {
-    x: pos.x + vel.x * time,
-    y: Math.max(BALL_RADIUS, pos.y + vel.y * time - 0.5 * gravity * time * time),
-    z: pos.z + vel.z * time
-  }
-}
+// Anticipatory trajectory prediction with gravity
+const predictFuturePosition = (pos, vel, time, gravity) => ({
+  x: pos.x + vel.x * time,
+  y: Math.max(BALL_RADIUS, pos.y + vel.y * time - 0.5 * gravity * time * time),
+  z: pos.z + vel.z * time
+})
 
-// ClientBallVisual - S-TIER Visual prediction for 0-ping feel
-// Server-authoritative with aggressive client-side visual prediction
-export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, localPlayerRef }, ref) => {
+// ClientBallVisual - PING-AWARE 0-ping prediction
+// Now accepts ping prop for latency-scaled prediction
+export const ClientBallVisual = React.forwardRef(({ 
+  ballState, 
+  onKickMessage, 
+  localPlayerRef,
+  ping = 0 // Network latency in ms
+}, ref) => {
   const groupRef = useRef()
   const targetPos = useRef(new THREE.Vector3(0, 2, 0))
-  const visualPos = useRef(new THREE.Vector3(0, 2, 0)) // Separate visual position
   const targetRot = useRef(new THREE.Quaternion())
   const serverVelocity = useRef(new THREE.Vector3(0, 0, 0))
   const predictedVelocity = useRef(new THREE.Vector3(0, 0, 0))
   const kickFeedback = useRef(null)
   const lastCollisionTime = useRef(0)
-  const collisionThisFrame = useRef(false) // Flag for instant snap
+  const collisionThisFrame = useRef(false)
   const lastCollisionNormal = useRef(new THREE.Vector3())
-  const anticipatedCollision = useRef(null) // Store anticipated collision for next frame
   
-  useImperativeHandle(ref, () => groupRef.current)
+  useImperativeHandle(ref, () => {
+    const obj = groupRef.current || {}
+    // Expose instant kick predictor for PlayerController
+    obj.userData = obj.userData || {}
+    obj.userData.predictKick = (impulse) => {
+      // INSTANT local kick response - before server roundtrip
+      predictedVelocity.current.x += impulse.x * IMPULSE_PREDICTION_FACTOR
+      predictedVelocity.current.y += impulse.y * IMPULSE_PREDICTION_FACTOR
+      predictedVelocity.current.z += impulse.z * IMPULSE_PREDICTION_FACTOR
+      collisionThisFrame.current = true
+    }
+    return obj
+  })
 
-  // Kick message handler - instant visual response
+  // Kick message handler - confirms/corrects local prediction
   useEffect(() => {
     if (onKickMessage) {
       const unsubscribe = onKickMessage('ball-kicked', (data) => {
         if (kickFeedback.current) kickFeedback.current()
         
         if (data.impulse) {
-          // INSTANT impulse application - no dampening
-          predictedVelocity.current.x += data.impulse.x * IMPULSE_PREDICTION_FACTOR
-          predictedVelocity.current.y += data.impulse.y * IMPULSE_PREDICTION_FACTOR
-          predictedVelocity.current.z += data.impulse.z * IMPULSE_PREDICTION_FACTOR
-          
-          // Set collision flag for instant visual snap
-          collisionThisFrame.current = true
+          // Server confirmation - blend with existing prediction
+          // Only add difference to avoid double-impulse
+          const serverImpulse = {
+            x: data.impulse.x * IMPULSE_PREDICTION_FACTOR,
+            y: data.impulse.y * IMPULSE_PREDICTION_FACTOR,
+            z: data.impulse.z * IMPULSE_PREDICTION_FACTOR
+          }
+          // Soft correction toward server impulse
+          predictedVelocity.current.x += (serverImpulse.x - predictedVelocity.current.x) * 0.3
+          predictedVelocity.current.y += (serverImpulse.y - predictedVelocity.current.y) * 0.3
+          predictedVelocity.current.z += (serverImpulse.z - predictedVelocity.current.z) * 0.3
         }
       })
       return unsubscribe
@@ -181,6 +197,15 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
     const now = state.clock.getElapsedTime()
     collisionThisFrame.current = false
 
+    // === PING-AWARE PARAMETERS ===
+    // Scale anticipation with ping (more lookahead at higher latency)
+    const pingSeconds = ping / 1000
+    const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
+    
+    // Slower reconciliation at high ping to trust local prediction more
+    const pingFactor = Math.max(0.3, 1 - ping / 300)
+    const reconcileRate = 1 - Math.exp(-12 * pingFactor * delta)
+
     // 1. Sync server state
     targetPos.current.set(ballState.x, ballState.y, ballState.z)
     serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
@@ -188,20 +213,18 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
 
-    // 2. Blend predicted velocity toward server (smooth reconciliation)
-    const reconcileRate = 1 - Math.exp(-12 * delta) // Fast reconciliation
+    // 2. Ping-aware velocity reconciliation
     predictedVelocity.current.lerp(serverVelocity.current, reconcileRate)
 
     // 3. Advance prediction with physics
     const vel = predictedVelocity.current
     targetPos.current.addScaledVector(vel, delta)
     
-    // Apply gravity (matches RAPIER)
     if (targetPos.current.y > BALL_RADIUS) {
       predictedVelocity.current.y -= GRAVITY * delta
     }
 
-    // 4. S-TIER COLLISION PREDICTION
+    // 4. PING-AWARE COLLISION PREDICTION
     const timeSinceCollision = now - lastCollisionTime.current
     
     if (localPlayerRef?.current?.position && timeSinceCollision > COLLISION_COOLDOWN) {
@@ -209,20 +232,15 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
       const ballPos = groupRef.current.position
       
-      // ANTICIPATORY COLLISION: Check if collision will happen in next 50ms
-      const futureBall = predictFuturePosition(
-        ballPos, 
-        vel, 
-        ANTICIPATION_LOOKAHEAD, 
-        GRAVITY
-      )
+      // DYNAMIC anticipatory collision with ping-scaled lookahead
+      const futureBall = predictFuturePosition(ballPos, vel, dynamicLookahead, GRAVITY)
       const futurePlayer = {
-        x: playerPos.x + (playerVel.x || 0) * ANTICIPATION_LOOKAHEAD,
-        y: playerPos.y + (playerVel.y || 0) * ANTICIPATION_LOOKAHEAD,
-        z: playerPos.z + (playerVel.z || 0) * ANTICIPATION_LOOKAHEAD
+        x: playerPos.x + (playerVel.x || 0) * dynamicLookahead,
+        y: playerPos.y + (playerVel.y || 0) * dynamicLookahead,
+        z: playerPos.z + (playerVel.z || 0) * dynamicLookahead
       }
       
-      // Distance checks (current and anticipated)
+      // Distance checks
       const dx = ballPos.x - playerPos.x
       const dy = ballPos.y - playerPos.y
       const dz = ballPos.z - playerPos.z
@@ -233,7 +251,7 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       const fdz = futureBall.z - futurePlayer.z
       const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
       
-      // Sweep test for high-speed collisions
+      // Sweep test
       const ballEnd = targetPos.current.clone()
       const sweepT = sweepSphereToSphere(ballPos, ballEnd, playerPos, COMBINED_RADIUS)
       
@@ -243,11 +261,9 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       const isSweepCollision = sweepT !== null
       
       if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision) && currentDist > 0.05) {
-        // Calculate collision normal
         let nx, ny, nz, contactDist
         
         if (isSweepCollision && sweepT > 0) {
-          // Exact contact from sweep
           const contactPt = ballPos.clone().lerp(ballEnd, sweepT)
           const cx = contactPt.x - playerPos.x
           const cy = contactPt.y - playerPos.y
@@ -269,41 +285,33 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
         const relVx = vel.x - (playerVel.x || 0)
         const relVy = vel.y - (playerVel.y || 0)
         const relVz = vel.z - (playerVel.z || 0)
-        
-        // Dot product with normal (approach speed)
         const approachSpeed = relVx * nx + relVy * ny + relVz * nz
         
-        // Only respond if approaching
         if (approachSpeed < 0 || isCurrentCollision) {
           lastCollisionTime.current = now
           collisionThisFrame.current = true
           lastCollisionNormal.current.set(nx, ny, nz)
           
-          // RAPIER-matched impulse calculation
-          // j = -(1 + e) * Vrel·n / (1/m_ball + 1/m_player)
-          // Since player is kinematic (infinite mass): j = -(1 + e) * Vrel·n * m_ball
-          const e = BALL_RESTITUTION
-          const impulseMag = -(1 + e) * approachSpeed
+          // RAPIER-matched impulse with boost
+          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
+          const boostFactor = 1.2
           
-          // Apply impulse with slight boost for game feel
-          const boostFactor = 1.15
           predictedVelocity.current.x += impulseMag * nx * boostFactor
-          predictedVelocity.current.y += impulseMag * ny * boostFactor + 1.5 // Vertical pop
+          predictedVelocity.current.y += impulseMag * ny * boostFactor + 1.5
           predictedVelocity.current.z += impulseMag * nz * boostFactor
           
-          // Player velocity transfer (friction/grip effect)
-          const transferFactor = 0.5
-          predictedVelocity.current.x += (playerVel.x || 0) * transferFactor
-          predictedVelocity.current.z += (playerVel.z || 0) * transferFactor
+          // Player velocity transfer
+          predictedVelocity.current.x += (playerVel.x || 0) * 0.5
+          predictedVelocity.current.z += (playerVel.z || 0) * 0.5
           
-          // INSTANT position correction (prevents tunneling)
+          // INSTANT position correction
           const overlap = COMBINED_RADIUS - contactDist + 0.02
           if (overlap > 0) {
             targetPos.current.x += nx * overlap
             targetPos.current.y += ny * overlap * 0.5
             targetPos.current.z += nz * overlap
             
-            // Also move visual immediately for 0-ping feel
+            // Immediate visual push
             groupRef.current.position.x += nx * overlap * 0.8
             groupRef.current.position.z += nz * overlap * 0.8
           }
@@ -311,23 +319,20 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       }
     }
 
-    // 5. VISUAL INTERPOLATION with collision-aware snapping
+    // 5. ULTRA-AGGRESSIVE visual interpolation
     const distance = groupRef.current.position.distanceTo(targetPos.current)
     
     if (distance > LERP_SNAP_THRESHOLD) {
-      // Hard snap for major desync
       groupRef.current.position.copy(targetPos.current)
     } else if (collisionThisFrame.current) {
-      // INSTANT response on collision frame - aggressive lerp
+      // INSTANT snap on collision
       const snapFactor = 1 - Math.exp(-LERP_COLLISION * delta)
       groupRef.current.position.lerp(targetPos.current, snapFactor)
     } else {
-      // Normal smooth interpolation
       const lerpFactor = 1 - Math.exp(-LERP_NORMAL * delta)
       groupRef.current.position.lerp(targetPos.current, lerpFactor)
     }
     
-    // Rotation interpolation
     groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-15 * delta))
     
     // 6. Floor collision
@@ -338,7 +343,7 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
       }
     }
 
-    // 7. Apply linear damping (matches server)
+    // 7. Linear damping
     predictedVelocity.current.multiplyScalar(1 - LINEAR_DAMPING * delta)
   })
 

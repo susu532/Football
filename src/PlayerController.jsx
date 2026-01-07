@@ -69,7 +69,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     jump: 1,
     kick: 1,
     invisible: false,
-    shield: false
+    giant: false
   })
 
   // Input throttle
@@ -152,9 +152,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const kickPower = 65 * kickMult
       
       sendKick({
-        impulseX: forwardX * kickPower + velocity.current.x * 1.5,
+        impulseX: forwardX * kickPower + velocity.current.x * 2,
         impulseY: 0.5 * kickPower,
-        impulseZ: forwardZ * kickPower + velocity.current.z * 1.5
+        impulseZ: forwardZ * kickPower + velocity.current.z * 2
       })
     }
 
@@ -227,8 +227,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
     // Update userData for effects sync and ball prediction
     groupRef.current.userData.invisible = serverState?.invisible || false
-    groupRef.current.userData.invisible = serverState?.invisible || false
-    groupRef.current.userData.shield = serverState?.shield || false
+    groupRef.current.userData.giant = serverState?.giant || false
     groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
     groupRef.current.userData.velocityTimestamp = now // Timestamp for temporal correlation
 
@@ -256,7 +255,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         teamColor={teamColor}
         characterType={characterType}
         invisible={serverState?.invisible || false}
-        shield={serverState?.shield || false}
+        giant={serverState?.giant || false}
         isRemote={false}
       />
     </group>

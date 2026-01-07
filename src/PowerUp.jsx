@@ -7,7 +7,7 @@ export const POWER_UP_TYPES = {
   kick: { color: '#ff0000', label: '💥', id: 'kick' },
   jump: { color: '#00ff00', label: '⬆️', id: 'jump' },
   invisible: { color: '#a020f0', label: '👻', id: 'invisible' },
-  shield: { color: '#00ffff', label: '🛡️', id: 'shield' }
+  giant: { color: '#FFD700', label: '🦍', id: 'giant' }
 }
 
 export function PowerUp({ position, type, onCollect }) {
@@ -21,7 +21,7 @@ export function PowerUp({ position, type, onCollect }) {
     }
   })
 
-  const config = POWER_UP_TYPES[type] || { color: '#ffffff', label: '?', id: 'unknown' }
+  const config = POWER_UP_TYPES[type]
 
   return (
     <group position={position}>
