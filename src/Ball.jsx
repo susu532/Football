@@ -257,19 +257,22 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
     }
 
     // 4. Interpolation / Correction
-    // Only correct if we drift too far from server state
     const distToTarget = groupRef.current.position.distanceTo(targetPos.current)
     
     if (distToTarget > 2.0) {
-      // Snap if way off (teleport/respawn)
+      // Snap if way off
       groupRef.current.position.copy(targetPos.current)
       velocity.current.copy(extrapolatedVel)
-    } else if (distToTarget > 0.5) {
-      // Soft correction if error is noticeable but not huge
-      // Pull towards target slowly
-      groupRef.current.position.lerp(targetPos.current, 5 * delta)
+    } else {
+      // Continuous smooth correction
+      // The further away, the stronger the pull.
+      // Allows small deviations for smoothness, but corrects large drifts quickly.
+      const correctionSpeed = Math.max(1.0, distToTarget * 5.0)
+      groupRef.current.position.lerp(targetPos.current, correctionSpeed * delta)
+      
+      // Also blend velocity to prevent overshooting
+      velocity.current.lerp(extrapolatedVel, delta * 2.0)
     }
-    // If error is small (< 0.5), trust local physics completely for smoothness
     
     groupRef.current.quaternion.slerp(targetRot.current, 0.1)
     
@@ -277,7 +280,7 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
     if (groupRef.current.position.y < 0.8) {
       groupRef.current.position.y = 0.8
       if (velocity.current.y < 0) {
-        velocity.current.y = -velocity.current.y * 0.6 // Restitution with floor
+        velocity.current.y = -velocity.current.y * 0.75 // Match server restitution
       }
     }
   })
