@@ -3,29 +3,6 @@ import { createRoot } from 'react-dom/client'
 import App from './App'
 import './styles.css'
 
-// Suppress noisy GLTF extension warnings
-const originalWarn = console.warn;
-console.warn = (...args) => {
-  if (args[0] && typeof args[0] === 'string') {
-    if (args[0].includes('KHR_materials_pbrSpecularGlossiness')) return;
-    if (args[0].includes('X4122')) return;
-    if (args[0].includes('X4008')) return;
-    if (args[0].includes('THREE.WebGLProgram')) return;
-  }
-  originalWarn(...args);
-};
-
-const originalError = console.error;
-console.error = (...args) => {
-  if (args[0] && typeof args[0] === 'string') {
-    if (args[0].includes('X4122')) return;
-    if (args[0].includes('X4008')) return;
-    if (args[0].includes('THREE.WebGLProgram')) return;
-  }
-  originalError(...args);
-};
-
-
 function renderApp() {
   const rootEl = document.getElementById('root')
   if (!rootEl) {

@@ -152,10 +152,9 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
     // If we haven't predicted a collision recently, we trust the server velocity (damped)
     // But if we DID predict a collision, we want to keep our local velocity for a bit
     // to avoid "snapping" back before the server confirms the hit.
-    if (now - lastCollisionTime.current > 0.3) {
+    if (now - lastCollisionTime.current > 0.2) {
        // Blend server velocity into current velocity to correct drift
-       const vLerp = 1 - Math.exp(-1.5 * delta)
-       velocity.current.lerp(extrapolatedVel, vLerp)
+       velocity.current.lerp(extrapolatedVel, 0.1)
     }
 
     // 2. Prediction: Advance locally
@@ -177,179 +176,128 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
     // Player Collider: Cuboid(0.6, 0.2, 0.6) at (x, 0.2, z) -> Bounds: [x-0.6, 0, z-0.6] to [x+0.6, 0.4, z+0.6]
     // Ball Collider: Sphere(0.8)
     
-    // 3. MICRO-PRECISE COLLISION (CCD + Angular Impulse)
-    // We check for collision along the path from prevPos to currentPos to prevent tunneling.
-    // We also calculate angular impulse (spin) from friction.
-    
     if (localPlayerRef?.current?.position && now - lastCollisionTime.current > 0.1) {
+      // Use physics position for accurate prediction if available, else visual position
       const pPos = localPlayerRef.current.userData?.physicsPosition || localPlayerRef.current.position
+      const bPos = groupRef.current.position
+      
+      // Player AABB (local coords relative to player center)
+      // Player center is at pPos. The collider is offset by y=0.2.
+      // But pPos is usually the bottom center or center? 
+      // In PlayerController, physicsPosition is the RigidBody position.
+      // Server: setTranslation(spawnX, 0.1, 0). Collider translation(0, 0.2, 0).
+      // So Collider Center is at Body + (0, 0.2, 0).
+      // If pPos is the Group position, it usually matches Body position.
+      
       const colliderCenter = pPos.clone().add(new THREE.Vector3(0, 0.2, 0))
       const halfExtents = new THREE.Vector3(0.6, 0.2, 0.6)
+      
+      // Find closest point on AABB to Sphere center
+      const closestX = Math.max(colliderCenter.x - halfExtents.x, Math.min(ballPos.x, colliderCenter.x + halfExtents.x))
+      const closestY = Math.max(colliderCenter.y - halfExtents.y, Math.min(ballPos.y, colliderCenter.y + halfExtents.y))
+      const closestZ = Math.max(colliderCenter.z - halfExtents.z, Math.min(ballPos.z, colliderCenter.z + halfExtents.z))
+      
+      const distSq = (closestX - ballPos.x)**2 + (closestY - ballPos.y)**2 + (closestZ - ballPos.z)**2
       const radius = 0.8
       
-      // CCD: Sub-step the movement to check for collisions
-      // Simple approach: Check start, mid, and end of the step
-      const startPos = groupRef.current.position.clone().sub(velocity.current.clone().multiplyScalar(delta))
-      const endPos = groupRef.current.position
-      const steps = 3 // Check 3 points along the path
-      
-      for (let i = 0; i <= steps; i++) {
-        const t = i / steps
-        const checkPos = startPos.clone().lerp(endPos, t)
+      if (distSq < radius * radius) {
+        // COLLISION DETECTED
+        lastCollisionTime.current = now
         
-        // Find closest point on AABB to Sphere center
-        const closestX = Math.max(colliderCenter.x - halfExtents.x, Math.min(checkPos.x, colliderCenter.x + halfExtents.x))
-        const closestY = Math.max(colliderCenter.y - halfExtents.y, Math.min(checkPos.y, colliderCenter.y + halfExtents.y))
-        const closestZ = Math.max(colliderCenter.z - halfExtents.z, Math.min(checkPos.z, colliderCenter.z + halfExtents.z))
+        const dist = Math.sqrt(distSq)
         
-        const distSq = (closestX - checkPos.x)**2 + (closestY - checkPos.y)**2 + (closestZ - checkPos.z)**2
+        // Normal from closest point to ball center
+        let nx = (ballPos.x - closestX)
+        let ny = (ballPos.y - closestY)
+        let nz = (ballPos.z - closestZ)
         
-        if (distSq < radius * radius) {
-          // COLLISION DETECTED
-          lastCollisionTime.current = now
-          
-          const dist = Math.sqrt(distSq)
-          
-          // Normal from closest point to ball center
-          let nx = (checkPos.x - closestX)
-          let ny = (checkPos.y - closestY)
-          let nz = (checkPos.z - closestZ)
-          
-          if (dist > 0.0001) {
-            nx /= dist; ny /= dist; nz /= dist;
-          } else {
-            nx = 0; ny = 1; nz = 0;
-          }
-          
-          // Relative Velocity
-          const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
-          const relVx = velocity.current.x - playerVel.x
-          const relVy = velocity.current.y - playerVel.y
-          const relVz = velocity.current.z - playerVel.z
-          
-          const velAlongNormal = relVx * nx + relVy * ny + relVz * nz
-          
-          if (velAlongNormal < 0) {
-            // Physics Resolution
-            const restitution = 0.75 // Match server exactly
-            const massBall = 3.0
-            
-            // J = -(1 + e) * v_rel_norm * m_ball
-            let j = -(1 + restitution) * velAlongNormal * massBall
-            
-            // Apply Linear Impulse
-            const impulseX = j * nx
-            const impulseY = j * ny
-            const impulseZ = j * nz
-            
-            velocity.current.x += impulseX / massBall
-            velocity.current.y += impulseY / massBall
-            velocity.current.z += impulseZ / massBall
-            
-            // Friction (Tangential impulse)
-            const tx = relVx - velAlongNormal * nx
-            const ty = relVy - velAlongNormal * ny
-            const tz = relVz - velAlongNormal * nz
-            
-            const mu = 0.5 // Match server friction
-            
-            // Tangential force
-            const tanImpulseX = -tx * mu * massBall
-            const tanImpulseY = -ty * mu * massBall
-            const tanImpulseZ = -tz * mu * massBall
-            
-            velocity.current.x += tanImpulseX / massBall
-            velocity.current.y += tanImpulseY / massBall
-            velocity.current.z += tanImpulseZ / massBall
-            
-            // Angular Impulse (Torque)
-            // Torque = r x F. Here r is radius * -normal. F is tangential impulse.
-            // Actually, change in angular velocity = (r x J_tan) / I
-            // I (Moment of Inertia for solid sphere) = 2/5 * m * r^2
-            const I = 0.4 * massBall * radius * radius
-            
-            // Contact point relative to ball center is -normal * radius
-            const rx = -nx * radius
-            const ry = -ny * radius
-            const rz = -nz * radius
-            
-            // Cross product: r x J_tan
-            const torqueX = ry * tanImpulseZ - rz * tanImpulseY
-            const torqueY = rz * tanImpulseX - rx * tanImpulseZ
-            const torqueZ = rx * tanImpulseY - ry * tanImpulseX
-            
-            // Apply to angular velocity (if we had it, for now just fake it visually or store it)
-            // Let's add angularVelocity ref
-            if (!velocity.current.ang) velocity.current.ang = new THREE.Vector3()
-            
-            velocity.current.ang.x += torqueX / I
-            velocity.current.ang.y += torqueY / I
-            velocity.current.ang.z += torqueZ / I
-            
-            // Extra "Pop"
-            velocity.current.y += 1.5 
-          }
-          
-          // Penetration Resolution (Push out) - Softened to prevent jitter
-          const overlap = radius - dist
-          const pushFactor = 0.5 // Only push out halfway per frame to smooth it
-          groupRef.current.position.x += nx * overlap * pushFactor
-          groupRef.current.position.y += ny * overlap * pushFactor
-          groupRef.current.position.z += nz * overlap * pushFactor
-          
-          // Break after first collision to prevent multiple hits in one frame
-          break 
+        // Normalize
+        if (dist > 0.0001) {
+          nx /= dist; ny /= dist; nz /= dist;
+        } else {
+          // Center overlap, push up
+          nx = 0; ny = 1; nz = 0;
         }
+        
+        // Relative Velocity
+        const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
+        const relVx = velocity.current.x - playerVel.x
+        const relVy = velocity.current.y - playerVel.y
+        const relVz = velocity.current.z - playerVel.z
+        
+        const velAlongNormal = relVx * nx + relVy * ny + relVz * nz
+        
+        if (velAlongNormal < 0) {
+          // Physics Resolution
+          // e = average(0.75, 0.0) = 0.375. Let's boost it for gameplay feel.
+          const restitution = 0.6 
+          const massBall = 3.0
+          // Player mass infinite -> 1/m_player = 0
+          
+          // J = -(1 + e) * v_rel_norm * m_ball
+          let j = -(1 + restitution) * velAlongNormal * massBall
+          
+          // Apply Impulse
+          // v_new = v_old + J / m * n
+          const impulseX = j * nx
+          const impulseY = j * ny
+          const impulseZ = j * nz
+          
+          velocity.current.x += impulseX / massBall
+          velocity.current.y += impulseY / massBall
+          velocity.current.z += impulseZ / massBall
+          
+          // Friction (Tangential impulse)
+          // t = v_rel - (v_rel . n) * n
+          const tx = relVx - velAlongNormal * nx
+          const ty = relVy - velAlongNormal * ny
+          const tz = relVz - velAlongNormal * nz
+          
+          // Friction coefficient (average of 0.5 and 2.0 = 1.25)
+          const mu = 0.8 // Tuned down slightly from 1.25 to prevent "sticking"
+          
+          velocity.current.x -= tx * mu
+          velocity.current.y -= ty * mu
+          velocity.current.z -= tz * mu
+          
+          // Extra "Pop" for gameplay (Rocket League style)
+          // If hitting from below or side, give a slight vertical boost
+          velocity.current.y += 2.0 
+        }
+        
+        // Penetration Resolution (Push out)
+        const overlap = radius - dist
+        groupRef.current.position.x += nx * overlap
+        groupRef.current.position.y += ny * overlap
+        groupRef.current.position.z += nz * overlap
       }
     }
 
-    // 4. Interpolation / Correction (Adaptive)
+    // 4. Interpolation / Correction
+    // Instead of lerping to target, we pull the visual towards the target if it drifts too far
+    // But we trust our local simulation for short term.
+    
     const distToTarget = groupRef.current.position.distanceTo(targetPos.current)
     
-    if (distToTarget > 4.0) {
-      // Large error: snap to server state
+    if (distToTarget > 2.0) {
+      // Snap if way off (teleport/respawn)
       groupRef.current.position.copy(targetPos.current)
-      velocity.current.copy(extrapolatedVel)
     } else {
-      // Adaptive lerp: slower if we are predicting a collision or near a player
-      const pPos = localPlayerRef?.current?.position
-      const distToPlayer = pPos ? groupRef.current.position.distanceTo(pPos) : 10
-      
-      // If we are near the player or recently collided, we trust local physics more
-      const isInteracting = distToPlayer < 2.5 || (now - lastCollisionTime.current < 0.5)
-      
-      // Use frame-rate independent lerp factor
-      const baseLerp = isInteracting ? 0.5 : 2.5
-      const lerpFactor = 1 - Math.exp(-baseLerp * delta)
-      
-      groupRef.current.position.lerp(targetPos.current, lerpFactor) 
+      // Soft correction: Pull towards server state slowly
+      // If we are predicting well, this should be minimal.
+      // If we mispredicted, this will slide us back.
+      const correctionStrength = 2.0 * delta // Pull 2m/s/s roughly? No, this is lerp alpha.
+      // Use a small alpha
+      groupRef.current.position.lerp(targetPos.current, 0.1) 
     }
     
-    // Apply Angular Velocity to Rotation
-    if (velocity.current.ang) {
-      const rotDelta = velocity.current.ang.clone().multiplyScalar(delta)
-      const rotQuat = new THREE.Quaternion().setFromEuler(new THREE.Euler(rotDelta.x, rotDelta.y, rotDelta.z))
-      groupRef.current.quaternion.premultiply(rotQuat)
-      
-      // Damping for angular velocity
-      velocity.current.ang.multiplyScalar(1 - 1.5 * delta)
-    } else {
-       const rLerp = 1 - Math.exp(-2.0 * delta)
-       groupRef.current.quaternion.slerp(targetRot.current, rLerp)
-    }
+    groupRef.current.quaternion.slerp(targetRot.current, 0.1)
     
     // 5. Floor Collision
     if (groupRef.current.position.y < 0.8) {
       groupRef.current.position.y = 0.8
       if (velocity.current.y < 0) {
-        velocity.current.y = -velocity.current.y * 0.6 
-        
-        // Floor friction -> spin
-        if (velocity.current.ang) {
-           // Simple rolling friction approximation
-           velocity.current.x *= 0.98
-           velocity.current.z *= 0.98
-        }
+        velocity.current.y = -velocity.current.y * 0.6 // Restitution with floor
       }
     }
   })
@@ -360,7 +308,7 @@ export const ClientBallVisual = React.forwardRef(({ ballState, onKickMessage, lo
         width={0.6}
         length={8}
         color="#ffffff"
-        attenuation={(t) => t * t + 0.01}
+        attenuation={(t) => t * t}
       >
         <SoccerBall onKickFeedback={kickFeedback} />
       </Trail>

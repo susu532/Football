@@ -37,7 +37,7 @@ const CSS_ANIMATIONS = `
 const SERVER_URL = import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567'
 
 // Camera Controller
-function CameraController({ targetRef, isFreeLook, cameraOrbit, hasJoined, isMobile }) {
+function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
   const { camera } = useThree()
   const orbit = useRef({
     azimuth: 0,
@@ -68,16 +68,12 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, hasJoined, isMob
     }
 
     const onClick = (e) => {
-      // Only request pointer lock if we have joined the game and are not on mobile
-      if (!hasJoined || isMobile) return
-
       // Ignore clicks on buttons, inputs, or interactive elements
       if (
         e.target.tagName === 'BUTTON' || 
         e.target.tagName === 'INPUT' || 
         e.target.closest('button') || 
-        e.target.closest('.interactive-ui') ||
-        e.target.closest('.team-select-popup') // Explicitly ignore team select
+        e.target.closest('.interactive-ui')
       ) {
         return
       }
@@ -85,20 +81,12 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, hasJoined, isMob
       // Request lock
       if (document.pointerLockElement !== document.body) {
         try {
-          // Use a small timeout to ensure we are not in a race condition with other events
-          setTimeout(() => {
-            if (document.pointerLockElement !== document.body) {
-              const maybePromise = document.body.requestPointerLock()
-              if (maybePromise && typeof maybePromise.catch === 'function') {
-                maybePromise.catch((err) => {
-                  // Only log if it's not the "exited before completed" error which is harmless
-                  if (err.name !== 'SecurityError') {
-                    console.warn('Pointer lock request rejected:', err)
-                  }
-                })
-              }
-            }
-          }, 10)
+          const maybePromise = document.body.requestPointerLock()
+          if (maybePromise && typeof maybePromise.catch === 'function') {
+            maybePromise.catch((err) => {
+              console.warn('Pointer lock request rejected:', err)
+            })
+          }
         } catch (err) {
           console.warn('Pointer lock request failed:', err)
         }
@@ -139,7 +127,7 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit, hasJoined, isMob
       document.removeEventListener('mousemove', onMouseMove)
       window.removeEventListener('wheel', onWheel)
     }
-  }, [hasJoined, isMobile])
+  }, [])
 
   useFrame((_, delta) => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
@@ -708,15 +696,15 @@ export default function Scene() {
           toneMapping: THREE.ACESFilmicToneMapping,
           toneMappingExposure: 0.9,
           outputColorSpace: THREE.SRGBColorSpace,
-          logarithmicDepthBuffer: false // Disable to avoid precision warnings on some drivers
+          logarithmicDepthBuffer: !isMobile // Disable on mobile (can cause black screen on some Adreno GPUs)
         }}
       >
         <Suspense fallback={null}>
           {/* Post-processing - Conditional for mobile */}
           {!isMobile && (
             <EffectComposer multisampling={4}>
-
-              <Bloom luminanceThreshold={1.01} mipmapBlur intensity={0.4} radius={0.7} />
+              <SMAA />
+              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
               <Vignette eskil={false} offset={0.1} darkness={0.5} />
             </EffectComposer>
           )}
@@ -755,9 +743,9 @@ export default function Scene() {
                     position={[0, 0.01, 0]} 
                     opacity={0.6} 
                     scale={32} 
-                    blur={2.5} 
-                    far={5} 
-                    resolution={256} 
+                    blur={2} 
+                    far={4} 
+                    resolution={512} 
                     color="#000000"
                   />
                 )}
@@ -808,7 +796,7 @@ export default function Scene() {
             <ClientPlayerVisual key={p.sessionId} player={p} />
           ))}
 
-          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} hasJoined={hasJoined} isMobile={isMobile} />
+          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
 
           {/* Power-ups from server */}
           {powerUps && powerUps.map(p => (
