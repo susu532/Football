@@ -229,6 +229,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     groupRef.current.userData.invisible = serverState?.invisible || false
     groupRef.current.userData.giant = serverState?.giant || false
     groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
+    groupRef.current.userData.velocityTimestamp = now // Timestamp for temporal correlation
 
     // Check power-up collisions
     checkPowerUpCollision(physicsPosition.current)
