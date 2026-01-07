@@ -12,7 +12,7 @@ const CharacterSkin = React.forwardRef(({
   teamColor = '#888',
   characterType = 'cat',
   invisible = false,
-  giant = false,
+  shield = false,
   isRemote = false,
   children
 }, ref) => {
@@ -20,7 +20,7 @@ const CharacterSkin = React.forwardRef(({
   useImperativeHandle(ref, () => internalRef.current)
   // Use proxy values if player is provided, otherwise fallback to props
   const isInvisible = player ? player.invisible : invisible
-  const isGiant = player ? player.giant : giant
+  const isShield = player ? player.shield : shield
 
   // Determine model path based on character type
   const MODEL_PATH = characterType === 'cat' 
@@ -95,26 +95,22 @@ const CharacterSkin = React.forwardRef(({
   })
 
   // Handle visual effects (giant scaling)
+  // Handle visual effects (shield)
+  // No scaling for shield, just the visual sphere below
   useFrame((_, delta) => {
     if (!internalRef.current) return
-    
-    // Apply giant scaling effect
-    const currentIsGiant = player ? player.giant : giant
-    const targetScale = currentIsGiant ? 10.0 : 1.0
-    if (Math.abs(internalRef.current.scale.x - targetScale) > 0.01) {
-      internalRef.current.scale.lerp(
-        new THREE.Vector3(targetScale, targetScale, targetScale), 
-        0.1
-      )
+    // Ensure scale is 1.0 (reset from potential giant state if switching)
+    if (Math.abs(internalRef.current.scale.x - 1.0) > 0.01) {
+       internalRef.current.scale.lerp(new THREE.Vector3(1, 1, 1), 0.1)
     }
   })
 
   // Idle Breathing Animation
   useFrame((state) => {
     if (!internalRef.current) return
-    // Only breathe if not giant
-    const currentIsGiant = player ? player.giant : giant
-    if (!currentIsGiant) {
+    // Only breathe if not shield (optional, but breathing is fine with shield)
+    const currentIsShield = player ? player.shield : shield
+    if (true) {
       const t = state.clock.getElapsedTime()
       const breatheScale = 1.0 + Math.sin(t * 3) * 0.03 // Subtle pulse
       internalRef.current.scale.setY(breatheScale)
@@ -128,6 +124,22 @@ const CharacterSkin = React.forwardRef(({
         scale={characterScale} 
       />
       {children}
+      
+      {/* Shield Visual */}
+      {isShield && (
+        <mesh position={[0, 1, 0]}>
+          <sphereGeometry args={[4.0, 32, 32]} />
+          <meshStandardMaterial 
+            color="#00ffff" 
+            transparent 
+            opacity={0.3} 
+            roughness={0.2}
+            metalness={0.8}
+            emissive="#00ffff"
+            emissiveIntensity={0.2}
+          />
+        </mesh>
+      )}
     </group>
   )
 })

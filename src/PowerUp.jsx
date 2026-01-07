@@ -7,7 +7,7 @@ export const POWER_UP_TYPES = {
   kick: { color: '#ff0000', label: '💥', id: 'kick' },
   jump: { color: '#00ff00', label: '⬆️', id: 'jump' },
   invisible: { color: '#a020f0', label: '👻', id: 'invisible' },
-  giant: { color: '#FFD700', label: '🦍', id: 'giant' }
+  shield: { color: '#00ffff', label: '🛡️', id: 'shield' }
 }
 
 export function PowerUp({ position, type, onCollect }) {
