@@ -688,12 +688,14 @@ export default function Scene() {
         }}
       >
         <Suspense fallback={null}>
-          {/* Post-processing - Enabled for all */}
-          <EffectComposer multisampling={4}>
-            <SMAA />
-            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
-            <Vignette eskil={false} offset={0.1} darkness={0.5} />
-          </EffectComposer>
+          {/* Post-processing - Conditional for mobile (Performance) */}
+          {!isMobile && (
+            <EffectComposer multisampling={4}>
+              <SMAA />
+              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+              <Vignette eskil={false} offset={0.1} darkness={0.5} />
+            </EffectComposer>
+          )}
 
           {/* No client-side physics - server handles all physics */}
 
@@ -720,19 +722,21 @@ export default function Scene() {
                   position={[10, 20, 10]}
                   intensity={direct}
                   castShadow
-                  shadow-mapSize={[1024, 1024]}
+                  shadow-mapSize={isMobile ? [512, 512] : [1024, 1024]}
                 />
                 
-                {/* Soft grounding shadows */}
-                <ContactShadows 
-                  position={[0, 0.01, 0]} 
-                  opacity={0.6} 
-                  scale={32} 
-                  blur={2} 
-                  far={4} 
-                  resolution={512} 
-                  color="#000000"
-                />
+                {/* Soft grounding shadows - Disabled on mobile for performance */}
+                {!isMobile && (
+                  <ContactShadows 
+                    position={[0, 0.01, 0]} 
+                    opacity={0.6} 
+                    scale={32} 
+                    blur={2} 
+                    far={4} 
+                    resolution={512} 
+                    color="#000000"
+                  />
+                )}
               </>
             )
           })()}
