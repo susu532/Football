@@ -259,16 +259,22 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
     }
 
-    // Sync local prediction with server state (OR logic for instant on, server off)
-    if (serverState?.giant) localGiant.current = true
-    if (serverState?.invisible) localInvisible.current = true
-    
-    // Auto-expire local prediction if server disagrees for too long (safety net)
-    // (Omitting complex timeout logic for simplicity, relying on server eventual consistency)
+    // Sync local prediction with server state (Timestamp-based)
+    // We trust the server's expiration time to avoid "sticky" states
+    const serverExpiresAt = serverState?.powerUpExpiresAt || 0
+    // Use server time approximation (Date.now() is roughly synced via NTP in Colyseus, but we can use local system time if we assume small drift)
+    // Ideally we'd use room.clock.currentTime, but Date.now() is consistent with how we set it on server
+    const isPowerUpActive = Date.now() < serverExpiresAt
+
+    if (serverState?.giant && isPowerUpActive) localGiant.current = true
+    else localGiant.current = false
+
+    if (serverState?.invisible && isPowerUpActive) localInvisible.current = true
+    else localInvisible.current = false
     
     // Update userData for effects sync and ball prediction
-    groupRef.current.userData.invisible = localInvisible.current || serverState?.invisible || false
-    groupRef.current.userData.giant = localGiant.current || serverState?.giant || false
+    groupRef.current.userData.invisible = localInvisible.current
+    groupRef.current.userData.giant = localGiant.current
     groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
     groupRef.current.userData.velocityTimestamp = now // Timestamp for temporal correlation
 
