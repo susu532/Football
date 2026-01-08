@@ -105,6 +105,15 @@ const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // ... (Helper functions remain unchanged)
 
+// Helper to predict future position with gravity
+const predictFuturePosition = (pos, vel, time, gravity) => {
+  return {
+    x: pos.x + vel.x * time,
+    y: Math.max(BALL_RADIUS, pos.y + vel.y * time - 0.5 * gravity * time * time),
+    z: pos.z + vel.z * time
+  }
+}
+
 // ClientBallVisual - PING-AWARE 0-ping prediction
 // Now accepts ping prop for latency-scaled prediction
 export const ClientBallVisual = React.forwardRef(({ 
