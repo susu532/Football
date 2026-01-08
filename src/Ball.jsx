@@ -315,19 +315,20 @@ export const ClientBallVisual = React.forwardRef(({
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
 
-    // Apply velocity decay for smooth prediction blending
-    predictedVelocity.current.multiplyScalar(VELOCITY_DECAY_RATE)
-    const blendedVelocity = decayedVelocity.lerp(serverVelocity.current, reconcileRate)
-    predictedVelocity.current.copy(blendedVelocity)
-
     // 3. Advance prediction with physics + Magnus effect (ball spin)
     const vel = predictedVelocity.current
     
     // === MAGNUS EFFECT: Ball spin curves trajectory ===
-    if (ballState.rx !== undefined && velMagnitude > 5) {
-      const angVel = { x: ballState.rx || 0, y: ballState.ry || 0, z: ballState.rz || 0 }
-      vel.x += angVel.z * velMagnitude * SPIN_INFLUENCE * delta
-      vel.z -= angVel.x * velMagnitude * SPIN_INFLUENCE * delta
+    // Use server-provided angular velocity (avx, avy, avz)
+    if (ballState.avx !== undefined && velMagnitude > 5) {
+      const angVel = { x: ballState.avx || 0, y: ballState.avy || 0, z: ballState.avz || 0 }
+      // Magnus force: F = S * (w x v)
+      // Simplified for 2D-ish curving:
+      vel.x += angVel.y * vel.z * SPIN_INFLUENCE * delta
+      vel.z -= angVel.y * vel.x * SPIN_INFLUENCE * delta
+      
+      // Vertical lift from backspin
+      vel.y += angVel.x * velMagnitude * SPIN_INFLUENCE * 0.5 * delta
     }
     
     targetPos.current.addScaledVector(vel, delta)

@@ -94,22 +94,12 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
     const predictedY = player.y + (player.vy || 0) * LOOKAHEAD
     const predictedZ = player.z + (player.vz || 0) * LOOKAHEAD
 
-    // Calculate velocity from position delta (for ball collision prediction)
-    if (delta > 0.001) {
-      const safeInvDelta = 1 / Math.max(delta, 0.008) // Clamp to avoid spikes
-      velocityRef.current.set(
-        (predictedX - lastPos.current.x) * safeInvDelta,
-        (predictedY - lastPos.current.y) * safeInvDelta,
-        (predictedZ - lastPos.current.z) * safeInvDelta
-      )
-      // Clamp velocity magnitude to prevent physics explosions
-      const maxVel = 30
-      const velMag = velocityRef.current.length()
-      if (velMag > maxVel) {
-        velocityRef.current.multiplyScalar(maxVel / velMag)
-      }
-    }
-    lastPos.current.set(predictedX, predictedY, predictedZ)
+    // Use server-provided velocity directly for better accuracy
+    velocityRef.current.set(
+      player.vx || 0,
+      player.vy || 0,
+      player.vz || 0
+    )
     
     // Expose velocity for ball collision prediction
     groupRef.current.userData.velocity = velocityRef.current
