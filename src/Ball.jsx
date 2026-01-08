@@ -99,7 +99,7 @@ const LINEAR_DAMPING = 1.5
 const LERP_NORMAL = 25 // Snappy base
 const LERP_COLLISION = 80 // Near-instant snap on collision
 const LERP_SNAP_THRESHOLD = 8
-const SPECULATIVE_THRESHOLD = 0.7 // Future distance ratio for speculative execution
+const SPECULATIVE_THRESHOLD = 0.5 // Tightened from 0.7
 
 // Sub-frame sweep test
 const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
@@ -313,8 +313,8 @@ export const ClientBallVisual = React.forwardRef(({
       // === SPECULATIVE COLLISION DETECTION ===
       // Pre-detect likely collisions for ultra-early response
       const isSpeculative = futureDist < currentDist * SPECULATIVE_THRESHOLD && 
-                           futureDist < dynamicCombinedRadius * 1.5 &&
-                           currentDist < dynamicCombinedRadius * 2
+                           futureDist < dynamicCombinedRadius * 1.1 &&
+                           currentDist < dynamicCombinedRadius * 1.3
       
       if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
         let nx, ny, nz, contactDist
