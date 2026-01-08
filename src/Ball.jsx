@@ -378,17 +378,38 @@ export const ClientBallVisual = React.forwardRef(({
           // INSTANT position correction with sub-frame advancement
           const overlap = dynamicCombinedRadius - contactDist + 0.02
           if (overlap > 0) {
-            // Advance remaining time after collision
+            // Advance remaining time after collision with NEW velocity
             const remainingTime = delta * (1 - subFrameTime.current)
-            targetPos.current.x += nx * overlap + vel.x * remainingTime * 0.3
-            targetPos.current.y += ny * overlap * 0.5
-            targetPos.current.z += nz * overlap + vel.z * remainingTime * 0.3
+            targetPos.current.x += nx * overlap + predictedVelocity.current.x * remainingTime
+            targetPos.current.y += ny * overlap * 0.5 + predictedVelocity.current.y * remainingTime
+            targetPos.current.z += nz * overlap + predictedVelocity.current.z * remainingTime
             
             // Immediate visual push (confidence-weighted)
             const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)
             groupRef.current.position.x += nx * overlap * visualPush
             groupRef.current.position.z += nz * overlap * visualPush
           }
+        }
+      }
+
+      // === CLIENT-SIDE DRIBBLING PREDICTION (SCOOP & CRADLE) ===
+      // Mirror server-side stabilization for 0-ping dribbling feel
+      const ddx = ballPos.x - playerPos.x
+      const ddy = ballPos.y - playerPos.y
+      const ddz = ballPos.z - playerPos.z
+      const horizontalDist = Math.sqrt(ddx * ddx + ddz * ddz)
+      
+      if (horizontalDist < 1.0 && ddy > 0.5 && ddy < 1.8) {
+        // Cradle: Stabilize ball on top of player
+        const cradleStrength = 0.15
+        predictedVelocity.current.x += ((playerVel.x || 0) - predictedVelocity.current.x) * cradleStrength
+        predictedVelocity.current.z += ((playerVel.z || 0) - predictedVelocity.current.z) * cradleStrength
+        
+        // Scoop: Slight lift if ball is low and player is moving
+        const speed = Math.sqrt((playerVel.x || 0) ** 2 + (playerVel.z || 0) ** 2)
+        if (ballPos.y < 1.2 && speed > 2 && timeSinceCollision > 0.1) {
+          predictedVelocity.current.y += 0.4
+          lastCollisionTime.current = now // Prevent spamming scoop
         }
       }
     }
