@@ -1,6 +1,5 @@
 // Ball.jsx - Client ball visual with interpolation for Colyseus
 // Server-authoritative: Client NEVER moves the ball, only displays
-// Enhanced with Rocket League-style collision mechanics
 
 import React, { useRef, useEffect, useImperativeHandle, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
@@ -8,15 +7,6 @@ import { useFrame } from '@react-three/fiber'
 import { useGLTF, Trail } from '@react-three/drei'
 import * as THREE from 'three'
 import { useSpring, a } from '@react-spring/three'
-
-// Import centralized collision config
-import { 
-  COLLISION_CONFIG, 
-  getHitZoneMultiplier, 
-  getDynamicSubFrameSteps,
-  getVelocityScaledLookahead,
-  bezierLerp 
-} from './physics/CollisionConfig.js'
 
 // Soccer Ball Visual Component
 export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, ref) => {
@@ -88,50 +78,33 @@ export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, re
 })
 SoccerBall.displayName = 'SoccerBall'
 
-// === S-TIER ROCKET LEAGUE-STYLE COLLISION PREDICTION ===
+// === S-TIER PING-AWARE COLLISION PREDICTION ===
 // Designed for 0-ping visual feel at ANY latency
-// Features: Hit zones, momentum transfer, sub-frame Bézier interpolation
 
-// Destructure config for cleaner access
-const {
-  COOLDOWN: COLLISION_COOLDOWN,
-  BASE_LOOKAHEAD,
-  MAX_LOOKAHEAD,
-  MICRO_TIME_THRESHOLD,
-  BALL_RADIUS,
-  PLAYER_RADIUS,
-  BALL_RESTITUTION,
-  GRAVITY,
-  LINEAR_DAMPING,
-  MAX_LINEAR_VEL,
-  ARENA_HALF_WIDTH,
-  ARENA_HALF_DEPTH,
-  GOAL_HALF_WIDTH,
-  BASE_BOOST,
-  GIANT_BOOST,
-  VERTICAL_LIFT,
-  GIANT_VERTICAL_LIFT,
-  MOMENTUM_TRANSFER,
-  AERIAL_MOMENTUM,
-  IMPULSE_PREDICTION_FACTOR,
-  SUB_FRAME_STEPS_MIN,
-  VELOCITY_DECAY_RATE,
-  SPECULATIVE_THRESHOLD,
-  SPECULATIVE_IMPULSE_FACTOR,
-  LERP_NORMAL,
-  LERP_COLLISION,
-  LERP_SNAP_THRESHOLD,
-  PING_DAMPENING_MAX,
-  SERVER_TRUST_LOCAL,
-  SERVER_TRUST_REMOTE,
-  POSITION_SNAP_THRESHOLD,
-  SPIN_INFLUENCE,
-  MAX_PREDICTION_HISTORY,
-  ROLLBACK_TIME_TOLERANCE,
-  CHAIN_COLLISION_PENALTY
-} = COLLISION_CONFIG
-
+// Collision constants - ultra-aggressive for instant feel
+const COLLISION_COOLDOWN = 0.002 // 2ms - ultra-precise re-collision
+const BASE_LOOKAHEAD = 0.04 // 40ms base anticipation
+const MAX_LOOKAHEAD = 0.20 // 200ms max anticipation at high ping
+const IMPULSE_PREDICTION_FACTOR = 0.92 // Tighter server match
+const BALL_RADIUS = 0.8
+const PLAYER_RADIUS = 0.7
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
+
+// RAPIER-matched physics constants
+const BALL_RESTITUTION = 0.75
+const GRAVITY = 20
+const LINEAR_DAMPING = 1.5
+
+// Ultra-aggressive interpolation for instant response
+const LERP_NORMAL = 30 // Snappier base
+const LERP_COLLISION = 120 // Ultra-instant snap on collision
+const LERP_SNAP_THRESHOLD = 6 // Lower threshold for faster snapping
+const SPECULATIVE_THRESHOLD = 0.65 // Earlier speculative trigger
+
+// Sub-frame micro-precision constants
+const SUB_FRAME_STEPS = 3 // Multi-step sub-frame interpolation
+const MICRO_TIME_THRESHOLD = 0.001 // 1ms precision threshold
+const VELOCITY_DECAY_RATE = 0.95 // Smooth velocity blending decay
 
 // Sub-frame sweep test
 const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
@@ -232,16 +205,16 @@ export const ClientBallVisual = React.forwardRef(({
           // We likely already predicted this, so just soft-reconcile velocity
           // If our prediction was way off, this pulls it back
           const serverVel = new THREE.Vector3(data.vx, data.vy, data.vz)
-          predictedVelocity.current.lerp(serverVel, SERVER_TRUST_LOCAL) // Trust local prediction more
+          predictedVelocity.current.lerp(serverVel, 0.4) // 40% trust in server event
         } else {
           // Remote player collision - we didn't predict this!
           // Apply immediate impulse for "instant" feel of other players
           const serverVel = new THREE.Vector3(data.vx, data.vy, data.vz)
-          predictedVelocity.current.lerp(serverVel, SERVER_TRUST_REMOTE) // Trust server more for remote
+          predictedVelocity.current.copy(serverVel)
           
           // Snap position if needed
           const serverPos = new THREE.Vector3(data.x, data.y, data.z)
-          if (groupRef.current.position.distanceTo(serverPos) > POSITION_SNAP_THRESHOLD) {
+          if (groupRef.current.position.distanceTo(serverPos) > 2.0) {
             groupRef.current.position.lerp(serverPos, 0.5)
           }
           
@@ -263,13 +236,9 @@ export const ClientBallVisual = React.forwardRef(({
     const now = state.clock.getElapsedTime()
     collisionThisFrame.current = false
 
-    // === S-TIER ROCKET LEAGUE PING-AWARE PARAMETERS ===
+    // === S-TIER PING-AWARE PARAMETERS ===
     const pingSeconds = ping / 1000
-    const velMagnitude = predictedVelocity.current.length()
-    
-    // Velocity-scaled lookahead: faster ball needs less prediction ahead
-    const baseLookahead = BASE_LOOKAHEAD + pingSeconds / 2
-    const dynamicLookahead = Math.min(MAX_LOOKAHEAD, getVelocityScaledLookahead(baseLookahead, velMagnitude))
+    const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
     
     // === JITTER-AWARE EMA SMOOTHING ===
     // High jitter = smoother (0.1), low jitter = more responsive (0.25)
@@ -301,23 +270,19 @@ export const ClientBallVisual = React.forwardRef(({
     const blendedVelocity = decayedVelocity.lerp(serverVelocity.current, reconcileRate)
     predictedVelocity.current.copy(blendedVelocity)
 
-    // 3. Advance prediction with physics + Magnus effect (ball spin)
+    // 3. Advance prediction with physics
     const vel = predictedVelocity.current
-    
-    // === MAGNUS EFFECT: Ball spin curves trajectory ===
-    if (ballState.rx !== undefined && velMagnitude > 5) {
-      const angVel = { x: ballState.rx || 0, y: ballState.ry || 0, z: ballState.rz || 0 }
-      vel.x += angVel.z * velMagnitude * SPIN_INFLUENCE * delta
-      vel.z -= angVel.x * velMagnitude * SPIN_INFLUENCE * delta
-    }
-    
     targetPos.current.addScaledVector(vel, delta)
     
     if (targetPos.current.y > BALL_RADIUS) {
       predictedVelocity.current.y -= GRAVITY * delta
     }
 
-    // === WALL/ARENA COLLISION PREDICTION (using config constants) ===
+    // === WALL/ARENA COLLISION PREDICTION ===
+    const ARENA_HALF_WIDTH = 14.5
+    const ARENA_HALF_DEPTH = 9.5
+    const GOAL_HALF_WIDTH = 2.5
+    const GOAL_X = 11.2
     
     // X walls (with goal gaps)
     if (Math.abs(targetPos.current.x) > ARENA_HALF_WIDTH) {
@@ -334,10 +299,11 @@ export const ClientBallVisual = React.forwardRef(({
       targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
     }
 
-    // === VELOCITY CLAMPING (using config constant) ===
-    const clampVelMag = predictedVelocity.current.length()
-    if (clampVelMag > MAX_LINEAR_VEL) {
-      predictedVelocity.current.multiplyScalar(MAX_LINEAR_VEL / clampVelMag)
+    // === VELOCITY CLAMPING ===
+    const MAX_LINEAR_VEL = 50
+    const velMag = predictedVelocity.current.length()
+    if (velMag > MAX_LINEAR_VEL) {
+      predictedVelocity.current.multiplyScalar(MAX_LINEAR_VEL / velMag)
     }
 
     // 4. PING-AWARE COLLISION PREDICTION with DYNAMIC RADIUS
@@ -433,43 +399,28 @@ export const ClientBallVisual = React.forwardRef(({
           collisionThisFrame.current = true
           lastCollisionNormal.current.set(nx, ny, nz)
           
-          // === ROCKET LEAGUE-STYLE HIT ZONE DETECTION ===
-          // Hood (top) = power shot, Front = normal, Wheels (bottom) = dribble
-          const hitZoneMultiplier = getHitZoneMultiplier(
-            ballPos.y, 
-            playerPos.y, 
-            dynamicPlayerRadius
-          )
-          
           // === ANGLE-BASED IMPULSE SCALING ===
           // Direct hits get full impulse, glancing hits get reduced
           const normalMag = Math.sqrt(nx * nx + ny * ny + nz * nz)
+          const approachDir = { x: relVx, y: relVy, z: relVz }
           const approachMag = Math.sqrt(relVx * relVx + relVy * relVy + relVz * relVz)
           const dotProduct = (nx * relVx + ny * relVy + nz * relVz) / (normalMag * Math.max(approachMag, 0.1))
           const angleFactor = Math.max(0.4, Math.abs(dotProduct)) // 0.4-1.0 based on hit angle
           
-          // RAPIER-matched impulse with Rocket League tuning
-          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed * angleFactor * hitZoneMultiplier
-          const boostFactor = isGiant ? GIANT_BOOST : BASE_BOOST
+          // RAPIER-matched impulse with boost (scaled for giant and angle)
+          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed * angleFactor
+          const boostFactor = isGiant ? 2.0 : 1.25 // Slightly increased base boost
           
           // Apply impulse scaled by confidence for speculative hits
-          const impulseFactor = isSpeculative && !isCurrentCollision ? SPECULATIVE_IMPULSE_FACTOR : 1.0
+          const impulseFactor = isSpeculative && !isCurrentCollision ? 0.88 : 1.0
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
-          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? GIANT_VERTICAL_LIFT : VERTICAL_LIFT)
+          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3.5 : 1.8)
           predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
           
-          // === ENHANCED MOMENTUM TRANSFER (Rocket League style) ===
-          const playerSpeed = Math.sqrt((playerVel.x || 0) ** 2 + (playerVel.z || 0) ** 2)
-          const momentumBoost = Math.min(1.5, 0.3 + playerSpeed / 20)
-          predictedVelocity.current.x += (playerVel.x || 0) * MOMENTUM_TRANSFER * momentumBoost
-          predictedVelocity.current.z += (playerVel.z || 0) * MOMENTUM_TRANSFER * momentumBoost
-          
-          // === AERIAL COLLISION BONUS ===
-          // Hitting while in the air adds extra upward momentum
-          if (playerPos.y > 1.5 && Math.abs(playerVel.y || 0) > 2) {
-            predictedVelocity.current.y += Math.abs(playerVel.y || 0) * AERIAL_MOMENTUM
-          }
+          // Player velocity transfer
+          predictedVelocity.current.x += (playerVel.x || 0) * 0.5
+          predictedVelocity.current.z += (playerVel.z || 0) * 0.5
           
           // INSTANT position correction with sub-frame advancement
           const overlap = dynamicCombinedRadius - contactDist + 0.025
@@ -499,25 +450,25 @@ export const ClientBallVisual = React.forwardRef(({
     if (distance > LERP_SNAP_THRESHOLD) {
       groupRef.current.position.copy(targetPos.current)
     } else if (collisionThisFrame.current) {
-      // === DYNAMIC MULTI-STEP SUB-FRAME INTERPOLATION ===
-      // More steps for faster collisions, fewer for slower ones
-      const dynamicSubFrameSteps = getDynamicSubFrameSteps(velMagnitude)
+      // === MULTI-STEP SUB-FRAME INTERPOLATION ===
+      // Distribute visual update across micro-steps for smoother response
       const confidenceBoost = 1 + collisionConfidence.current * 0.6
+      const baseSnapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * delta)
       
       // Apply in multiple micro-steps for ultra-smooth visual
-      const stepDelta = delta / dynamicSubFrameSteps
-      for (let step = 0; step < dynamicSubFrameSteps; step++) {
+      const stepDelta = delta / SUB_FRAME_STEPS
+      for (let step = 0; step < SUB_FRAME_STEPS; step++) {
         const stepFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * stepDelta)
         groupRef.current.position.lerp(targetPos.current, stepFactor)
         
         // Micro-advance position based on predicted velocity
-        if (step < dynamicSubFrameSteps - 1) {
+        if (step < SUB_FRAME_STEPS - 1) {
           groupRef.current.position.addScaledVector(vel, stepDelta * 0.2)
         }
       }
     } else {
       // Smooth non-collision interpolation with ping-aware dampening
-      const pingDampening = Math.max(0.7, 1 - ping / PING_DAMPENING_MAX)
+      const pingDampening = Math.max(0.7, 1 - ping / 500)
       const lerpFactor = 1 - Math.exp(-LERP_NORMAL * pingDampening * delta)
       groupRef.current.position.lerp(targetPos.current, lerpFactor)
     }
