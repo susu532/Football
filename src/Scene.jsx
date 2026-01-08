@@ -784,7 +784,7 @@ export default function Scene() {
 
           {/* Remote Players */}
           {remotePlayers.map((p) => (
-            <ClientPlayerVisual key={p.sessionId} player={p} />
+            <ClientPlayerVisual key={p.sessionId} player={p} ping={realPing} />
           ))}
 
           <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
