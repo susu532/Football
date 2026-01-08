@@ -19,7 +19,40 @@ import {
   bezierLerp 
 } from './physics/CollisionConfig.js'
 
-// ... (SoccerBall component remains unchanged)
+// SoccerBall - Visual component for the ball
+function SoccerBall({ onKickFeedback }) {
+  const { scene } = useGLTF('/models/soccer_ball.glb')
+  const meshRef = useRef()
+  
+  // Visual kick feedback (squash/stretch)
+  const [spring, api] = useSpring(() => ({
+    scale: [1.5, 1.5, 1.5],
+    config: { tension: 300, friction: 10 }
+  }))
+
+  useEffect(() => {
+    if (onKickFeedback) {
+      onKickFeedback.current = () => {
+        api.start({
+          scale: [1.8, 1.2, 1.8],
+          config: { tension: 500, friction: 15 },
+          onRest: () => api.start({ scale: [1.5, 1.5, 1.5] })
+        })
+      }
+    }
+  }, [onKickFeedback, api])
+
+  // Clone scene to avoid shared state issues
+  const clonedScene = useMemo(() => scene.clone(), [scene])
+
+  return (
+    <a.primitive 
+      ref={meshRef}
+      object={clonedScene} 
+      scale={spring.scale}
+    />
+  )
+}
 
 // === S-TIER ROCKET LEAGUE-STYLE COLLISION PREDICTION ===
 // Designed for 0-ping visual feel at ANY latency

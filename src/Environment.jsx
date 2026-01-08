@@ -35,8 +35,8 @@ export function RapierArena() {
        <CylinderCollider args={[2, 0.06]} position={[10.8, 2, -2.5]} restitution={0.8} />
        <CylinderCollider args={[2, 0.06]} position={[10.8, 2, 2.5]} restitution={0.8} />
        
-       <CylinderCollider args={[3, 0.06]} position={[-10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={0.8} />
-       <CylinderCollider args={[3, 0.06]} position={[10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={0.8} />
+       <CylinderCollider args={[3, 0.04]} position={[-10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={0.8} />
+       <CylinderCollider args={[3, 0.04]} position={[10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={0.8} />
        
        <CuboidCollider args={[pitchWidth/2, 0.1, pitchDepth/2]} position={[0, wallHeight, 0]} />
 
