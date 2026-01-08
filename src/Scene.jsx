@@ -132,15 +132,10 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
   useFrame((_, delta) => {
     const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
     const { azimuth, polar } = orbit.current
-    
-    // Check for giant state
-    const isGiant = targetRef.current?.userData?.giant || false
-    const distanceMult = isGiant ? 2.5 : 1.0
-    
     orbit.current.distance = THREE.MathUtils.lerp(
       orbit.current.distance, 
-      (orbit.current.targetDistance ?? orbit.current.distance) * distanceMult, 
-      0.05 // Slower lerp for heavy feel
+      orbit.current.targetDistance ?? orbit.current.distance, 
+      0.12
     )
     const distance = orbit.current.distance
     const x = p.x + distance * Math.sin(polar) * Math.sin(azimuth)

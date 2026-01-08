@@ -10,7 +10,7 @@ export const COLLISION_CONFIG = {
   
   // === PHYSICS CONSTANTS ===
   BALL_RADIUS: 0.8,
-  PLAYER_RADIUS: 0.2,
+  PLAYER_RADIUS: 0.7,
   BALL_RESTITUTION: 0.75,
   GRAVITY: 20,
   LINEAR_DAMPING: 1.5,
@@ -40,13 +40,6 @@ export const COLLISION_CONFIG = {
   HOOD_MULTIPLIER: 1.45,         // Power shot multiplier
   FRONT_MULTIPLIER: 1.0,         // Normal hit
   WHEEL_MULTIPLIER: 0.55,        // Soft dribble touch
-  
-  // === CARRY / DRIBBLE ===
-  // === CARRY / DRIBBLE ===
-  CARRY_HEIGHT_THRESHOLD: 0.6,   // Easier to initiate carry (was 0.75)
-  CARRY_STICKINESS: 0.99,        // Almost perfect velocity matching
-  CARRY_LIFT_REDUCTION: 0.05,    // Minimal bounce when carrying
-  POPUP_FORCE: 3.5,              // Force to help ball mount the player
   
   // === SUB-FRAME PREDICTION ===
   SUB_FRAME_STEPS_MIN: 3,

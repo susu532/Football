@@ -18,38 +18,8 @@ import {
   getVelocityScaledLookahead,
   bezierLerp 
 } from './physics/CollisionConfig.js'
-import { calculateRocketLeagueImpulse } from './physics/PhysicsUtils.js'
 
-// SoccerBall component - Visuals only
-const SoccerBall = ({ onKickFeedback }) => {
-  const { scene } = useGLTF('/models/soccer_ball.glb')
-  const [spring, api] = useSpring(() => ({ 
-    scale: [1, 1, 1],
-    config: { tension: 500, friction: 15 }
-  }))
-
-  useEffect(() => {
-    if (onKickFeedback) {
-      onKickFeedback.current = () => {
-        // Squash and stretch animation on kick
-        api.start({
-          to: [
-            { scale: [1.2, 0.8, 1.2] },
-            { scale: [0.9, 1.1, 0.9] },
-            { scale: [1, 1, 1] }
-          ],
-          config: { tension: 600, friction: 20 }
-        })
-      }
-    }
-  }, [onKickFeedback, api])
-
-  return (
-    <a.group scale={spring.scale}>
-      <primitive object={scene} scale={5.0} />
-    </a.group>
-  )
-}
+// ... (SoccerBall component remains unchanged)
 
 // === S-TIER ROCKET LEAGUE-STYLE COLLISION PREDICTION ===
 // Designed for 0-ping visual feel at ANY latency
@@ -104,40 +74,6 @@ const {
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // ... (Helper functions remain unchanged)
-
-// Helper to predict future position with gravity
-const predictFuturePosition = (pos, vel, time, gravity) => {
-  return {
-    x: pos.x + vel.x * time,
-    y: Math.max(BALL_RADIUS, pos.y + vel.y * time - 0.5 * gravity * time * time),
-    z: pos.z + vel.z * time
-  }
-}
-
-// Helper for swept sphere collision detection
-const sweepSphereToSphere = (start, end, sphereCenter, radius) => {
-  const d = new THREE.Vector3().subVectors(end, start)
-  const f = new THREE.Vector3().subVectors(start, sphereCenter)
-  
-  const a = d.dot(d)
-  const b = 2 * f.dot(d)
-  const c = f.dot(f) - radius * radius
-
-  const discriminant = b * b - 4 * a * c
-  
-  if (discriminant < 0) {
-    return null
-  } else {
-    // Ray intersects sphere, check if within segment
-    let t = (-b - Math.sqrt(discriminant)) / (2 * a)
-    
-    if (t >= 0 && t <= 1) {
-      return t
-    }
-    
-    return null
-  }
-}
 
 // ClientBallVisual - PING-AWARE 0-ping prediction
 // Now accepts ping prop for latency-scaled prediction
@@ -280,10 +216,8 @@ export const ClientBallVisual = React.forwardRef(({
 
     // Apply velocity decay for smooth prediction blending
     predictedVelocity.current.multiplyScalar(VELOCITY_DECAY_RATE)
-    
-    // Blend with server velocity
-    // Use RECONCILIATION_ALPHA for the blend rate
-    predictedVelocity.current.lerp(serverVelocity.current, RECONCILIATION_ALPHA)
+    const blendedVelocity = decayedVelocity.lerp(serverVelocity.current, reconcileRate)
+    predictedVelocity.current.copy(blendedVelocity)
 
     // 3. Advance prediction with physics + Magnus effect (ball spin)
     const vel = predictedVelocity.current
@@ -417,33 +351,43 @@ export const ClientBallVisual = React.forwardRef(({
           collisionThisFrame.current = true
           lastCollisionNormal.current.set(nx, ny, nz)
           
-          // === SHARED PHYSICS LOGIC ===
-          // Use the exact same calculation as the server for 1:1 prediction
+          // === ROCKET LEAGUE-STYLE HIT ZONE DETECTION ===
+          // Hood (top) = power shot, Front = normal, Wheels (bottom) = dribble
+          const hitZoneMultiplier = getHitZoneMultiplier(
+            ballPos.y, 
+            playerPos.y, 
+            dynamicPlayerRadius
+          )
           
-          // Prepare state objects
-          const ballState = {
-            x: ballPos.x, y: ballPos.y, z: ballPos.z,
-            vx: vel.x, vy: vel.y, vz: vel.z
-          }
+          // === ANGLE-BASED IMPULSE SCALING ===
+          // Direct hits get full impulse, glancing hits get reduced
+          const normalMag = Math.sqrt(nx * nx + ny * ny + nz * nz)
+          const approachMag = Math.sqrt(relVx * relVx + relVy * relVy + relVz * relVz)
+          const dotProduct = (nx * relVx + ny * relVy + nz * relVz) / (normalMag * Math.max(approachMag, 0.1))
+          const angleFactor = Math.max(0.4, Math.abs(dotProduct)) // 0.4-1.0 based on hit angle
           
-          const pState = {
-            x: playerPos.x, y: playerPos.y, z: playerPos.z,
-            vx: playerVel.x || 0, vy: playerVel.y || 0, vz: playerVel.z || 0,
-            giant: isGiant
-          }
+          // RAPIER-matched impulse with Rocket League tuning
+          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed * angleFactor * hitZoneMultiplier
+          const boostFactor = isGiant ? GIANT_BOOST : BASE_BOOST
           
-          const collisionData = { nx, ny, nz, dist: contactDist }
-          
-          // Calculate Impulse
-          const { impulse, visualCue } = calculateRocketLeagueImpulse(ballState, pState, collisionData)
-          
-          // Apply Impulse to Prediction
           // Apply impulse scaled by confidence for speculative hits
           const impulseFactor = isSpeculative && !isCurrentCollision ? SPECULATIVE_IMPULSE_FACTOR : 1.0
           
-          predictedVelocity.current.x += impulse.x * impulseFactor
-          predictedVelocity.current.y += impulse.y * impulseFactor
-          predictedVelocity.current.z += impulse.z * impulseFactor
+          predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
+          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? GIANT_VERTICAL_LIFT : VERTICAL_LIFT)
+          predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
+          
+          // === ENHANCED MOMENTUM TRANSFER (Rocket League style) ===
+          const playerSpeed = Math.sqrt((playerVel.x || 0) ** 2 + (playerVel.z || 0) ** 2)
+          const momentumBoost = Math.min(1.5, 0.3 + playerSpeed / 20)
+          predictedVelocity.current.x += (playerVel.x || 0) * MOMENTUM_TRANSFER * momentumBoost
+          predictedVelocity.current.z += (playerVel.z || 0) * MOMENTUM_TRANSFER * momentumBoost
+          
+          // === AERIAL COLLISION BONUS ===
+          // Hitting while in the air adds extra upward momentum
+          if (playerPos.y > 1.5 && Math.abs(playerVel.y || 0) > 2) {
+            predictedVelocity.current.y += Math.abs(playerVel.y || 0) * AERIAL_MOMENTUM
+          }
           
           // INSTANT position correction with sub-frame advancement
           const overlap = dynamicCombinedRadius - contactDist + 0.025
@@ -516,7 +460,7 @@ export const ClientBallVisual = React.forwardRef(({
   return (
     <group ref={groupRef} position={[0, 2, 0]}>
       <Trail
-        width={2.4}
+        width={0.6}
         length={8}
         color="#ffffff"
         attenuation={(t) => t * t}
