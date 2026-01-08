@@ -263,8 +263,15 @@ export const PlayerController = React.forwardRef((props, ref) => {
     if (serverState?.giant) localGiant.current = true
     if (serverState?.invisible) localInvisible.current = true
     
-    // Auto-expire local prediction if server disagrees for too long (safety net)
-    // (Omitting complex timeout logic for simplicity, relying on server eventual consistency)
+    // Auto-expire local prediction if server disagrees (safety net)
+    // If we think we are giant but server says we aren't, and we haven't just picked it up, reset.
+    if (localGiant.current && !serverState?.giant) {
+      // Small delay or check could be added here, but for now, if server says no, we trust server eventually
+      localGiant.current = false
+    }
+    if (localInvisible.current && !serverState?.invisible) {
+      localInvisible.current = false
+    }
     
     // Update userData for effects sync and ball prediction
     groupRef.current.userData.invisible = localInvisible.current || serverState?.invisible || false

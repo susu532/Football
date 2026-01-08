@@ -106,7 +106,43 @@ const {
 
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
-// ... (Helper functions remain unchanged)
+// Helper: Predict future position for anticipatory collisions
+const predictFuturePosition = (pos, vel, time, gravity) => {
+  return {
+    x: pos.x + vel.x * time,
+    y: pos.y + vel.y * time - 0.5 * gravity * time * time,
+    z: pos.z + vel.z * time
+  }
+}
+
+// Helper: Continuous Collision Detection (CCD) sweep test
+// Returns t (0-1) if collision occurs, or null
+const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
+  const d = {
+    x: ballEnd.x - ballStart.x,
+    y: ballEnd.y - ballStart.y,
+    z: ballEnd.z - ballStart.z
+  }
+  const f = {
+    x: ballStart.x - playerPos.x,
+    y: ballStart.y - playerPos.y,
+    z: ballStart.z - playerPos.z
+  }
+
+  const a = d.x * d.x + d.y * d.y + d.z * d.z
+  const b = 2 * (f.x * d.x + f.y * d.y + f.z * d.z)
+  const c = (f.x * f.x + f.y * f.y + f.z * f.z) - combinedRadius * combinedRadius
+
+  if (a < 0.0001) return null // Not moving
+
+  const discriminant = b * b - 4 * a * c
+  if (discriminant < 0) return null
+
+  const t = (-b - Math.sqrt(discriminant)) / (2 * a)
+  if (t >= 0 && t <= 1) return t
+
+  return null
+}
 
 // ClientBallVisual - PING-AWARE 0-ping prediction
 // Now accepts ping prop for latency-scaled prediction
