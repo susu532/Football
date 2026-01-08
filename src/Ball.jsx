@@ -88,6 +88,7 @@ const MAX_LOOKAHEAD = 0.15 // 150ms max anticipation at high ping
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = 0.8
 const PLAYER_RADIUS = 0.7
+const PLAYER_HEIGHT = 1.6
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
@@ -315,8 +316,12 @@ export const ClientBallVisual = React.forwardRef(({
       const isSpeculative = futureDist < currentDist * SPECULATIVE_THRESHOLD && 
                            futureDist < dynamicCombinedRadius * 1.5 &&
                            currentDist < dynamicCombinedRadius * 2
+
+      // === CYLINDER HEIGHT CHECK ===
+      const dynamicPlayerHeight = PLAYER_HEIGHT * giantScale
+      const isWithinHeight = Math.abs(ballPos.y - (playerPos.y + dynamicPlayerHeight / 2)) < (dynamicPlayerHeight / 2 + BALL_RADIUS)
       
-      if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
+      if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05 && isWithinHeight) {
         let nx, ny, nz, contactDist
         
         // === SUB-FRAME COLLISION TIMING ===
@@ -387,6 +392,51 @@ export const ClientBallVisual = React.forwardRef(({
             groupRef.current.position.x += nx * overlap * visualPush
             groupRef.current.position.z += nz * overlap * visualPush
           }
+        }
+      }
+    }
+
+    // === ROCKET LEAGUE STYLE DRIBBLE PREDICTION ===
+    if (localPlayerRef?.current?.position) {
+      const playerPos = localPlayerRef.current.position
+      const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
+      const ballPos = groupRef.current.position
+      const ballVel = predictedVelocity.current
+      
+      const dx = ballPos.x - playerPos.x
+      const dz = ballPos.z - playerPos.z
+      const distXZ = Math.sqrt(dx * dx + dz * dz)
+      
+      const isGiant = localPlayerRef.current.userData?.giant || false
+      const giantScale = isGiant ? 10 : 1
+      const dribbleRadius = 1.5 * giantScale
+      const playerHeight = PLAYER_HEIGHT * giantScale
+      
+      if (distXZ < dribbleRadius) {
+        // A. LIFT PREDICTION
+        if (ballPos.y < 1.2 * giantScale && ballVel.y < 1.0) {
+          const relVx = (playerVel.x || 0) - ballVel.x
+          const relVz = (playerVel.z || 0) - ballVel.z
+          const closingSpeed = (relVx * dx + relVz * dz) / (distXZ + 0.01)
+          
+          if (closingSpeed > 2.0) {
+            predictedVelocity.current.y += 0.5 * giantScale
+          }
+        }
+        
+        // B. STABILIZATION PREDICTION
+        if (ballPos.y > playerHeight && ballPos.y < playerHeight + 2.0 * giantScale) {
+          const centeringPower = 15.0 * giantScale
+          predictedVelocity.current.x -= dx * centeringPower * delta
+          predictedVelocity.current.z -= dz * centeringPower * delta
+          
+          // Anti-gravity lift
+          predictedVelocity.current.y += 12.0 * giantScale * delta
+          
+          // Stickiness
+          const stickiness = 0.1
+          predictedVelocity.current.x += ((playerVel.x || 0) - ballVel.x) * stickiness
+          predictedVelocity.current.z += ((playerVel.z || 0) - ballVel.z) * stickiness
         }
       }
     }
