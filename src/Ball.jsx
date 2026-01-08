@@ -46,7 +46,7 @@ const SoccerBall = ({ onKickFeedback }) => {
 
   return (
     <a.group scale={spring.scale}>
-      <primitive object={scene} scale={1.5} />
+      <primitive object={scene} scale={2.5} />
     </a.group>
   )
 }
@@ -516,7 +516,7 @@ export const ClientBallVisual = React.forwardRef(({
   return (
     <group ref={groupRef} position={[0, 2, 0]}>
       <Trail
-        width={0.6}
+        width={1.2}
         length={8}
         color="#ffffff"
         attenuation={(t) => t * t}
