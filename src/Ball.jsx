@@ -270,6 +270,47 @@ export const ClientBallVisual = React.forwardRef(({
     const blendedVelocity = decayedVelocity.lerp(serverVelocity.current, reconcileRate)
     predictedVelocity.current.copy(blendedVelocity)
 
+    // === BALL-ON-TOP STICKING PREDICTION ===
+    const ballPos = targetPos.current
+    let bestPlayer = null
+    let minDist = Infinity
+
+    // Check all players (local and remote) for sticking
+    // This ensures smooth visual carrying for everyone
+    state.scene.traverse((obj) => {
+      if (obj.userData && obj.userData.velocity && obj.position) {
+        const playerPos = obj.position
+        const dx = ballPos.x - playerPos.x
+        const dz = ballPos.z - playerPos.z
+        const dy = ballPos.y - playerPos.y
+        const horizontalDist = Math.sqrt(dx * dx + dz * dz)
+
+        // Same thresholds as server: dy ~1.1-1.2, horizontal < 0.5
+        if (dy > 0.8 && dy < 1.5 && horizontalDist < 0.5) {
+          if (horizontalDist < minDist) {
+            minDist = horizontalDist
+            bestPlayer = obj
+          }
+        }
+      }
+    })
+
+    if (bestPlayer) {
+      const playerVel = bestPlayer.userData.velocity
+      const dx = bestPlayer.position.x - ballPos.x
+      const dz = bestPlayer.position.z - ballPos.z
+      const centeringFactor = 5.0
+
+      // Match velocity and apply centering force
+      predictedVelocity.current.x = playerVel.x + dx * centeringFactor
+      predictedVelocity.current.z = playerVel.z + dz * centeringFactor
+      
+      // Vertical sync: if player is jumping or ball is falling onto player
+      if (playerVel.y > 0 || ballPos.y < bestPlayer.position.y + 1.2) {
+        predictedVelocity.current.y = Math.max(predictedVelocity.current.y, playerVel.y || 0)
+      }
+    }
+
     // 3. Advance prediction with physics
     const vel = predictedVelocity.current
     targetPos.current.addScaledVector(vel, delta)
