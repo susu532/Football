@@ -83,11 +83,11 @@ SoccerBall.displayName = 'SoccerBall'
 
 // Collision constants - ultra-aggressive for instant feel
 const COLLISION_COOLDOWN = 0.002 // 2ms - ultra-precise re-collision
-const BASE_LOOKAHEAD = 0.04 // 40ms base anticipation
+const BASE_LOOKAHEAD = 0.06 // 60ms base anticipation (increased for ultra-small collider)
 const MAX_LOOKAHEAD = 0.20 // 200ms max anticipation at high ping
 const IMPULSE_PREDICTION_FACTOR = 0.92 // Tighter server match
 const BALL_RADIUS = 0.8
-const PLAYER_RADIUS = 0.7
+const PLAYER_RADIUS = 0.15 // Matched to server 0.1 cuboid + buffer
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
@@ -97,9 +97,9 @@ const LINEAR_DAMPING = 1.5
 
 // Ultra-aggressive interpolation for instant response
 const LERP_NORMAL = 30 // Snappier base
-const LERP_COLLISION = 120 // Ultra-instant snap on collision
-const LERP_SNAP_THRESHOLD = 6 // Lower threshold for faster snapping
-const SPECULATIVE_THRESHOLD = 0.65 // Earlier speculative trigger
+const LERP_COLLISION = 180 // Ultra-instant snap on collision (maximized for precision)
+const LERP_SNAP_THRESHOLD = 4 // Lower threshold for faster snapping
+const SPECULATIVE_THRESHOLD = 0.55 // Earlier speculative trigger for ultra-small collider
 
 // Sub-frame micro-precision constants
 const SUB_FRAME_STEPS = 3 // Multi-step sub-frame interpolation
