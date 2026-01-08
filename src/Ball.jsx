@@ -82,12 +82,12 @@ SoccerBall.displayName = 'SoccerBall'
 // Designed for 0-ping visual feel at ANY latency
 
 // Collision constants - ultra-aggressive for instant feel
-const COLLISION_COOLDOWN = 0.002 // 2ms - ultra-precise re-collision
-const BASE_LOOKAHEAD = 0.06 // 60ms base anticipation (increased for ultra-small collider)
-const MAX_LOOKAHEAD = 0.20 // 200ms max anticipation at high ping
-const IMPULSE_PREDICTION_FACTOR = 0.92 // Tighter server match
+const COLLISION_COOLDOWN = 0.004 // 4ms - near-instant re-collision
+const BASE_LOOKAHEAD = 0.05 // 50ms base anticipation
+const MAX_LOOKAHEAD = 0.15 // 150ms max anticipation at high ping
+const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = 0.8
-const PLAYER_RADIUS = 0.15 // Matched to server 0.1 cuboid + buffer
+const PLAYER_RADIUS = 0.7
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
@@ -96,15 +96,10 @@ const GRAVITY = 20
 const LINEAR_DAMPING = 1.5
 
 // Ultra-aggressive interpolation for instant response
-const LERP_NORMAL = 30 // Snappier base
-const LERP_COLLISION = 180 // Ultra-instant snap on collision (maximized for precision)
-const LERP_SNAP_THRESHOLD = 4 // Lower threshold for faster snapping
-const SPECULATIVE_THRESHOLD = 0.55 // Earlier speculative trigger for ultra-small collider
-
-// Sub-frame micro-precision constants
-const SUB_FRAME_STEPS = 3 // Multi-step sub-frame interpolation
-const MICRO_TIME_THRESHOLD = 0.001 // 1ms precision threshold
-const VELOCITY_DECAY_RATE = 0.95 // Smooth velocity blending decay
+const LERP_NORMAL = 25 // Snappy base
+const LERP_COLLISION = 80 // Near-instant snap on collision
+const LERP_SNAP_THRESHOLD = 8
+const SPECULATIVE_THRESHOLD = 0.7 // Future distance ratio for speculative execution
 
 // Sub-frame sweep test
 const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
@@ -180,11 +175,12 @@ export const ClientBallVisual = React.forwardRef(({
   // Kick message handler - confirms/corrects local prediction
   useEffect(() => {
     if (onKickMessage) {
-      const unsubKick = onKickMessage('ball-kicked', (data) => {
+      const unsubscribe = onKickMessage('ball-kicked', (data) => {
         if (kickFeedback.current) kickFeedback.current()
         
         if (data.impulse) {
           // Server confirmation - blend with existing prediction
+          // Only add difference to avoid double-impulse
           const serverImpulse = {
             x: data.impulse.x * IMPULSE_PREDICTION_FACTOR,
             y: data.impulse.y * IMPULSE_PREDICTION_FACTOR,
@@ -196,37 +192,7 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z += (serverImpulse.z - predictedVelocity.current.z) * 0.3
         }
       })
-
-      const unsubCollision = onKickMessage('ball-collision', (data) => {
-        // Handle server-authoritative collision event
-        const isMe = localPlayerRef?.current && localPlayerRef.current.userData?.sessionId === data.sessionId
-        
-        if (isMe) {
-          // We likely already predicted this, so just soft-reconcile velocity
-          // If our prediction was way off, this pulls it back
-          const serverVel = new THREE.Vector3(data.vx, data.vy, data.vz)
-          predictedVelocity.current.lerp(serverVel, 0.4) // 40% trust in server event
-        } else {
-          // Remote player collision - we didn't predict this!
-          // Apply immediate impulse for "instant" feel of other players
-          const serverVel = new THREE.Vector3(data.vx, data.vy, data.vz)
-          predictedVelocity.current.copy(serverVel)
-          
-          // Snap position if needed
-          const serverPos = new THREE.Vector3(data.x, data.y, data.z)
-          if (groupRef.current.position.distanceTo(serverPos) > 2.0) {
-            groupRef.current.position.lerp(serverPos, 0.5)
-          }
-          
-          // Trigger visual feedback
-          if (kickFeedback.current) kickFeedback.current()
-        }
-      })
-
-      return () => {
-        unsubKick()
-        unsubCollision()
-      }
+      return unsubscribe
     }
   }, [onKickMessage])
 
@@ -250,32 +216,6 @@ export const ClientBallVisual = React.forwardRef(({
       serverPosSmoothed.current.lerp(serverPos, adaptiveEMA)
     }
 
-    // === HARD-LOCK VISUAL SNAPPING ===
-    if (ballState.carriedBy) {
-      let carrierObj = null
-      state.scene.traverse((obj) => {
-        if (obj.userData && obj.userData.sessionId === ballState.carriedBy) {
-          carrierObj = obj
-        }
-      })
-
-      if (carrierObj) {
-        // Directly snap visual position to carrier + offset
-        const targetY = carrierObj.position.y + 1.2
-        groupRef.current.position.set(carrierObj.position.x, targetY, carrierObj.position.z)
-        
-        // Update refs to match for smooth release
-        targetPos.current.copy(groupRef.current.position)
-        predictedVelocity.current.set(0, 0, 0)
-        if (carrierObj.userData.velocity) {
-          predictedVelocity.current.copy(carrierObj.userData.velocity)
-        }
-        
-        // Skip normal prediction/interpolation
-        return
-      }
-    }
-
     // 1. Sync server state with EMA smoothing
     targetPos.current.copy(serverPosSmoothed.current)
     serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
@@ -283,59 +223,14 @@ export const ClientBallVisual = React.forwardRef(({
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
 
-    // === VELOCITY-WEIGHTED RECONCILIATION WITH EXPONENTIAL DECAY ===
+    // === VELOCITY-WEIGHTED RECONCILIATION ===
     // Fast ball = trust prediction more, slow ball = trust server more
     const speed = serverVelocity.current.length()
-    const velocityFactor = Math.max(0.25, 1 - speed / 50) // 0.25 at high speed, 1.0 at rest
-    const pingFactor = Math.max(0.25, 1 - ping / 400) // Extended for higher ping tolerance
-    const jitterFactor = Math.max(0.5, 1 - pingJitter / 150) // Jitter dampening
-    const reconcileRate = 1 - Math.exp(-15 * pingFactor * velocityFactor * jitterFactor * delta)
+    const velocityFactor = Math.max(0.3, 1 - speed / 40) // 0.3 at high speed, 1.0 at rest
+    const pingFactor = Math.max(0.3, 1 - ping / 300)
+    const reconcileRate = 1 - Math.exp(-12 * pingFactor * velocityFactor * delta)
     
-    // Apply velocity decay for smooth prediction blending
-    const decayedVelocity = predictedVelocity.current.clone().multiplyScalar(VELOCITY_DECAY_RATE)
-    const blendedVelocity = decayedVelocity.lerp(serverVelocity.current, reconcileRate)
-    predictedVelocity.current.copy(blendedVelocity)
-
-    // === BALL-ON-TOP STICKING PREDICTION ===
-    const ballPos = targetPos.current
-    let bestPlayer = null
-    let minDist = Infinity
-
-    // Check all players (local and remote) for sticking
-    // This ensures smooth visual carrying for everyone
-    state.scene.traverse((obj) => {
-      if (obj.userData && obj.userData.velocity && obj.position) {
-        const playerPos = obj.position
-        const dx = ballPos.x - playerPos.x
-        const dz = ballPos.z - playerPos.z
-        const dy = ballPos.y - playerPos.y
-        const horizontalDist = Math.sqrt(dx * dx + dz * dz)
-
-        // Same thresholds as server: dy ~1.1-1.2, horizontal < 0.5
-        if (dy > 0.8 && dy < 1.5 && horizontalDist < 0.5) {
-          if (horizontalDist < minDist) {
-            minDist = horizontalDist
-            bestPlayer = obj
-          }
-        }
-      }
-    })
-
-    if (bestPlayer) {
-      const playerVel = bestPlayer.userData.velocity
-      const dx = bestPlayer.position.x - ballPos.x
-      const dz = bestPlayer.position.z - ballPos.z
-      const centeringFactor = 5.0
-
-      // Match velocity and apply centering force
-      predictedVelocity.current.x = playerVel.x + dx * centeringFactor
-      predictedVelocity.current.z = playerVel.z + dz * centeringFactor
-      
-      // Vertical sync: if player is jumping or ball is falling onto player
-      if (playerVel.y > 0 || ballPos.y < bestPlayer.position.y + 1.2) {
-        predictedVelocity.current.y = Math.max(predictedVelocity.current.y, playerVel.y || 0)
-      }
-    }
+    predictedVelocity.current.lerp(serverVelocity.current, reconcileRate)
 
     // 3. Advance prediction with physics
     const vel = predictedVelocity.current
@@ -459,30 +354,19 @@ export const ClientBallVisual = React.forwardRef(({
         collisionConfidence.current = speedFactor * distFactor
         
         if (approachSpeed < 0 || isCurrentCollision) {
-          // Micro-time check to avoid double-processing
-          if (now - lastCollisionTime.current < MICRO_TIME_THRESHOLD) return
-          
           lastCollisionTime.current = now
           collisionThisFrame.current = true
           lastCollisionNormal.current.set(nx, ny, nz)
           
-          // === ANGLE-BASED IMPULSE SCALING ===
-          // Direct hits get full impulse, glancing hits get reduced
-          const normalMag = Math.sqrt(nx * nx + ny * ny + nz * nz)
-          const approachDir = { x: relVx, y: relVy, z: relVz }
-          const approachMag = Math.sqrt(relVx * relVx + relVy * relVy + relVz * relVz)
-          const dotProduct = (nx * relVx + ny * relVy + nz * relVz) / (normalMag * Math.max(approachMag, 0.1))
-          const angleFactor = Math.max(0.4, Math.abs(dotProduct)) // 0.4-1.0 based on hit angle
-          
-          // RAPIER-matched impulse with boost (scaled for giant and angle)
-          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed * angleFactor
-          const boostFactor = isGiant ? 2.0 : 1.25 // Slightly increased base boost
+          // RAPIER-matched impulse with boost (scaled for giant)
+          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
+          const boostFactor = isGiant ? 2.0 : 1.2 // Giant kicks harder
           
           // Apply impulse scaled by confidence for speculative hits
-          const impulseFactor = isSpeculative && !isCurrentCollision ? 0.88 : 1.0
+          const impulseFactor = isSpeculative && !isCurrentCollision ? 0.85 : 1.0
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
-          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3.5 : 1.8)
+          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)
           predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
           
           // Player velocity transfer
@@ -490,21 +374,17 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z += (playerVel.z || 0) * 0.5
           
           // INSTANT position correction with sub-frame advancement
-          const overlap = dynamicCombinedRadius - contactDist + 0.025
+          const overlap = dynamicCombinedRadius - contactDist + 0.02
           if (overlap > 0) {
             // Advance remaining time after collision
             const remainingTime = delta * (1 - subFrameTime.current)
-            targetPos.current.x += nx * overlap + vel.x * remainingTime * 0.35
-            targetPos.current.y += ny * overlap * 0.55
-            targetPos.current.z += nz * overlap + vel.z * remainingTime * 0.35
+            targetPos.current.x += nx * overlap + vel.x * remainingTime * 0.3
+            targetPos.current.y += ny * overlap * 0.5
+            targetPos.current.z += nz * overlap + vel.z * remainingTime * 0.3
             
-            // === VELOCITY-SCALED VISUAL PUSH ===
-            // Faster collisions get stronger immediate visual response
-            const velMag = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z)
-            const velocityBoost = Math.min(1.5, 1 + velMag / 30)
-            const visualPush = 0.85 * Math.max(0.65, collisionConfidence.current) * velocityBoost
+            // Immediate visual push (confidence-weighted)
+            const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)
             groupRef.current.position.x += nx * overlap * visualPush
-            groupRef.current.position.y += ny * overlap * visualPush * 0.3
             groupRef.current.position.z += nz * overlap * visualPush
           }
         }
@@ -517,26 +397,12 @@ export const ClientBallVisual = React.forwardRef(({
     if (distance > LERP_SNAP_THRESHOLD) {
       groupRef.current.position.copy(targetPos.current)
     } else if (collisionThisFrame.current) {
-      // === MULTI-STEP SUB-FRAME INTERPOLATION ===
-      // Distribute visual update across micro-steps for smoother response
-      const confidenceBoost = 1 + collisionConfidence.current * 0.6
-      const baseSnapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * delta)
-      
-      // Apply in multiple micro-steps for ultra-smooth visual
-      const stepDelta = delta / SUB_FRAME_STEPS
-      for (let step = 0; step < SUB_FRAME_STEPS; step++) {
-        const stepFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * stepDelta)
-        groupRef.current.position.lerp(targetPos.current, stepFactor)
-        
-        // Micro-advance position based on predicted velocity
-        if (step < SUB_FRAME_STEPS - 1) {
-          groupRef.current.position.addScaledVector(vel, stepDelta * 0.2)
-        }
-      }
+      // INSTANT snap on collision - confidence-weighted
+      const confidenceBoost = 1 + collisionConfidence.current * 0.5
+      const snapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * delta)
+      groupRef.current.position.lerp(targetPos.current, snapFactor)
     } else {
-      // Smooth non-collision interpolation with ping-aware dampening
-      const pingDampening = Math.max(0.7, 1 - ping / 500)
-      const lerpFactor = 1 - Math.exp(-LERP_NORMAL * pingDampening * delta)
+      const lerpFactor = 1 - Math.exp(-LERP_NORMAL * delta)
       groupRef.current.position.lerp(targetPos.current, lerpFactor)
     }
     

@@ -230,7 +230,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
     groupRef.current.userData.giant = serverState?.giant || false
     groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
     groupRef.current.userData.velocityTimestamp = now // Timestamp for temporal correlation
-    groupRef.current.userData.sessionId = me // Store sessionId for ball snapping logic
 
     // Check power-up collisions
     checkPowerUpCollision(physicsPosition.current)
@@ -245,8 +244,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         z: moveDir.current.z,
         jump: input.jump,
         rotY: groupRef.current.rotation.y,
-        seq: inputSequence.current,
-        ts: Date.now()
+        seq: inputSequence.current
       })
     }
   })

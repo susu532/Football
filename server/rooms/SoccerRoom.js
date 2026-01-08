@@ -20,9 +20,7 @@ export class SoccerRoom extends Room {
   // Physics world
   world = null
   playerBodies = new Map()
-  playerColliders = new Map()
   ballBody = null
-  ballCollider = null
 
   // Timers
   lastGoalTime = 0
@@ -190,7 +188,7 @@ export class SoccerRoom extends Room {
     // Crossbars
     const crossbarPositions = [[-10.8, 0], [10.8, 0]]
     crossbarPositions.forEach(([x, z]) => {
-      const desc = RAPIER.ColliderDesc.cylinder(3, 0.04)
+      const desc = RAPIER.ColliderDesc.cylinder(3, 0.06)
         .setTranslation(x, 4, z)
         .setRotation({ x: 0, y: 0, z: Math.sin(Math.PI / 4), w: Math.cos(Math.PI / 4) })
         .setRestitution(0.8)
@@ -241,7 +239,7 @@ export class SoccerRoom extends Room {
       .setRestitution(0.75)
       .setFriction(0.5)
 
-    this.ballCollider = this.world.createCollider(ballCollider, this.ballBody)
+    this.world.createCollider(ballCollider, this.ballBody)
   }
 
   createPlayerBody(sessionId, team) {
@@ -251,14 +249,13 @@ export class SoccerRoom extends Room {
 
     const body = this.world.createRigidBody(bodyDesc)
 
-    const collider = RAPIER.ColliderDesc.cuboid(0.1, 0.1, 0.1)
+    const collider = RAPIER.ColliderDesc.cuboid(0.6, 0.2, 0.6)
       .setTranslation(0, 0.2, 0)
       .setFriction(2.0)
       .setRestitution(0.0)
 
-    const playerCollider = this.world.createCollider(collider, body)
+    this.world.createCollider(collider, body)
     this.playerBodies.set(sessionId, body)
-    this.playerColliders.set(sessionId, playerCollider)
 
     return { x: spawnX, y: 0.1, z: 0 }
   }
@@ -334,7 +331,6 @@ export class SoccerRoom extends Room {
     if (body) {
       this.world.removeRigidBody(body)
       this.playerBodies.delete(client.sessionId)
-      this.playerColliders.delete(client.sessionId)
     }
 
     this.state.players.delete(client.sessionId)
@@ -342,11 +338,6 @@ export class SoccerRoom extends Room {
     this.updateRoomMetadataCounts()
 
     this.broadcast('player-left', { sessionId: client.sessionId })
-
-    // Clear ball carrier if they left
-    if (this.state.ball.carriedBy === client.sessionId) {
-      this.state.ball.carriedBy = ''
-    }
 
     if (this.clients.length === 0 && !this.emptyDisposeTimeout) {
       this.emptyDisposeTimeout = this.clock.setTimeout(() => {
@@ -402,11 +393,6 @@ export class SoccerRoom extends Room {
     if (dist < 3.5) {
       const { impulseX, impulseY, impulseZ } = data
       const kickMult = player.kickMult || 1
-
-      // Release ball if being carried
-      if (this.state.ball.carriedBy === client.sessionId) {
-        this.state.ball.carriedBy = ''
-      }
 
       // Apply impulse with a slight vertical boost for better feel
       // Note: impulse is already scaled by kickMult from client
@@ -652,106 +638,10 @@ export class SoccerRoom extends Room {
       
     })
 
-    // 1.5 Ball-on-top sticking mechanic (Hard-Lock)
-    if (this.ballBody && this.state.players.size > 0) {
-      const ballPos = this.ballBody.translation()
-      const ballVel = this.ballBody.linvel()
-      
-      // If already being carried, check for release or maintain lock
-      if (this.state.ball.carriedBy) {
-        const carrier = this.state.players.get(this.state.ball.carriedBy)
-        if (carrier) {
-          const dx = ballPos.x - carrier.x
-          const dz = ballPos.z - carrier.z
-          const dy = ballPos.y - carrier.y
-          const horizontalDist = Math.sqrt(dx * dx + dz * dz)
-
-          // Force release if ball gets too far (e.g. hit by something else)
-          if (dy < 0.5 || dy > 2.0 || horizontalDist > 1.0) {
-            this.state.ball.carriedBy = ''
-          } else {
-            // HARD LOCK: Force position and velocity
-            const targetX = carrier.x
-            const targetZ = carrier.z
-            const targetY = carrier.y + 1.2 // Fixed height above player
-            
-            this.ballBody.setTranslation({ x: targetX, y: targetY, z: targetZ }, true)
-            this.ballBody.setLinvel({ x: carrier.vx || 0, y: carrier.vy || 0, z: carrier.vz || 0 }, true)
-            
-            // Sync state immediately
-            this.state.ball.x = targetX
-            this.state.ball.y = targetY
-            this.state.ball.z = targetZ
-            this.state.ball.vx = carrier.vx || 0
-            this.state.ball.vy = carrier.vy || 0
-            this.state.ball.vz = carrier.vz || 0
-          }
-        } else {
-          this.state.ball.carriedBy = ''
-        }
-      } else {
-        // Detection: Look for a new carrier
-        let bestPlayer = null
-        let minDist = Infinity
-
-        this.state.players.forEach((player, sessionId) => {
-          const dx = ballPos.x - player.x
-          const dz = ballPos.z - player.z
-          const dy = ballPos.y - player.y
-          const horizontalDist = Math.sqrt(dx * dx + dz * dz)
-
-          // Detection: Ball is vertically balanced on player
-          if (dy > 0.8 && dy < 1.5 && horizontalDist < 0.4) {
-            if (horizontalDist < minDist) {
-              minDist = horizontalDist
-              bestPlayer = { player, sessionId }
-            }
-          }
-        })
-
-        if (bestPlayer) {
-          this.state.ball.carriedBy = bestPlayer.sessionId
-        }
-      }
-    }
-
 
 
     // 2. Step physics world
     this.world.step()
-
-    // Detect and broadcast ball-player collisions
-    if (this.ballBody && this.ballCollider) {
-      for (const [sessionId, playerCollider] of this.playerColliders) {
-        // Check for contact between ball and player
-        // contactPair returns a ContactPair object if they are close/touching
-        // We check if there is an active contact
-        try {
-          const contact = this.world.contactPair(this.ballCollider, playerCollider)
-          if (contact && contact.hasAnyActiveContact) {
-            const player = this.state.players.get(sessionId)
-            if (player) {
-              const vel = this.ballBody.linvel()
-              const pos = this.ballBody.translation()
-              
-              // Broadcast high-frequency collision event
-              this.broadcast('ball-collision', {
-                sessionId: sessionId,
-                timestamp: Date.now(),
-                vx: vel.x,
-                vy: vel.y,
-                vz: vel.z,
-                x: pos.x,
-                y: pos.y,
-                z: pos.z
-              }, { afterNextPatch: true })
-            }
-          }
-        } catch (e) {
-          // Ignore potential errors if colliders are invalid
-        }
-      }
-    }
 
     // Check goal
     this.checkGoal()

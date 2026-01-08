@@ -79,7 +79,6 @@ export class BallState extends Schema {
     this.ry = 0
     this.rz = 0
     this.rw = 1
-    this.carriedBy = '' // SessionId of player carrying the ball
   }
 }
 
@@ -93,8 +92,7 @@ defineTypes(BallState, {
   rx: 'number',
   ry: 'number',
   rz: 'number',
-  rw: 'number',
-  carriedBy: 'string'
+  rw: 'number'
 })
 
 // Main game state
