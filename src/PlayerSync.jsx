@@ -114,6 +114,7 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
     // Expose velocity for ball collision prediction
     groupRef.current.userData.velocity = velocityRef.current
     groupRef.current.userData.velocityTimestamp = state.clock.getElapsedTime()
+    groupRef.current.userData.sessionId = player.sessionId // Store sessionId for ball snapping logic
 
     groupRef.current.position.x = THREE.MathUtils.damp(
       groupRef.current.position.x, 

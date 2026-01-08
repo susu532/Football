@@ -250,6 +250,32 @@ export const ClientBallVisual = React.forwardRef(({
       serverPosSmoothed.current.lerp(serverPos, adaptiveEMA)
     }
 
+    // === HARD-LOCK VISUAL SNAPPING ===
+    if (ballState.carriedBy) {
+      let carrierObj = null
+      state.scene.traverse((obj) => {
+        if (obj.userData && obj.userData.sessionId === ballState.carriedBy) {
+          carrierObj = obj
+        }
+      })
+
+      if (carrierObj) {
+        // Directly snap visual position to carrier + offset
+        const targetY = carrierObj.position.y + 1.2
+        groupRef.current.position.set(carrierObj.position.x, targetY, carrierObj.position.z)
+        
+        // Update refs to match for smooth release
+        targetPos.current.copy(groupRef.current.position)
+        predictedVelocity.current.set(0, 0, 0)
+        if (carrierObj.userData.velocity) {
+          predictedVelocity.current.copy(carrierObj.userData.velocity)
+        }
+        
+        // Skip normal prediction/interpolation
+        return
+      }
+    }
+
     // 1. Sync server state with EMA smoothing
     targetPos.current.copy(serverPosSmoothed.current)
     serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
