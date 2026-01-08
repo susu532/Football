@@ -20,7 +20,36 @@ import {
 } from './physics/CollisionConfig.js'
 import { calculateRocketLeagueImpulse } from './physics/PhysicsUtils.js'
 
-// ... (SoccerBall component remains unchanged)
+// SoccerBall component - Visuals only
+const SoccerBall = ({ onKickFeedback }) => {
+  const { scene } = useGLTF('/models/soccer_ball.glb')
+  const [spring, api] = useSpring(() => ({ 
+    scale: [1, 1, 1],
+    config: { tension: 500, friction: 15 }
+  }))
+
+  useEffect(() => {
+    if (onKickFeedback) {
+      onKickFeedback.current = () => {
+        // Squash and stretch animation on kick
+        api.start({
+          to: [
+            { scale: [1.2, 0.8, 1.2] },
+            { scale: [0.9, 1.1, 0.9] },
+            { scale: [1, 1, 1] }
+          ],
+          config: { tension: 600, friction: 20 }
+        })
+      }
+    }
+  }, [onKickFeedback, api])
+
+  return (
+    <a.group scale={spring.scale}>
+      <primitive object={scene} scale={1.5} />
+    </a.group>
+  )
+}
 
 // === S-TIER ROCKET LEAGUE-STYLE COLLISION PREDICTION ===
 // Designed for 0-ping visual feel at ANY latency
