@@ -19,7 +19,75 @@ import {
   bezierLerp 
 } from './physics/CollisionConfig.js'
 
-// ... (SoccerBall component remains unchanged)
+// Soccer Ball Visual Component
+export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, ref) => {
+  const internalRef = useRef()
+  useImperativeHandle(ref, () => internalRef.current)
+  const { scene } = useGLTF('/models/soccer_ball.glb')
+  
+  const [spring, api] = useSpring(() => ({
+    scale: 5,
+    config: { tension: 400, friction: 10 }
+  }))
+
+  // Kick feedback effect
+  useEffect(() => {
+    if (onKickFeedback) {
+      const handleKick = () => {
+        api.start({
+          from: { scale: 7 },
+          to: { scale: 5 }
+        })
+      }
+      // Store callback for external trigger
+      onKickFeedback.current = handleKick
+    }
+  }, [api, onKickFeedback])
+
+  const clonedBall = useMemo(() => {
+    const cloned = scene.clone()
+    cloned.traverse((child) => {
+      if (child.isMesh) {
+        // Material fixes
+        if (child.material) {
+          const oldMat = child.material
+          // Use MeshStandardMaterial - cheaper than MeshPhysicalMaterial
+          child.material = new THREE.MeshStandardMaterial({
+            map: oldMat.map,
+            color: oldMat.color, // Restore original color
+            roughness: 0.7, // Increased for matte look
+            metalness: 0.0,
+            flatShading: false
+          })
+          
+          // Ensure textures are filtered well
+          if (child.material.map) {
+            child.material.map.anisotropy = 4 // Reduced from 16
+            child.material.map.minFilter = THREE.LinearMipmapLinearFilter
+            child.material.map.magFilter = THREE.LinearFilter
+            child.material.map.needsUpdate = true
+          }
+          child.material.needsUpdate = true
+        }
+
+        child.castShadow = true
+        child.receiveShadow = false // Disable receive shadow for performance
+        
+        // REMOVED: computeVertexNormals to save CPU
+      }
+    })
+    return cloned
+  }, [scene])
+
+  return (
+    <a.primitive 
+      ref={internalRef}
+      object={clonedBall} 
+      scale={spring.scale} 
+    />
+  )
+})
+SoccerBall.displayName = 'SoccerBall'
 
 // === S-TIER ROCKET LEAGUE-STYLE COLLISION PREDICTION ===
 // Designed for 0-ping visual feel at ANY latency
@@ -73,7 +141,40 @@ const {
 
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
-// ... (Helper functions remain unchanged)
+// Sub-frame sweep test
+const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
+  const dx = ballEnd.x - ballStart.x
+  const dy = ballEnd.y - ballStart.y
+  const dz = ballEnd.z - ballStart.z
+  
+  const fx = ballStart.x - playerPos.x
+  const fy = ballStart.y - playerPos.y
+  const fz = ballStart.z - playerPos.z
+  
+  const a = dx * dx + dy * dy + dz * dz
+  const b = 2 * (fx * dx + fy * dy + fz * dz)
+  const c = fx * fx + fy * fy + fz * fz - combinedRadius * combinedRadius
+  
+  if (a < 0.0001) return null
+  
+  const discriminant = b * b - 4 * a * c
+  if (discriminant < 0) return null
+  
+  const sqrtDisc = Math.sqrt(discriminant)
+  const t1 = (-b - sqrtDisc) / (2 * a)
+  const t2 = (-b + sqrtDisc) / (2 * a)
+  
+  if (t1 >= 0 && t1 <= 1) return t1
+  if (t2 >= 0 && t2 <= 1) return t2
+  return null
+}
+
+// Anticipatory trajectory prediction with gravity
+const predictFuturePosition = (pos, vel, time, gravity) => ({
+  x: pos.x + vel.x * time,
+  y: Math.max(BALL_RADIUS, pos.y + vel.y * time - 0.5 * gravity * time * time),
+  z: pos.z + vel.z * time
+})
 
 // ClientBallVisual - PING-AWARE 0-ping prediction
 // Now accepts ping prop for latency-scaled prediction
