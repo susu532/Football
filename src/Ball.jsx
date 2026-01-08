@@ -114,6 +114,31 @@ const predictFuturePosition = (pos, vel, time, gravity) => {
   }
 }
 
+// Helper for swept sphere collision detection
+const sweepSphereToSphere = (start, end, sphereCenter, radius) => {
+  const d = new THREE.Vector3().subVectors(end, start)
+  const f = new THREE.Vector3().subVectors(start, sphereCenter)
+  
+  const a = d.dot(d)
+  const b = 2 * f.dot(d)
+  const c = f.dot(f) - radius * radius
+
+  const discriminant = b * b - 4 * a * c
+  
+  if (discriminant < 0) {
+    return null
+  } else {
+    // Ray intersects sphere, check if within segment
+    let t = (-b - Math.sqrt(discriminant)) / (2 * a)
+    
+    if (t >= 0 && t <= 1) {
+      return t
+    }
+    
+    return null
+  }
+}
+
 // ClientBallVisual - PING-AWARE 0-ping prediction
 // Now accepts ping prop for latency-scaled prediction
 export const ClientBallVisual = React.forwardRef(({ 
