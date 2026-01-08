@@ -246,8 +246,10 @@ export const ClientBallVisual = React.forwardRef(({
 
     // Apply velocity decay for smooth prediction blending
     predictedVelocity.current.multiplyScalar(VELOCITY_DECAY_RATE)
-    const blendedVelocity = decayedVelocity.lerp(serverVelocity.current, reconcileRate)
-    predictedVelocity.current.copy(blendedVelocity)
+    
+    // Blend with server velocity
+    // Use RECONCILIATION_ALPHA for the blend rate
+    predictedVelocity.current.lerp(serverVelocity.current, RECONCILIATION_ALPHA)
 
     // 3. Advance prediction with physics + Magnus effect (ball spin)
     const vel = predictedVelocity.current
