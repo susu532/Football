@@ -12,7 +12,6 @@ import { useSpring, a } from '@react-spring/three'
 // Import centralized collision config
 import { 
   COLLISION_CONFIG, 
-  LAG_CONFIG,
   getHitZoneMultiplier, 
   getDynamicSubFrameSteps,
   getVelocityScaledLookahead,
@@ -132,13 +131,6 @@ const {
   CHAIN_COLLISION_PENALTY
 } = COLLISION_CONFIG
 
-const {
-  EXTRAPOLATION_MAX_MS,
-  RECONCILIATION_ALPHA,
-  ERROR_SNAP_THRESHOLD,
-  ERROR_SMOOTH_THRESHOLD
-} = LAG_CONFIG
-
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // Sub-frame sweep test
@@ -238,16 +230,18 @@ export const ClientBallVisual = React.forwardRef(({
         
         if (isMe) {
           // We likely already predicted this, so just soft-reconcile velocity
+          // If our prediction was way off, this pulls it back
           const serverVel = new THREE.Vector3(data.vx, data.vy, data.vz)
-          predictedVelocity.current.lerp(serverVel, SERVER_TRUST_LOCAL) 
+          predictedVelocity.current.lerp(serverVel, SERVER_TRUST_LOCAL) // Trust local prediction more
         } else {
           // Remote player collision - we didn't predict this!
+          // Apply immediate impulse for "instant" feel of other players
           const serverVel = new THREE.Vector3(data.vx, data.vy, data.vz)
-          predictedVelocity.current.lerp(serverVel, SERVER_TRUST_REMOTE)
+          predictedVelocity.current.lerp(serverVel, SERVER_TRUST_REMOTE) // Trust server more for remote
           
           // Snap position if needed
           const serverPos = new THREE.Vector3(data.x, data.y, data.z)
-          if (groupRef.current.position.distanceTo(serverPos) > ERROR_SNAP_THRESHOLD) {
+          if (groupRef.current.position.distanceTo(serverPos) > POSITION_SNAP_THRESHOLD) {
             groupRef.current.position.lerp(serverPos, 0.5)
           }
           
@@ -277,58 +271,44 @@ export const ClientBallVisual = React.forwardRef(({
     const baseLookahead = BASE_LOOKAHEAD + pingSeconds / 2
     const dynamicLookahead = Math.min(MAX_LOOKAHEAD, getVelocityScaledLookahead(baseLookahead, velMagnitude))
     
-    // === 1. SERVER EXTRAPOLATION (ANTI-LAG) ===
-    // Predict where the server ball IS right now (ServerPos + Velocity * Ping)
-    // This fixes rubber-banding by not anchoring to the past
+    // === JITTER-AWARE EMA SMOOTHING ===
+    // High jitter = smoother (0.1), low jitter = more responsive (0.25)
+    const adaptiveEMA = Math.max(0.1, Math.min(0.25, 0.15 + (pingJitter / 200) * 0.1))
     const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
-    const serverVel = new THREE.Vector3(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
-    
-    // Cap extrapolation to avoid wild predictions at high ping
-    const extrapolationTime = Math.min(pingSeconds, EXTRAPOLATION_MAX_MS / 1000)
-    const extrapolatedServerPos = serverPos.clone().addScaledVector(serverVel, extrapolationTime)
-    
-    // === 2. ERROR-BASED RECONCILIATION ===
-    // Instead of snapping to server, smoothly correct the error
     if (!serverPosSmoothed.current) {
-      serverPosSmoothed.current = extrapolatedServerPos.clone()
-      targetPos.current.copy(extrapolatedServerPos)
+      serverPosSmoothed.current = serverPos.clone()
     } else {
-      // Calculate error between our current prediction and the extrapolated server truth
-      const errorVec = extrapolatedServerPos.clone().sub(targetPos.current)
-      const errorDist = errorVec.length()
-      
-      if (errorDist > ERROR_SNAP_THRESHOLD) {
-        // Hard snap if error is too large (teleport)
-        targetPos.current.copy(extrapolatedServerPos)
-        predictedVelocity.current.copy(serverVel)
-      } else if (errorDist > ERROR_SMOOTH_THRESHOLD) {
-        // Smoothly apply error correction
-        targetPos.current.add(errorVec.multiplyScalar(RECONCILIATION_ALPHA))
-        
-        // Also blend velocity to keep trajectory aligned
-        predictedVelocity.current.lerp(serverVel, RECONCILIATION_ALPHA * 0.5)
-      }
+      serverPosSmoothed.current.lerp(serverPos, adaptiveEMA)
     }
 
-    serverVelocity.current.copy(serverVel)
+    // 1. Sync server state with EMA smoothing
+    targetPos.current.copy(serverPosSmoothed.current)
+    serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
     if (ballState.rx !== undefined) {
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
+
+    // === VELOCITY-WEIGHTED RECONCILIATION WITH EXPONENTIAL DECAY ===
+    // Fast ball = trust prediction more, slow ball = trust server more
+    const speed = serverVelocity.current.length()
+    const velocityFactor = Math.max(0.25, 1 - speed / 50) // 0.25 at high speed, 1.0 at rest
+    const pingFactor = Math.max(0.25, 1 - ping / 400) // Extended for higher ping tolerance
+    const jitterFactor = Math.max(0.5, 1 - pingJitter / 150) // Jitter dampening
+    const reconcileRate = 1 - Math.exp(-15 * pingFactor * velocityFactor * jitterFactor * delta)
+    
+    // Apply velocity decay for smooth prediction blending
+    const decayedVelocity = predictedVelocity.current.clone().multiplyScalar(VELOCITY_DECAY_RATE)
+    const blendedVelocity = decayedVelocity.lerp(serverVelocity.current, reconcileRate)
+    predictedVelocity.current.copy(blendedVelocity)
 
     // 3. Advance prediction with physics + Magnus effect (ball spin)
     const vel = predictedVelocity.current
     
     // === MAGNUS EFFECT: Ball spin curves trajectory ===
-    // Use server-provided angular velocity (avx, avy, avz)
-    if (ballState.avx !== undefined && velMagnitude > 5) {
-      const angVel = { x: ballState.avx || 0, y: ballState.avy || 0, z: ballState.avz || 0 }
-      // Magnus force: F = S * (w x v)
-      // Simplified for 2D-ish curving:
-      vel.x += angVel.y * vel.z * SPIN_INFLUENCE * delta
-      vel.z -= angVel.y * vel.x * SPIN_INFLUENCE * delta
-      
-      // Vertical lift from backspin
-      vel.y += angVel.x * velMagnitude * SPIN_INFLUENCE * 0.5 * delta
+    if (ballState.rx !== undefined && velMagnitude > 5) {
+      const angVel = { x: ballState.rx || 0, y: ballState.ry || 0, z: ballState.rz || 0 }
+      vel.x += angVel.z * velMagnitude * SPIN_INFLUENCE * delta
+      vel.z -= angVel.x * velMagnitude * SPIN_INFLUENCE * delta
     }
     
     targetPos.current.addScaledVector(vel, delta)

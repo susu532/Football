@@ -313,10 +313,8 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   useEffect(() => {
     if (isConnected && room) {
       pingInterval.current = setInterval(() => {
-        if (room && room.connection && room.connection.isOpen) {
-          lastPingTime.current = Date.now()
-          room.send('ping')
-        }
+        lastPingTime.current = Date.now()
+        room.send('ping')
       }, 500) // 4x faster for adaptive collision prediction
     } else {
       if (pingInterval.current) clearInterval(pingInterval.current)
@@ -355,21 +353,21 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
   // Send chat message
   const sendChat = useCallback((message) => {
-    if (roomRef.current && roomRef.current.connection && roomRef.current.connection.isOpen) {
+    if (roomRef.current) {
       roomRef.current.send('chat', { message })
     }
   }, [])
 
   // Start game (host only)
   const startGame = useCallback(() => {
-    if (roomRef.current && roomRef.current.connection && roomRef.current.connection.isOpen) {
+    if (roomRef.current) {
       roomRef.current.send('start-game')
     }
   }, [])
 
   // End game (host only)
   const endGame = useCallback(() => {
-    if (roomRef.current && roomRef.current.connection && roomRef.current.connection.isOpen) {
+    if (roomRef.current) {
       roomRef.current.send('end-game')
     }
   }, [])
@@ -396,7 +394,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     setState: (key, value, reliable = true) => {
       // For local state, we send to server
       // Server is authoritative, so this is effectively an input
-      if (roomRef.current && roomRef.current.connection && roomRef.current.connection.isOpen) {
+      if (roomRef.current) {
         roomRef.current.send('update-state', { key, value })
       }
     },

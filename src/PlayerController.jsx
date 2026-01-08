@@ -44,7 +44,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const isOnGround = useRef(true)
   const jumpCount = useRef(0)
   const prevJump = useRef(false) // For edge detection
-  const lastJumpTime = useRef(0) // For reconciliation grace period
 
   // Pre-allocated vectors for per-frame calculations (avoids GC stutters)
   const cameraForward = useRef(new THREE.Vector3())
@@ -139,7 +138,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
       verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
       jumpCount.current++
       isOnGround.current = false
-      lastJumpTime.current = now // Record jump time for reconciliation grace period
     }
     prevJump.current = input.jump
 
@@ -210,30 +208,20 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Server reconciliation (smooth correction of physics position)
-    // Now applies "Soft Reconciliation" even while moving to prevent drift
-    if (serverState) {
+    // Skip reconciliation if actively moving - prediction is more accurate
+    const isMoving = moveDir.current.length() > 0.1 || Math.abs(verticalVelocity.current) > 0.5
+    if (serverState && !isMoving) {
       serverPos.current.set(serverState.x, serverState.y, serverState.z)
       errorVec.current.copy(serverPos.current).sub(physicsPosition.current)
       
       const errorMagnitude = errorVec.current.length()
-      
-      if (errorMagnitude > 5) {
-        // Hard snap if error is too large (teleport/lag spike)
+      if (errorMagnitude > 0.5 && errorMagnitude < 5) {
+        // Soft correction of physics position - frame-rate independent
+        const correctionAlpha = 1 - Math.exp(-5 * delta)
+        physicsPosition.current.add(errorVec.current.multiplyScalar(correctionAlpha))
+      } else if (errorMagnitude >= 5) {
+        // Snap physics position if way off
         physicsPosition.current.copy(serverPos.current)
-      } else if (errorMagnitude > 0.5) {
-        // Soft correction: gently pull towards server position
-        // JUMP GRACE PERIOD: Skip Y correction for 300ms after a jump to prevent jitter
-        const isJumpingRecently = (now - lastJumpTime.current) < 0.3
-        
-        if (isJumpingRecently) {
-          // Only correct X and Z during the jump grace period
-          const correction = errorVec.current.clone().multiplyScalar(0.05)
-          physicsPosition.current.x += correction.x
-          physicsPosition.current.z += correction.z
-        } else {
-          // Full correction (including Y) when not jumping
-          physicsPosition.current.add(errorVec.current.multiplyScalar(0.05))
-        }
       }
     }
 
