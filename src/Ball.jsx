@@ -83,11 +83,11 @@ SoccerBall.displayName = 'SoccerBall'
 
 // Collision constants - ultra-aggressive for instant feel
 const COLLISION_COOLDOWN = 0.004 // 4ms - near-instant re-collision
-const BASE_LOOKAHEAD = 0.05 // 50ms base anticipation
-const MAX_LOOKAHEAD = 0.15 // 150ms max anticipation at high ping
+const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
+const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = 0.8
-const PLAYER_RADIUS = 0.7
+const PLAYER_RADIUS = 0.5 // Reduced from 0.7
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
@@ -307,14 +307,16 @@ export const ClientBallVisual = React.forwardRef(({
       
       // Collision conditions
       const isCurrentCollision = currentDist < dynamicCombinedRadius
-      const isAnticipatedCollision = futureDist < dynamicCombinedRadius && futureDist < currentDist
+      const isAnticipatedCollision = futureDist < dynamicCombinedRadius && 
+                                    futureDist < currentDist &&
+                                    currentDist < dynamicCombinedRadius * 1.1 // Proximity check
       const isSweepCollision = sweepT !== null
       
       // === SPECULATIVE COLLISION DETECTION ===
       // Pre-detect likely collisions for ultra-early response
-      const isSpeculative = futureDist < currentDist * SPECULATIVE_THRESHOLD && 
-                           futureDist < dynamicCombinedRadius * 1.1 &&
-                           currentDist < dynamicCombinedRadius * 1.3
+      const isSpeculative = futureDist < currentDist * 0.4 && // Tightened from 0.5
+                           futureDist < dynamicCombinedRadius * 0.9 && 
+                           currentDist < dynamicCombinedRadius * 1.1 // Tightened from 1.3
       
       if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
         let nx, ny, nz, contactDist
