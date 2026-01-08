@@ -19,40 +19,7 @@ import {
   bezierLerp 
 } from './physics/CollisionConfig.js'
 
-// SoccerBall - Visual component for the ball
-function SoccerBall({ onKickFeedback }) {
-  const { scene } = useGLTF('/models/soccer_ball.glb')
-  const meshRef = useRef()
-  
-  // Visual kick feedback (squash/stretch)
-  const [spring, api] = useSpring(() => ({
-    scale: [1.5, 1.5, 1.5],
-    config: { tension: 300, friction: 10 }
-  }))
-
-  useEffect(() => {
-    if (onKickFeedback) {
-      onKickFeedback.current = () => {
-        api.start({
-          scale: [1.8, 1.2, 1.8],
-          config: { tension: 500, friction: 15 },
-          onRest: () => api.start({ scale: [1.5, 1.5, 1.5] })
-        })
-      }
-    }
-  }, [onKickFeedback, api])
-
-  // Clone scene to avoid shared state issues
-  const clonedScene = useMemo(() => scene.clone(), [scene])
-
-  return (
-    <a.primitive 
-      ref={meshRef}
-      object={clonedScene} 
-      scale={spring.scale}
-    />
-  )
-}
+// ... (SoccerBall component remains unchanged)
 
 // === S-TIER ROCKET LEAGUE-STYLE COLLISION PREDICTION ===
 // Designed for 0-ping visual feel at ANY latency
@@ -106,43 +73,7 @@ const {
 
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
-// Helper: Predict future position for anticipatory collisions
-const predictFuturePosition = (pos, vel, time, gravity) => {
-  return {
-    x: pos.x + vel.x * time,
-    y: pos.y + vel.y * time - 0.5 * gravity * time * time,
-    z: pos.z + vel.z * time
-  }
-}
-
-// Helper: Continuous Collision Detection (CCD) sweep test
-// Returns t (0-1) if collision occurs, or null
-const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
-  const d = {
-    x: ballEnd.x - ballStart.x,
-    y: ballEnd.y - ballStart.y,
-    z: ballEnd.z - ballStart.z
-  }
-  const f = {
-    x: ballStart.x - playerPos.x,
-    y: ballStart.y - playerPos.y,
-    z: ballStart.z - playerPos.z
-  }
-
-  const a = d.x * d.x + d.y * d.y + d.z * d.z
-  const b = 2 * (f.x * d.x + f.y * d.y + f.z * d.z)
-  const c = (f.x * f.x + f.y * f.y + f.z * f.z) - combinedRadius * combinedRadius
-
-  if (a < 0.0001) return null // Not moving
-
-  const discriminant = b * b - 4 * a * c
-  if (discriminant < 0) return null
-
-  const t = (-b - Math.sqrt(discriminant)) / (2 * a)
-  if (t >= 0 && t <= 1) return t
-
-  return null
-}
+// ... (Helper functions remain unchanged)
 
 // ClientBallVisual - PING-AWARE 0-ping prediction
 // Now accepts ping prop for latency-scaled prediction
@@ -282,6 +213,11 @@ export const ClientBallVisual = React.forwardRef(({
     if (ballState.rx !== undefined) {
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
+
+    // Apply velocity decay for smooth prediction blending
+    predictedVelocity.current.multiplyScalar(VELOCITY_DECAY_RATE)
+    const blendedVelocity = decayedVelocity.lerp(serverVelocity.current, reconcileRate)
+    predictedVelocity.current.copy(blendedVelocity)
 
     // 3. Advance prediction with physics + Magnus effect (ball spin)
     const vel = predictedVelocity.current

@@ -71,7 +71,7 @@ LocalPlayer.displayName = 'LocalPlayer'
 
 // ClientPlayerVisual - Visual-only remote player with smooth interpolation
 export const ClientPlayerVisual = React.forwardRef((props, ref) => {
-  const { player, ping = 0 } = props
+  const { player } = props
   const groupRef = useRef()
   const velocityRef = useRef(new THREE.Vector3()) // For ball collision prediction
   const lastPos = useRef(new THREE.Vector3())
@@ -89,14 +89,10 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
     // Position interpolation - read directly from Colyseus proxy
     // Prediction: Extrapolate position based on velocity
     // This helps smooth out jumps and fast movements between server updates
-    // Dynamic Lookahead: Higher ping = look further ahead to match server time
-    const pingSeconds = ping / 1000
-    const BASE_LOOKAHEAD = 0.032 // ~32ms base prediction
-    const dynamicLookahead = BASE_LOOKAHEAD + pingSeconds * 0.5
-    
-    const predictedX = player.x + (player.vx || 0) * dynamicLookahead
-    const predictedY = player.y + (player.vy || 0) * dynamicLookahead
-    const predictedZ = player.z + (player.vz || 0) * dynamicLookahead
+    const LOOKAHEAD = 0.032 // ~32ms prediction (2 frames at 60Hz)
+    const predictedX = player.x + (player.vx || 0) * LOOKAHEAD
+    const predictedY = player.y + (player.vy || 0) * LOOKAHEAD
+    const predictedZ = player.z + (player.vz || 0) * LOOKAHEAD
 
     // Calculate velocity from position delta (for ball collision prediction)
     if (delta > 0.001) {
