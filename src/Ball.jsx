@@ -87,7 +87,7 @@ const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
 const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = 0.8
-const PLAYER_RADIUS = 0.1 // Increased for bowl shape
+const PLAYER_RADIUS = 0.5 // Reduced from 0.7
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
@@ -370,7 +370,7 @@ export const ClientBallVisual = React.forwardRef(({
           const impulseFactor = isSpeculative && !isCurrentCollision ? 0.85 : 1.0
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
-          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 5 : 3.5)
+          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)
           predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
           
           // Player velocity transfer
@@ -392,38 +392,6 @@ export const ClientBallVisual = React.forwardRef(({
             groupRef.current.position.z += nz * overlap * visualPush
           }
         }
-      }
-    }
-
-    // Stabilization on Player Roof (Client Prediction)
-    if (localPlayerRef?.current?.position) {
-      const playerPos = localPlayerRef.current.position
-      const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
-      const ballPos = groupRef.current.position
-      
-      const dx = ballPos.x - playerPos.x
-      const dy = ballPos.y - playerPos.y
-      const dz = ballPos.z - playerPos.z
-      const currentDist = Math.sqrt(dx * dx + dz * dz) // Horizontal distance
-      
-      const isGiant = localPlayerRef.current.userData?.giant || false
-      const giantScale = isGiant ? 10 : 1
-      const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
-      const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
-
-      // Check if on roof
-      if (currentDist < dynamicCombinedRadius * 1.5 && dy > 0.3 && dy < 1.5) {
-        // Apply centering force
-        predictedVelocity.current.x -= (dx / Math.max(currentDist, 0.1)) * 5 * delta
-        predictedVelocity.current.z -= (dz / Math.max(currentDist, 0.1)) * 5 * delta
-
-        // Apply damping
-        predictedVelocity.current.x *= (1 - 0.3 * delta)
-        predictedVelocity.current.z *= (1 - 0.3 * delta)
-
-        // Transfer player velocity
-        predictedVelocity.current.x += (playerVel.x || 0) * 0.6 * delta
-        predictedVelocity.current.z += (playerVel.z || 0) * 0.6 * delta
       }
     }
 

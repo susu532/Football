@@ -173,7 +173,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       if (ballRef?.current?.userData?.predictKick) {
         ballRef.current.userData.predictKick({
           x: impulseX,
-          y: impulseY + 2.5 * kickMult,
+          y: impulseY + 0.8 * kickMult,
           z: impulseZ
         })
       }
