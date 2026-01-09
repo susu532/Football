@@ -75,6 +75,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
   // Input throttle
   const lastInputTime = useRef(0)
+  const lastKickTime = useRef(0)
   const inputSequence = useRef(0)
 
   useImperativeHandle(ref, () => ({
@@ -144,6 +145,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
     // Handle kick - send to server
     if (input.kick && sendKick) {
+      // Kick cooldown (200ms) to prevent spam
+      if (now - lastKickTime.current < 0.2) return
+      lastKickTime.current = now
+
       if (onLocalInteraction) onLocalInteraction()
       
       const rotation = groupRef.current.rotation.y

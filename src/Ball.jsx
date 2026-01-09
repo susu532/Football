@@ -164,9 +164,11 @@ export const ClientBallVisual = React.forwardRef(({
     obj.userData = obj.userData || {}
     obj.userData.predictKick = (impulse) => {
       // INSTANT local kick response - before server roundtrip
-      predictedVelocity.current.x += impulse.x * IMPULSE_PREDICTION_FACTOR
-      predictedVelocity.current.y += impulse.y * IMPULSE_PREDICTION_FACTOR
-      predictedVelocity.current.z += impulse.z * IMPULSE_PREDICTION_FACTOR
+      // Apply impulse / mass to get velocity change (F = ma -> dv = J/m)
+      const invMass = 1 / 3.0 // Ball mass is 3.0kg
+      predictedVelocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
+      predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
+      predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
       collisionThisFrame.current = true
     }
     return obj
