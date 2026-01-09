@@ -43,6 +43,7 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
     <group>
       <PlayerController
         ref={controllerRef}
+        ballRef={props.ballRef}
         me={me}
         sendInput={sendInput}
         sendKick={sendKick}
@@ -95,7 +96,10 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
     const predictedZ = player.z + (player.vz || 0) * LOOKAHEAD
 
     // Calculate velocity from position delta (for ball collision prediction)
-    if (delta > 0.001) {
+    // Use server velocity if available for smoother prediction
+    if (player.vx !== undefined) {
+      velocityRef.current.set(player.vx, player.vy, player.vz)
+    } else if (delta > 0.001) {
       const safeInvDelta = 1 / Math.max(delta, 0.008) // Clamp to avoid spikes
       velocityRef.current.set(
         (predictedX - lastPos.current.x) * safeInvDelta,

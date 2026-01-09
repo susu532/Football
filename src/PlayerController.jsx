@@ -14,7 +14,7 @@ const DOUBLE_JUMP_MULTIPLIER = 0.8
 const GRAVITY = 20
 const GROUND_Y = 0.1
 const MAX_JUMPS = 2
-const INPUT_SEND_RATE = 1 / 30 // 30Hz
+const INPUT_SEND_RATE = 1 / 60 // 60Hz
 
 // PlayerController: Handles local player input => sends to server + local prediction
 export const PlayerController = React.forwardRef((props, ref) => {
@@ -22,6 +22,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     me,
     sendInput,
     sendKick,
+    ballRef, // Received from parent
     playerName = '',
     playerTeam = '',
     teamColor = '#888',
@@ -151,11 +152,26 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const kickMult = serverState?.kickMult || 1
       const kickPower = 65 * kickMult
       
+      const impulseX = forwardX * kickPower + velocity.current.x * 2
+      const impulseY = 0.5 * kickPower
+      const impulseZ = forwardZ * kickPower + velocity.current.z * 2
+
+      // Send to server
       sendKick({
-        impulseX: forwardX * kickPower + velocity.current.x * 2,
-        impulseY: 0.5 * kickPower,
-        impulseZ: forwardZ * kickPower + velocity.current.z * 2
+        impulseX,
+        impulseY,
+        impulseZ
       })
+
+      // INSTANT LOCAL PREDICTION
+      // Apply the same boost server does (0.8 * kickMult)
+      if (ballRef?.current?.userData?.predictKick) {
+        ballRef.current.userData.predictKick({
+          x: impulseX,
+          y: impulseY + 0.8 * kickMult,
+          z: impulseZ
+        })
+      }
     }
 
     // Apply physics (local prediction)

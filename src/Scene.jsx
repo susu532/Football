@@ -221,6 +221,7 @@ export default function Scene() {
 
   // Refs
   const playerRef = useRef()
+  const ballRef = useRef()
   const isFreeLook = useRef(false)
   const cameraOrbit = useRef(null)
   const lastLocalInteraction = useRef(0)
@@ -753,7 +754,14 @@ export default function Scene() {
           {isMobile && <MobileSky />}
 
           {/* Ball - interpolated from server state */}
-          <ClientBallVisual ballState={ballState} onKickMessage={onMessage} localPlayerRef={playerRef} ping={realPing} pingJitter={pingJitter} />
+          <ClientBallVisual 
+            ref={ballRef}
+            ballState={ballState} 
+            onKickMessage={onMessage} 
+            localPlayerRef={playerRef} 
+            ping={realPing} 
+            pingJitter={pingJitter} 
+          />
 
           {/* Goals (visual only) */}
           <SoccerGoal position={[-11.2, 0, 0]} rotation={[0, 0, 0]} netColor="#ff4444" />
@@ -766,6 +774,7 @@ export default function Scene() {
           {me && (
             <LocalPlayer
               ref={playerRef}
+              ballRef={ballRef}
               me={me}
               sendInput={sendInput}
               sendKick={sendKick}
