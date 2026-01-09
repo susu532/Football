@@ -158,7 +158,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const kickPower = 65 * kickMult
       
       const impulseX = forwardX * kickPower + velocity.current.x * 2
-      const impulseY = 0.8 * kickPower
+      const impulseY = 0.5 * kickPower
       const impulseZ = forwardZ * kickPower + velocity.current.z * 2
 
       // Send to server
@@ -169,7 +169,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       })
 
       // INSTANT LOCAL PREDICTION
-      // Apply the same boost server does (3.0 * kickMult)
+      // Apply the same boost server does (0.8 * kickMult)
       if (ballRef?.current?.userData?.predictKick) {
         ballRef.current.userData.predictKick({
           x: impulseX,
