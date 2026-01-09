@@ -368,16 +368,6 @@ export default function Scene() {
     }
   }, [isConnected, onMessage, playerTeam, me])
 
-  // Reset local player position on room change (reconnect)
-  useEffect(() => {
-    if (isConnected && room && me && playerRef.current && myServerState) {
-      // Sync local position to server position immediately upon reconnection
-      // This prevents snapping back to spawn if we were mid-game
-      console.log('Resyncing local player to server state...')
-      playerRef.current.resetPosition(myServerState.x, myServerState.y, myServerState.z)
-    }
-  }, [room, isConnected]) // Only run when room instance changes (reconnect)
-
   // Connection quality color helper
   const getConnectionQualityColor = (quality) => {
     switch (quality) {
@@ -765,7 +755,6 @@ export default function Scene() {
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual 
-            key={room?.id || 'ball'} // Force remount on room change (reconnect) to reset prediction buffers
             ref={ballRef}
             ballState={ballState} 
             onKickMessage={onMessage} 

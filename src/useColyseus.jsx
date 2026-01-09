@@ -313,9 +313,9 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   useEffect(() => {
     if (isConnected && room) {
       pingInterval.current = setInterval(() => {
-        if (roomRef.current && roomRef.current.connection && roomRef.current.connection.isOpen) {
+        if (room && room.connection && room.connection.isOpen) {
           lastPingTime.current = Date.now()
-          roomRef.current.send('ping')
+          room.send('ping')
         }
       }, 500) // 4x faster for adaptive collision prediction
     } else {
@@ -406,71 +406,12 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     }
   } : null
 
-  // Reconnect logic
-  const reconnect = useCallback(async (roomId, sessionId) => {
-    if (!client) return null
-    
-    try {
-      console.log('Attempting to reconnect...', roomId, sessionId)
-      const reconnectedRoom = await client.reconnect(roomId, sessionId)
-      return connectToRoom(reconnectedRoom)
-    } catch (error) {
-      console.error('Reconnection failed:', error)
-      return null
-    }
-  }, [client, connectToRoom])
-
-  // Visibility Change Handler (Seamless Resume)
-  useEffect(() => {
-    const handleVisibilityChange = async () => {
-      if (document.hidden) {
-        // ON AFK / BACKGROUND
-        console.log('App backgrounded - pausing input')
-        // Input loop is naturally paused by requestAnimationFrame in React, 
-        // but we can explicitly stop sending if needed.
-        // The socket might stay open or close depending on OS/Browser.
-      } else {
-        // ON RETURN / FOREGROUND
-        console.log('App foregrounded - checking connection')
-        
-        // Check if connection is dead
-        if (roomRef.current && (!roomRef.current.connection || !roomRef.current.connection.isOpen)) {
-          console.log('Connection lost. Attempting seamless reconnect...')
-          
-          const lastId = roomRef.current.id
-          const lastSession = mySessionId
-          
-          // Clean up old room ref to prevent errors
-          roomRef.current = null
-          setRoom(null)
-          setIsConnected(false)
-          
-          if (lastId && lastSession) {
-            const newRoom = await reconnect(lastId, lastSession)
-            if (!newRoom) {
-              console.log('Seamless reconnect failed. Reloading page as fallback.')
-              window.location.reload()
-            } else {
-              console.log('Seamless reconnect successful!')
-            }
-          }
-        }
-      }
-    }
-
-    document.addEventListener("visibilitychange", handleVisibilityChange)
-    return () => {
-      document.removeEventListener("visibilitychange", handleVisibilityChange)
-    }
-  }, [reconnect, mySessionId])
-
   return {
     // Connection
     isLaunched,
     isConnected,
     joinRoom,
     leaveRoom,
-    reconnect, // Expose reconnect
     room,
     roomCode,
     availableRooms,
