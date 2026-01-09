@@ -268,174 +268,126 @@ export const ClientBallVisual = React.forwardRef(({
       predictedVelocity.current.multiplyScalar(MAX_LINEAR_VEL / velMag)
     }
 
-    // 4. PING-AWARE COLLISION PREDICTION (CAR FORM OBB - SUB-FRAME SWEEP)
+    // 4. PING-AWARE COLLISION PREDICTION with DYNAMIC RADIUS
     const timeSinceCollision = now - lastCollisionTime.current
     
     if (localPlayerRef?.current?.position && timeSinceCollision > COLLISION_COOLDOWN) {
       const playerPos = localPlayerRef.current.position
-      const playerRot = localPlayerRef.current.rotation
       const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
       const ballPos = groupRef.current.position
       
-      // CAR DIMENSIONS (Must match Server!)
-      const CAR_HALF_X = 0.7
-      const CAR_HALF_Y = 0.3
-      const CAR_HALF_Z = 1.4
-      const CAR_OFFSET_Y = 0.3
-
-      // Transform Ball Movement to Player Local Space
-      const playerQuat = new THREE.Quaternion().setFromEuler(playerRot)
-      const invQuat = playerQuat.clone().invert()
-
-      // Previous position (Start of frame) - approximated by subtracting velocity * delta
-      // We use the PREDICTED velocity for the sweep to catch high-speed impacts
-      const moveVec = new THREE.Vector3().copy(predictedVelocity.current).multiplyScalar(delta)
-      const worldStart = new THREE.Vector3().subVectors(ballPos, moveVec)
-      const worldEnd = ballPos.clone()
-
-      // Transform Start/End to Local Space
-      const localStart = worldStart.clone().sub(playerPos).applyQuaternion(invQuat)
-      localStart.y -= CAR_OFFSET_Y
+      // === DYNAMIC COLLISION RADIUS for giant power-up ===
+      const isGiant = localPlayerRef.current.userData?.giant || false
+      const giantScale = isGiant ? 10 : 1
+      const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
+      const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
       
-      const localEnd = worldEnd.clone().sub(playerPos).applyQuaternion(invQuat)
-      localEnd.y -= CAR_OFFSET_Y
-
-      // EXPANDED AABB (Minkowski Sum approximation for Sphere vs Box)
-      // We expand the box by the ball radius to treat the ball as a point
-      const EXPANDED_X = CAR_HALF_X + BALL_RADIUS
-      const EXPANDED_Y = CAR_HALF_Y + BALL_RADIUS
-      const EXPANDED_Z = CAR_HALF_Z + BALL_RADIUS
-
-      // RAY/SEGMENT VS AABB INTERSECTION (Slab Method)
-      let tMin = 0
-      let tMax = 1
-      let hitAxis = -1 // 0:x, 1:y, 2:z
-      let hitSign = 0
-
-      const dir = new THREE.Vector3().subVectors(localEnd, localStart)
+      // Anticipatory collision with dynamic lookahead
+      const futureBall = predictFuturePosition(ballPos, vel, dynamicLookahead, GRAVITY)
+      const futurePlayer = {
+        x: playerPos.x + (playerVel.x || 0) * dynamicLookahead,
+        y: playerPos.y + (playerVel.y || 0) * dynamicLookahead,
+        z: playerPos.z + (playerVel.z || 0) * dynamicLookahead
+      }
       
-      // Check X slab
-      if (Math.abs(dir.x) < 1e-9) {
-        if (Math.abs(localStart.x) > EXPANDED_X) tMin = Infinity // Parallel and outside
-      } else {
-        const invDir = 1.0 / dir.x
-        let t1 = (-EXPANDED_X - localStart.x) * invDir
-        let t2 = (EXPANDED_X - localStart.x) * invDir
-        if (t1 > t2) [t1, t2] = [t2, t1]
+      // Distance checks
+      const dx = ballPos.x - playerPos.x
+      const dy = ballPos.y - playerPos.y
+      const dz = ballPos.z - playerPos.z
+      const currentDist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+      
+      const fdx = futureBall.x - futurePlayer.x
+      const fdy = futureBall.y - futurePlayer.y
+      const fdz = futureBall.z - futurePlayer.z
+      const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
+      
+      // Sweep test with dynamic radius
+      const ballEnd = targetPos.current.clone()
+      const sweepT = sweepSphereToSphere(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
+      
+      // Collision conditions
+      const isCurrentCollision = currentDist < dynamicCombinedRadius
+      const isAnticipatedCollision = futureDist < dynamicCombinedRadius && 
+                                    futureDist < currentDist &&
+                                    currentDist < dynamicCombinedRadius * 1.1 // Proximity check
+      const isSweepCollision = sweepT !== null
+      
+      // === SPECULATIVE COLLISION DETECTION ===
+      // Pre-detect likely collisions for ultra-early response
+      const isSpeculative = futureDist < currentDist * 0.4 && // Tightened from 0.5
+                           futureDist < dynamicCombinedRadius * 0.9 && 
+                           currentDist < dynamicCombinedRadius * 1.1 // Tightened from 1.3
+      
+      if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
+        let nx, ny, nz, contactDist
         
-        if (t1 > tMin) { tMin = t1; hitAxis = 0; hitSign = Math.sign(-dir.x); }
-        if (t2 < tMax) tMax = t2
-      }
-
-      // Check Y slab
-      if (Math.abs(dir.y) < 1e-9) {
-        if (Math.abs(localStart.y) > EXPANDED_Y) tMin = Infinity
-      } else {
-        const invDir = 1.0 / dir.y
-        let t1 = (-EXPANDED_Y - localStart.y) * invDir
-        let t2 = (EXPANDED_Y - localStart.y) * invDir
-        if (t1 > t2) [t1, t2] = [t2, t1]
-        
-        if (t1 > tMin) { tMin = t1; hitAxis = 1; hitSign = Math.sign(-dir.y); }
-        if (t2 < tMax) tMax = t2
-      }
-
-      // Check Z slab
-      if (Math.abs(dir.z) < 1e-9) {
-        if (Math.abs(localStart.z) > EXPANDED_Z) tMin = Infinity
-      } else {
-        const invDir = 1.0 / dir.z
-        let t1 = (-EXPANDED_Z - localStart.z) * invDir
-        let t2 = (EXPANDED_Z - localStart.z) * invDir
-        if (t1 > t2) [t1, t2] = [t2, t1]
-        
-        if (t1 > tMin) { tMin = t1; hitAxis = 2; hitSign = Math.sign(-dir.z); }
-        if (t2 < tMax) tMax = t2
-      }
-
-      // Check for valid intersection
-      // Also check if we started INSIDE (tMin == 0) - treat as immediate collision
-      const isInside = Math.abs(localStart.x) < EXPANDED_X && Math.abs(localStart.y) < EXPANDED_Y && Math.abs(localStart.z) < EXPANDED_Z
-      const isHit = (tMin <= tMax && tMin >= 0 && tMin <= 1) || isInside
-
-      if (isHit) {
-        // Calculate Normal
-        const localNormal = new THREE.Vector3(0, 0, 0)
-        if (isInside) {
-          // If inside, find closest face to push out
-          const dx = EXPANDED_X - Math.abs(localStart.x)
-          const dy = EXPANDED_Y - Math.abs(localStart.y)
-          const dz = EXPANDED_Z - Math.abs(localStart.z)
-          if (dx < dy && dx < dz) localNormal.set(Math.sign(localStart.x), 0, 0)
-          else if (dy < dz) localNormal.set(0, Math.sign(localStart.y), 0)
-          else localNormal.set(0, 0, Math.sign(localStart.z))
-          tMin = 0 // Immediate
+        // === SUB-FRAME COLLISION TIMING ===
+        // Use sweep hit time for micro-precise contact moment
+        if (isSweepCollision && sweepT > 0) {
+          subFrameTime.current = sweepT
+          const contactPt = ballPos.clone().lerp(ballEnd, sweepT)
+          const cx = contactPt.x - playerPos.x
+          const cy = contactPt.y - playerPos.y
+          const cz = contactPt.z - playerPos.z
+          contactDist = Math.sqrt(cx * cx + cy * cy + cz * cz)
+          const invD = 1 / Math.max(contactDist, 0.1)
+          nx = cx * invD
+          ny = Math.max(0.1, cy * invD)
+          nz = cz * invD
         } else {
-          if (hitAxis === 0) localNormal.x = hitSign
-          else if (hitAxis === 1) localNormal.y = hitSign
-          else if (hitAxis === 2) localNormal.z = hitSign
+          subFrameTime.current = 0
+          contactDist = currentDist
+          const invD = 1 / Math.max(currentDist, 0.1)
+          nx = dx * invD
+          ny = Math.max(0.1, dy * invD)
+          nz = dz * invD
         }
-
-        // Transform normal back to World Space
-        const worldNormal = localNormal.clone().applyQuaternion(playerQuat)
-        
-        // STABILIZATION LOGIC
-        const isRoof = localNormal.y > 0.9 // Top face
-        
-        lastCollisionTime.current = now
-        collisionThisFrame.current = true
-        lastCollisionNormal.current.copy(worldNormal)
         
         // Relative velocity
         const relVx = vel.x - (playerVel.x || 0)
         const relVy = vel.y - (playerVel.y || 0)
         const relVz = vel.z - (playerVel.z || 0)
-        const approachSpeed = relVx * worldNormal.x + relVy * worldNormal.y + relVz * worldNormal.z
+        const approachSpeed = relVx * nx + relVy * ny + relVz * nz
         
-        if (approachSpeed < 0 || isInside) {
-          // Standard Bounce
-          const restitution = isRoof ? 0.1 : BALL_RESTITUTION
-          const impulseMag = -(1 + restitution) * approachSpeed
+        // === COLLISION CONFIDENCE SCORING ===
+        // Higher confidence = more aggressive prediction
+        const speedFactor = Math.min(1, Math.abs(approachSpeed) / 15)
+        const distFactor = Math.min(1, dynamicCombinedRadius / Math.max(currentDist, 0.1))
+        collisionConfidence.current = speedFactor * distFactor
+        
+        if (approachSpeed < 0 || isCurrentCollision) {
+          lastCollisionTime.current = now
+          collisionThisFrame.current = true
+          lastCollisionNormal.current.set(nx, ny, nz)
           
-          predictedVelocity.current.x += impulseMag * worldNormal.x
-          predictedVelocity.current.y += impulseMag * worldNormal.y
-          predictedVelocity.current.z += impulseMag * worldNormal.z
+          // RAPIER-matched impulse with boost (scaled for giant)
+          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
+          const boostFactor = isGiant ? 2.0 : 1.2 // Giant kicks harder
           
-          // Friction / Stabilization
-          if (isRoof) {
-            const friction = 0.8
-            predictedVelocity.current.x += ((playerVel.x || 0) - predictedVelocity.current.x) * friction
-            predictedVelocity.current.z += ((playerVel.z || 0) - predictedVelocity.current.z) * friction
-          } else {
-            predictedVelocity.current.x *= 0.9
-            predictedVelocity.current.z *= 0.9
-          }
+          // Apply impulse scaled by confidence for speculative hits
+          const impulseFactor = isSpeculative && !isCurrentCollision ? 0.85 : 1.0
+          
+          predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
+          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)
+          predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
           
           // Player velocity transfer
-          predictedVelocity.current.x += (playerVel.x || 0) * 0.2
-          predictedVelocity.current.z += (playerVel.z || 0) * 0.2
+          predictedVelocity.current.x += (playerVel.x || 0) * 0.5
+          predictedVelocity.current.z += (playerVel.z || 0) * 0.5
           
-          // SUB-FRAME POSITION CORRECTION
-          // 1. Rewind to impact point
-          // 2. Reflect velocity
-          // 3. Advance remaining time
-          if (!isInside && tMin > 0) {
-             // Rewind
-             targetPos.current.copy(worldStart).addScaledVector(moveVec, tMin)
-             // Push out slightly to avoid precision issues
-             targetPos.current.addScaledVector(worldNormal, 0.01)
-             
-             // Advance remainder
-             const remainingTime = delta * (1 - tMin)
-             targetPos.current.addScaledVector(predictedVelocity.current, remainingTime)
-             
-             // Sync visual group
-             groupRef.current.position.copy(targetPos.current)
-          } else if (isInside) {
-             // Push out logic for embedded case
-             const overlap = 0.1 // Arbitrary small push
-             targetPos.current.addScaledVector(worldNormal, overlap)
-             groupRef.current.position.addScaledVector(worldNormal, overlap)
+          // INSTANT position correction with sub-frame advancement
+          const overlap = dynamicCombinedRadius - contactDist + 0.02
+          if (overlap > 0) {
+            // Advance remaining time after collision
+            const remainingTime = delta * (1 - subFrameTime.current)
+            targetPos.current.x += nx * overlap + vel.x * remainingTime * 0.3
+            targetPos.current.y += ny * overlap * 0.5
+            targetPos.current.z += nz * overlap + vel.z * remainingTime * 0.3
+            
+            // Immediate visual push (confidence-weighted)
+            const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)
+            groupRef.current.position.x += nx * overlap * visualPush
+            groupRef.current.position.z += nz * overlap * visualPush
           }
         }
       }
