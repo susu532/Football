@@ -87,7 +87,7 @@ const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
 const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = 0.8
-const PLAYER_RADIUS = 0.9 // Increased for better ball stabilization
+const PLAYER_RADIUS = 0.5 // Reduced from 0.7
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
