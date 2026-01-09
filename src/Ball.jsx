@@ -395,6 +395,61 @@ export const ClientBallVisual = React.forwardRef(({
       }
     }
 
+    // --- DRIBBLE PREDICTION ---
+    // Mirror server-side dribble logic for instant visual feedback
+    const DRIBBLE_RADIUS = 1.2
+    const DRIBBLE_HEIGHT = 1.5
+    const PLAYER_TOP_Y = 0.5
+    const LERP_DRIBBLE = 35 // "Sticky" feel
+    let isDribbling = false
+
+    if (localPlayerRef?.current?.position) {
+      const playerPos = localPlayerRef.current.position
+      const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
+      const ballPos = groupRef.current.position
+      
+      // Giant mode scaling
+      const isGiant = localPlayerRef.current.userData?.giant || false
+      const radiusScale = isGiant ? 2.0 : 1.0
+      const impulseScale = isGiant ? 1.5 : 1.0
+
+      if (ballPos.y > playerPos.y + PLAYER_TOP_Y) {
+        const dx = ballPos.x - playerPos.x
+        const dz = ballPos.z - playerPos.z
+        const hDist = Math.sqrt(dx * dx + dz * dz)
+        const vDist = ballPos.y - (playerPos.y + PLAYER_TOP_Y)
+
+        if (hDist < DRIBBLE_RADIUS * radiusScale && vDist < DRIBBLE_HEIGHT) {
+           // Break conditions (simplified for client prediction)
+           const relVx = predictedVelocity.current.x - (playerVel.x || 0)
+           const relVz = predictedVelocity.current.z - (playerVel.z || 0)
+           const relSpeed = Math.sqrt(relVx * relVx + relVz * relVz)
+           
+           if (relSpeed < 8) { // BREAK_VELOCITY_THRESHOLD
+             isDribbling = true
+             
+             // 1. Centering Impulse
+             const dist = Math.max(0.001, hDist)
+             const dirX = -dx / dist
+             const dirZ = -dz / dist
+             
+             // Apply to predicted velocity
+             predictedVelocity.current.x += dirX * 0.15 * impulseScale // CENTERING_IMPULSE
+             predictedVelocity.current.z += dirZ * 0.15 * impulseScale
+             predictedVelocity.current.y += 0.06 * impulseScale // UPWARD_IMPULSE
+
+             // 2. Velocity Matching
+             predictedVelocity.current.x += ((playerVel.x || 0) - predictedVelocity.current.x) * 0.25 // VELOCITY_MATCH_RATE
+             predictedVelocity.current.z += ((playerVel.z || 0) - predictedVelocity.current.z) * 0.25
+             
+             // 3. Visual Centering (Extra "stickiness")
+             targetPos.current.x += dirX * 0.05 // DRIBBLE_VISUAL_OFFSET
+             targetPos.current.z += dirZ * 0.05
+           }
+        }
+      }
+    }
+
     // 5. ULTRA-AGGRESSIVE visual interpolation with CONFIDENCE WEIGHTING
     const distance = groupRef.current.position.distanceTo(targetPos.current)
     
@@ -405,6 +460,10 @@ export const ClientBallVisual = React.forwardRef(({
       const confidenceBoost = 1 + collisionConfidence.current * 0.5
       const snapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * delta)
       groupRef.current.position.lerp(targetPos.current, snapFactor)
+    } else if (isDribbling) {
+      // Sticky dribble interpolation
+      const lerpFactor = 1 - Math.exp(-LERP_DRIBBLE * delta)
+      groupRef.current.position.lerp(targetPos.current, lerpFactor)
     } else {
       const lerpFactor = 1 - Math.exp(-LERP_NORMAL * delta)
       groupRef.current.position.lerp(targetPos.current, lerpFactor)
