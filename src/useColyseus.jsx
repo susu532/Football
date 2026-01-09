@@ -313,8 +313,10 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   useEffect(() => {
     if (isConnected && room) {
       pingInterval.current = setInterval(() => {
-        lastPingTime.current = Date.now()
-        room.send('ping')
+        if (room && room.connection && room.connection.isOpen) {
+          lastPingTime.current = Date.now()
+          room.send('ping')
+        }
       }, 500) // 4x faster for adaptive collision prediction
     } else {
       if (pingInterval.current) clearInterval(pingInterval.current)
