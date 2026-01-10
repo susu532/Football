@@ -168,7 +168,7 @@ export const MAP_DATA = [
     name: 'Japanese Town', 
     path: '/maps_3/japaneses-town/source/japanese_town.glb', 
     scale: 50, 
-    position: [0, 2, 0], 
+    position: [0, 1, 0], 
     emoji: '⛩️', 
     image: '/placeholders/Screenshots-20260110090829.png',
     ambientIntensity: 0.5,
