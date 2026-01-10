@@ -7,6 +7,7 @@ import * as THREE from 'three'
 import InputManager from './InputManager'
 import CharacterSkin from './CharacterSkin'
 import { PHYSICS } from './PhysicsConstants.js'
+import AudioManager from './AudioManager'
 
 // Physics constants
 // Physics constants
@@ -160,6 +161,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
         jumpCount.current++
         isOnGround.current = false
+        AudioManager.playSFX('jump')
       }
       prevJump.current = pendingJump.current
 
@@ -239,6 +241,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
         impulseY,
         impulseZ
       })
+      
+      AudioManager.playSFX('kick')
 
       // INSTANT LOCAL PREDICTION
       if (ballRef?.current?.userData?.predictKick) {

@@ -5,6 +5,7 @@ import { useState, useEffect, useRef, useCallback, createContext, useContext } f
 import { Client } from 'colyseus.js'
 import { GameState } from './schema/GameState.js'
 import { stateHistory } from './StateHistory.js'
+import AudioManager from './AudioManager'
 
 // Context for sharing room across components
 const ColyseusContext = createContext(null)
@@ -107,6 +108,12 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
     joinedRoom.onMessage('goal-scored', (message) => {
       console.log('Goal scored:', message)
+      AudioManager.playSFX('goal')
+    })
+
+    joinedRoom.onMessage('powerup-collected', (message) => {
+      console.log('Powerup collected:', message)
+      AudioManager.playSFX('powerup')
     })
 
     joinedRoom.onMessage('game-over', (message) => {
