@@ -761,6 +761,7 @@ export default function Scene() {
             localPlayerRef={playerRef} 
             ping={realPing} 
             pingJitter={pingJitter} 
+            ballOwner={ballState.ownerSessionId}
           />
 
           {/* Goals (visual only) */}

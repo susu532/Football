@@ -239,20 +239,112 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Server reconciliation (smooth correction of physics position)
-    // Skip reconciliation if actively moving - prediction is more accurate
-    const isMoving = moveDir.current.length() > 0.1 || Math.abs(verticalVelocity.current) > 0.5
-    if (serverState && !isMoving) {
+    // We only reconcile if we have a valid server state and it's newer than our last check
+    const lastReconciledTick = useRef(0)
+    
+    if (serverState && serverState.tick > lastReconciledTick.current) {
+      lastReconciledTick.current = serverState.tick
+      
+      // 1. Calculate error between predicted position and server position
       serverPos.current.set(serverState.x, serverState.y, serverState.z)
       errorVec.current.copy(serverPos.current).sub(physicsPosition.current)
-      
       const errorMagnitude = errorVec.current.length()
-      if (errorMagnitude > 0.5 && errorMagnitude < 5) {
-        // Soft correction of physics position - frame-rate independent
-        const correctionAlpha = 1 - Math.exp(-5 * delta)
-        physicsPosition.current.add(errorVec.current.multiplyScalar(correctionAlpha))
-      } else if (errorMagnitude >= 5) {
-        // Snap physics position if way off
+      
+      // 2. Decide whether to reconcile
+      // If error is small (< 5cm), ignore it to prevent micro-jitters
+      // If error is large (> 5cm), hard correct and replay inputs
+      if (errorMagnitude > 0.05) {
+        // REWIND: Snap to server state
         physicsPosition.current.copy(serverPos.current)
+        velocity.current.set(serverState.vx, serverState.vy, serverState.vz)
+        verticalVelocity.current = serverState.vy
+        
+        // REPLAY: Re-simulate inputs since server tick
+        // Filter history for inputs newer than server tick
+        const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
+        
+        validHistory.forEach(historyItem => {
+          const { input } = historyItem
+          
+          // Re-run physics step (simplified version of main loop)
+          // Note: We assume 1 step per input for simplicity, 
+          // but ideally we'd store delta time with input
+          
+          // Apply Gravity
+          verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
+          
+          // Ground Check
+          if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+            jumpCount.current = 0
+          }
+          
+          // Jump
+          if (input.jump && jumpCount.current < MAX_JUMPS) {
+             // We don't have prevJump state perfectly here, but it's a reasonable approx
+             // for reconciliation to assume jump input triggers jump if allowed
+             // A more robust system would store 'jumpPressedThisFrame' in history
+             const jumpMult = serverState.jumpMult || 1
+             const baseJumpForce = JUMP_FORCE * jumpMult
+             verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
+             jumpCount.current++
+          }
+          
+          // Movement
+          moveDir.current.set(0, 0, 0)
+          // We need to reconstruct moveDir from input.move (relative to camera at that time)
+          // But we stored raw input (x, z). We don't have camera history.
+          // Approximation: Use current camera or stored rotation?
+          // Better: We stored rotY in input history!
+          const forwardX = Math.sin(input.rotY)
+          const forwardZ = Math.cos(input.rotY)
+          const rightX = Math.cos(input.rotY)
+          const rightZ = -Math.sin(input.rotY)
+          
+          // Reconstruct world move vector
+          // input.move.z is forward/back (-1 is forward)
+          // input.move.x is left/right
+          // Note: InputManager returns z: -1 for forward.
+          // So forward movement is -(-1) * forwardVec = forwardVec
+          
+          // Actually, let's look at main loop:
+          // moveDir.addScaledVector(cameraForward, -input.move.z)
+          // moveDir.addScaledVector(cameraRight, input.move.x)
+          
+          // We can approximate using the stored rotation as "forward"
+          moveDir.current.x = forwardX * -input.move.z + rightX * input.move.x
+          moveDir.current.z = forwardZ * -input.move.z + rightZ * input.move.x
+          
+          if (moveDir.current.length() > 0) moveDir.current.normalize()
+            
+          const speedMult = serverState.speedMult || 1
+          const speed = MOVE_SPEED * speedMult
+          const targetVx = moveDir.current.x * speed
+          const targetVz = moveDir.current.z * speed
+          
+          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
+          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+          
+          // Integrate
+          let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
+          let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
+          let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
+          
+          // Ground Clamp
+          if (newY <= GROUND_Y) {
+            newY = GROUND_Y
+            verticalVelocity.current = 0
+          }
+          
+          // Bounds
+          const wallMargin = 0.3
+          newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
+          newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+          
+          physicsPosition.current.set(newX, newY, newZ)
+        })
+        
+        // Prune old history
+        inputHistory.current = validHistory
       }
     }
 

@@ -136,6 +136,58 @@ const predictFuturePosition = (pos, vel, time, gravity) => ({
   z: pos.z + vel.z * time
 })
 
+// Trajectory Line Component
+const TrajectoryLine = ({ startPos, startVel, gravity = 20 }) => {
+  const points = useMemo(() => {
+    const pts = []
+    const pos = startPos.clone()
+    const vel = startVel.clone()
+    const dt = 1/60
+    const maxSteps = 120 // 2 seconds
+    
+    // Simple physics simulation
+    for (let i = 0; i < maxSteps; i++) {
+      pts.push(pos.clone())
+      
+      pos.addScaledVector(vel, dt)
+      vel.y -= gravity * dt
+      
+      // Floor bounce
+      if (pos.y < 0.8) {
+        pos.y = 0.8
+        vel.y *= -0.75
+        vel.x *= 0.85
+        vel.z *= 0.85
+      }
+      
+      // Wall bounces (approximate)
+      if (Math.abs(pos.x) > 14.5) {
+        pos.x = Math.sign(pos.x) * 14.5
+        vel.x *= -0.75
+      }
+      if (Math.abs(pos.z) > 9.5) {
+        pos.z = Math.sign(pos.z) * 9.5
+        vel.z *= -0.75
+      }
+    }
+    return pts
+  }, [startPos, startVel, gravity])
+
+  return (
+    <line>
+      <bufferGeometry>
+        <bufferAttribute
+          attach="attributes-position"
+          count={points.length}
+          array={new Float32Array(points.flatMap(p => [p.x, p.y, p.z]))}
+          itemSize={3}
+        />
+      </bufferGeometry>
+      <lineBasicMaterial color="white" opacity={0.3} transparent />
+    </line>
+  )
+}
+
 // ClientBallVisual - PING-AWARE 0-ping prediction
 // Now accepts ping prop for latency-scaled prediction
 export const ClientBallVisual = React.forwardRef(({ 
@@ -143,7 +195,8 @@ export const ClientBallVisual = React.forwardRef(({
   onKickMessage, 
   localPlayerRef,
   ping = 0, // Network latency in ms
-  pingJitter = 0 // Network jitter for adaptive smoothing
+  pingJitter = 0, // Network jitter for adaptive smoothing
+  ballOwner = '' // Session ID of ball owner
 }, ref) => {
   const groupRef = useRef()
   const targetPos = useRef(new THREE.Vector3(0, 2, 0))
@@ -157,6 +210,9 @@ export const ClientBallVisual = React.forwardRef(({
   const serverPosSmoothed = useRef(null) // For jitter smoothing EMA
   const collisionConfidence = useRef(0) // Confidence score for current prediction
   const subFrameTime = useRef(0) // For sub-frame collision timing
+  
+  // Ownership state
+  const isOwner = localPlayerRef?.current?.userData?.sessionId === ballOwner
   
   useImperativeHandle(ref, () => {
     const obj = groupRef.current || {}
@@ -226,11 +282,16 @@ export const ClientBallVisual = React.forwardRef(({
     }
 
     // === VELOCITY-WEIGHTED RECONCILIATION ===
-    // Fast ball = trust prediction more, slow ball = trust server more
+    // If owner: Trust prediction MORE (less reconciliation)
+    // If not owner: Trust server MORE (more reconciliation)
     const speed = serverVelocity.current.length()
     const velocityFactor = Math.max(0.3, 1 - speed / 40) // 0.3 at high speed, 1.0 at rest
     const pingFactor = Math.max(0.3, 1 - ping / 300)
-    const reconcileRate = 1 - Math.exp(-12 * pingFactor * velocityFactor * delta)
+    
+    // Ownership influence on reconciliation
+    const ownershipFactor = isOwner ? 0.2 : 1.0 // Owner reconciles 5x slower (trusts local physics)
+    
+    const reconcileRate = 1 - Math.exp(-12 * pingFactor * velocityFactor * ownershipFactor * delta)
     
     predictedVelocity.current.lerp(serverVelocity.current, reconcileRate)
 
@@ -437,6 +498,12 @@ export const ClientBallVisual = React.forwardRef(({
       >
         <SoccerBall onKickFeedback={kickFeedback} />
       </Trail>
+      {isOwner && (
+        <TrajectoryLine 
+          startPos={groupRef.current?.position || new THREE.Vector3()} 
+          startVel={predictedVelocity.current} 
+        />
+      )}
     </group>
   )
 })
