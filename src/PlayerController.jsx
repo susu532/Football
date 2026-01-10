@@ -158,6 +158,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
         verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
         jumpCount.current++
         isOnGround.current = false
+        // Store for history
+        groupRef.current.userData.lastJumpTriggered = true
       }
       prevJump.current = pendingJump.current
 
@@ -279,7 +281,13 @@ export const PlayerController = React.forwardRef((props, ref) => {
         const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
         
         validHistory.forEach(historyItem => {
-          const { input } = historyItem
+          const { input, jumpCountSnapshot } = historyItem
+          
+          // Restore exact jumpCount before re-simulating this input frame
+          // This ensures we match the state we had when we first processed this input
+          if (jumpCountSnapshot !== undefined) {
+            jumpCount.current = jumpCountSnapshot
+          }
           
           // Re-run physics step (simplified version of main loop)
           // Note: Inputs are at 60Hz, Physics is 120Hz.
@@ -294,8 +302,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
             }
             
             // Jump (only on first step of the input frame to avoid double jumping)
-            // Use stored jumpPressed event for reliable replay
-            if (i === 0 && input.jumpPressed && jumpCount.current < MAX_JUMPS) {
+            // Use stored jumpTriggered event for reliable replay
+            if (i === 0 && input.jumpTriggered && jumpCount.current < MAX_JUMPS) {
                const jumpMult = serverState.jumpMult || 1
                const baseJumpForce = JUMP_FORCE * jumpMult
                verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
@@ -359,15 +367,18 @@ export const PlayerController = React.forwardRef((props, ref) => {
           ...input, 
           x: moveDir.current.x, // Store the exact direction sent to server
           z: moveDir.current.z,
-          jumpPressed: pendingJump.current, // Store the event!
+          jumpTriggered: groupRef.current.userData.lastJumpTriggered || false, // Store the actual trigger event!
           rotY: groupRef.current.rotation.y 
         },
+        jumpCountSnapshot: jumpCount.current, 
         timestamp: now
       })
-      // Keep buffer size manageable (e.g., last 2 seconds)
-      if (inputHistory.current.length > 120) {
-        inputHistory.current.shift()
-      }
+      // Reset trigger for next input frame
+      groupRef.current.userData.lastJumpTriggered = false
+
+      // Keep buffer size manageable (last 2 seconds)
+      const TWO_SECONDS_AGO = now - 2.0
+      inputHistory.current = inputHistory.current.filter(h => h.timestamp > TWO_SECONDS_AGO)
       
       sendInput({
         x: moveDir.current.x,
