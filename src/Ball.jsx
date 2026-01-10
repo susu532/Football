@@ -92,7 +92,7 @@ const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
 const BALL_RESTITUTION = 0.75
-const GRAVITY = 12 // Synced with client/server
+const GRAVITY = 20
 const LINEAR_DAMPING = 1.5
 
 // Ultra-aggressive interpolation for instant response
@@ -130,14 +130,14 @@ const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
 }
 
 // Anticipatory trajectory prediction with gravity
-const predictFuturePosition = (pos, vel, time, gravity = 12) => ({
+const predictFuturePosition = (pos, vel, time, gravity) => ({
   x: pos.x + vel.x * time,
   y: Math.max(BALL_RADIUS, pos.y + vel.y * time - 0.5 * gravity * time * time),
   z: pos.z + vel.z * time
 })
 
 // Trajectory Line Component
-const TrajectoryLine = ({ startPos, startVel, gravity = 12 }) => {
+const TrajectoryLine = ({ startPos, startVel, gravity = 20 }) => {
   const points = useMemo(() => {
     const pts = []
     const pos = startPos.clone()
@@ -221,7 +221,7 @@ export const ClientBallVisual = React.forwardRef(({
     obj.userData.predictKick = (impulse) => {
       // INSTANT local kick response - before server roundtrip
       // Apply impulse / mass to get velocity change (F = ma -> dv = J/m)
-      const invMass = 1 / 1.5 // Ball mass is 1.5kg (Reduced from 3.0)
+      const invMass = 1 / 3.0 // Ball mass is 3.0kg
       predictedVelocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
@@ -306,31 +306,6 @@ export const ClientBallVisual = React.forwardRef(({
     
     if (targetPos.current.y > BALL_RADIUS) {
       predictedVelocity.current.y -= GRAVITY * delta
-    }
-
-    // === DRIBBLE STABILIZATION (Client Prediction) ===
-    if (localPlayerRef?.current?.position) {
-      const playerPos = localPlayerRef.current.position
-      const dx = targetPos.current.x - playerPos.x
-      const dz = targetPos.current.z - playerPos.z
-      const dy = targetPos.current.y - playerPos.y
-      
-      const isGiant = localPlayerRef.current.userData?.giant || false
-      const giantScale = isGiant ? 5 : 1
-      const horizontalRange = 1.2 * giantScale
-      const verticalMin = 0.8 * giantScale
-      const verticalMax = 2.0 * giantScale
-      
-      if (dx * dx + dz * dz < horizontalRange * horizontalRange && dy > verticalMin && dy < verticalMax) {
-        // Apply centering force
-        const strength = 15.0
-        predictedVelocity.current.x -= dx * strength * delta
-        predictedVelocity.current.z -= dz * strength * delta
-        
-        // Extra damping
-        predictedVelocity.current.x *= 0.95
-        predictedVelocity.current.z *= 0.95
-      }
     }
 
     // === WALL/ARENA COLLISION PREDICTION ===
