@@ -300,24 +300,14 @@ export const PlayerController = React.forwardRef((props, ref) => {
                const baseJumpForce = JUMP_FORCE * jumpMult
                verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
                jumpCount.current++
+               isOnGround.current = false
             }
             
-            // Movement
-            moveDir.current.set(0, 0, 0)
-            const forwardX = Math.sin(input.rotY)
-            const forwardZ = Math.cos(input.rotY)
-            const rightX = Math.cos(input.rotY)
-            const rightZ = -Math.sin(input.rotY)
-            
-            moveDir.current.x = forwardX * -input.move.z + rightX * input.move.x
-            moveDir.current.z = forwardZ * -input.move.z + rightZ * input.move.x
-            
-            if (moveDir.current.length() > 0) moveDir.current.normalize()
-              
+            // Movement - Use stored x/z from history (matches what was sent to server)
             const speedMult = serverState.speedMult || 1
             const speed = MOVE_SPEED * speedMult
-            const targetVx = moveDir.current.x * speed
-            const targetVz = moveDir.current.z * speed
+            const targetVx = (input.x || 0) * speed
+            const targetVz = (input.z || 0) * speed
             
             velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
             velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
@@ -331,6 +321,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
             if (newY <= GROUND_Y) {
               newY = GROUND_Y
               verticalVelocity.current = 0
+              jumpCount.current = 0 // Reset jump count on ground hit!
             }
             
             // Bounds
@@ -366,6 +357,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
         tick: serverState?.tick || 0, // Approximate tick
         input: { 
           ...input, 
+          x: moveDir.current.x, // Store the exact direction sent to server
+          z: moveDir.current.z,
           jumpPressed: pendingJump.current, // Store the event!
           rotY: groupRef.current.rotation.y 
         },

@@ -87,7 +87,7 @@ const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
 const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = 0.8
-const PLAYER_RADIUS = 0.14
+const PLAYER_RADIUS = 0.6 // Increased from 0.14 to match server cuboid(0.6, 0.2, 0.6)
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
@@ -346,7 +346,7 @@ export const ClientBallVisual = React.forwardRef(({
       
       // === DYNAMIC COLLISION RADIUS for giant power-up ===
       const isGiant = localPlayerRef.current.userData?.giant || false
-      const giantScale = isGiant ? 10 : 1
+      const giantScale = isGiant ? 5 : 1 // Reduced from 10 to 5 for stability
       const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
       const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
       
@@ -444,7 +444,8 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z += (playerVel.z || 0) * 0.5
           
           // INSTANT position correction with sub-frame advancement
-          const overlap = dynamicCombinedRadius - contactDist + 0.02
+          // Clamp overlap to prevent teleports with giant powerup
+          const overlap = Math.min(1.0, dynamicCombinedRadius - contactDist + 0.02)
           if (overlap > 0) {
             // Advance remaining time after collision
             const remainingTime = delta * (1 - subFrameTime.current)
