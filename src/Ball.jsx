@@ -92,7 +92,7 @@ const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
 const BALL_RESTITUTION = 0.75
-const GRAVITY = 12 // Reduced from 20
+const GRAVITY = 12 // Synced with client/server
 const LINEAR_DAMPING = 1.5
 
 // Ultra-aggressive interpolation for instant response
@@ -306,6 +306,31 @@ export const ClientBallVisual = React.forwardRef(({
     
     if (targetPos.current.y > BALL_RADIUS) {
       predictedVelocity.current.y -= GRAVITY * delta
+    }
+
+    // === DRIBBLE STABILIZATION (Client Prediction) ===
+    if (localPlayerRef?.current?.position) {
+      const playerPos = localPlayerRef.current.position
+      const dx = targetPos.current.x - playerPos.x
+      const dz = targetPos.current.z - playerPos.z
+      const dy = targetPos.current.y - playerPos.y
+      
+      const isGiant = localPlayerRef.current.userData?.giant || false
+      const giantScale = isGiant ? 5 : 1
+      const horizontalRange = 1.2 * giantScale
+      const verticalMin = 0.8 * giantScale
+      const verticalMax = 2.0 * giantScale
+      
+      if (dx * dx + dz * dz < horizontalRange * horizontalRange && dy > verticalMin && dy < verticalMax) {
+        // Apply centering force
+        const strength = 15.0
+        predictedVelocity.current.x -= dx * strength * delta
+        predictedVelocity.current.z -= dz * strength * delta
+        
+        // Extra damping
+        predictedVelocity.current.x *= 0.95
+        predictedVelocity.current.z *= 0.95
+      }
     }
 
     // === WALL/ARENA COLLISION PREDICTION ===
