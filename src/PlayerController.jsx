@@ -77,6 +77,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const lastInputTime = useRef(0)
   const lastKickTime = useRef(0)
   const inputSequence = useRef(0)
+  const lastReconciledTick = useRef(0)
 
   useImperativeHandle(ref, () => ({
     get position() { return groupRef.current?.position || new THREE.Vector3() },
@@ -240,7 +241,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
     // Server reconciliation (smooth correction of physics position)
     // We only reconcile if we have a valid server state and it's newer than our last check
-    const lastReconciledTick = useRef(0)
     
     if (serverState && serverState.tick > lastReconciledTick.current) {
       lastReconciledTick.current = serverState.tick
