@@ -163,6 +163,18 @@ export const MAP_DATA = [
     lightIntensity: 0.6,
     environmentPreset: 'forest'
   },
+  { 
+    id: 'JapaneseTown', 
+    name: 'Japanese Town', 
+    path: '/maps_3/japaneses-town/source/japanese_town.glb', 
+    scale: 10, 
+    position: [0, -10, 0], 
+    emoji: '⛩️', 
+    image: '/placeholders/Screenshots-20260110090829.png',
+    ambientIntensity: 0.5,
+    lightIntensity: 0.8,
+    environmentPreset: 'city'
+  },
 ]
 
 export function MapRenderer({ mapId }) {
