@@ -11,7 +11,7 @@ import CharacterSkin from './CharacterSkin'
 const MOVE_SPEED = 8
 const JUMP_FORCE = 8
 const DOUBLE_JUMP_MULTIPLIER = 0.8
-const GRAVITY = 20
+const GRAVITY = 20 // Reduced from 20
 const GROUND_Y = 0.1
 const MAX_JUMPS = 2
 const INPUT_SEND_RATE = 1 / 60 // 60Hz

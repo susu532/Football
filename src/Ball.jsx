@@ -92,7 +92,7 @@ const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
 const BALL_RESTITUTION = 0.75
-const GRAVITY = 20
+const GRAVITY = 12 // Reduced from 20
 const LINEAR_DAMPING = 1.5
 
 // Ultra-aggressive interpolation for instant response
@@ -130,14 +130,14 @@ const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
 }
 
 // Anticipatory trajectory prediction with gravity
-const predictFuturePosition = (pos, vel, time, gravity) => ({
+const predictFuturePosition = (pos, vel, time, gravity = 12) => ({
   x: pos.x + vel.x * time,
   y: Math.max(BALL_RADIUS, pos.y + vel.y * time - 0.5 * gravity * time * time),
   z: pos.z + vel.z * time
 })
 
 // Trajectory Line Component
-const TrajectoryLine = ({ startPos, startVel, gravity = 20 }) => {
+const TrajectoryLine = ({ startPos, startVel, gravity = 12 }) => {
   const points = useMemo(() => {
     const pts = []
     const pos = startPos.clone()
@@ -221,7 +221,7 @@ export const ClientBallVisual = React.forwardRef(({
     obj.userData.predictKick = (impulse) => {
       // INSTANT local kick response - before server roundtrip
       // Apply impulse / mass to get velocity change (F = ma -> dv = J/m)
-      const invMass = 1 / 3.0 // Ball mass is 3.0kg
+      const invMass = 1 / 1.5 // Ball mass is 1.5kg (Reduced from 3.0)
       predictedVelocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
