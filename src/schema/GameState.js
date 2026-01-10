@@ -44,6 +44,7 @@ defineTypes(PlayerState, {
   speedMult: 'number',
   jumpMult: 'number',
   kickMult: 'number',
+  jumpCount: 'number',
   tick: 'number'
 })
 

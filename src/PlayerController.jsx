@@ -78,6 +78,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const lastKickTime = useRef(0)
   const inputSequence = useRef(0)
   const lastReconciledTick = useRef(0)
+  
+  // Input Buffering (Captures events between frames)
+  const pendingJump = useRef(false)
+  const pendingKick = useRef(false)
 
   useImperativeHandle(ref, () => ({
     get position() { return groupRef.current?.position || new THREE.Vector3() },
@@ -112,6 +116,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
     const now = state.clock.getElapsedTime()
     const input = InputManager.getInput()
     
+    // Buffer events
+    if (input.jump) pendingJump.current = true
+    if (input.kick) pendingKick.current = true
+    
     // Get camera direction for relative movement (reuse pre-allocated vectors)
     camera.getWorldDirection(cameraForward.current)
     cameraForward.current.y = 0
@@ -143,14 +151,15 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
 
       // 3. Handle Jump (overrides gravity for this frame)
-      if (input.jump && !prevJump.current && jumpCount.current < MAX_JUMPS) {
+      const jumpTriggered = pendingJump.current && !prevJump.current
+      if (jumpTriggered && jumpCount.current < MAX_JUMPS) {
         const jumpMult = serverState?.jumpMult || 1
         const baseJumpForce = JUMP_FORCE * jumpMult
         verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
         jumpCount.current++
         isOnGround.current = false
       }
-      prevJump.current = input.jump
+      prevJump.current = pendingJump.current
 
       // Apply physics (local prediction)
       const speedMult = serverState?.speedMult || 1
@@ -187,9 +196,12 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Handle kick - send to server (outside fixed loop, event based)
-    if (input.kick && sendKick) {
+    if (pendingKick.current && sendKick) {
       // Kick cooldown (200ms) to prevent spam
-      if (now - lastKickTime.current < 0.2) return
+      if (now - lastKickTime.current < 0.2) {
+        pendingKick.current = false // Consume even if on cooldown
+        return
+      }
       lastKickTime.current = now
 
       if (onLocalInteraction) onLocalInteraction()
@@ -219,6 +231,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
           z: impulseZ
         })
       }
+      pendingKick.current = false
     }
 
     // Visual Interpolation (Smooth Glide)
@@ -259,6 +272,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         physicsPosition.current.copy(serverPos.current)
         velocity.current.set(serverState.vx, serverState.vy, serverState.vz)
         verticalVelocity.current = serverState.vy
+        jumpCount.current = serverState.jumpCount || 0 // Sync jump count!
         
         // REPLAY: Re-simulate inputs since server tick
         // Filter history for inputs newer than server tick
@@ -280,7 +294,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
             }
             
             // Jump (only on first step of the input frame to avoid double jumping)
-            if (i === 0 && input.jump && jumpCount.current < MAX_JUMPS) {
+            // Use stored jumpPressed event for reliable replay
+            if (i === 0 && input.jumpPressed && jumpCount.current < MAX_JUMPS) {
                const jumpMult = serverState.jumpMult || 1
                const baseJumpForce = JUMP_FORCE * jumpMult
                verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
@@ -349,7 +364,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Store input in history buffer
       inputHistory.current.push({
         tick: serverState?.tick || 0, // Approximate tick
-        input: { ...input, rotY: groupRef.current.rotation.y },
+        input: { 
+          ...input, 
+          jumpPressed: pendingJump.current, // Store the event!
+          rotY: groupRef.current.rotation.y 
+        },
         timestamp: now
       })
       // Keep buffer size manageable (e.g., last 2 seconds)
@@ -360,10 +379,13 @@ export const PlayerController = React.forwardRef((props, ref) => {
       sendInput({
         x: moveDir.current.x,
         z: moveDir.current.z,
-        jump: input.jump,
+        jump: pendingJump.current, // Send the buffered jump
         rotY: groupRef.current.rotation.y,
         seq: inputSequence.current
       })
+
+      // Consume buffered jump
+      pendingJump.current = false
     }
   })
 
