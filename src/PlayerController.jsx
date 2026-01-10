@@ -100,6 +100,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Handled on server
   }, [])
 
+  // Fixed timestep accumulator
+  const accumulator = useRef(0)
+  const FIXED_TIMESTEP = 1 / 120
+  const inputHistory = useRef([])
+
   useFrame((state, delta) => {
     if (!groupRef.current) return
 
@@ -123,27 +128,64 @@ export const PlayerController = React.forwardRef((props, ref) => {
       moveDir.current.normalize()
     }
 
-    // 1. Apply Gravity first (matches server)
-    verticalVelocity.current -= GRAVITY * delta
+    // Accumulate time for fixed timestep
+    accumulator.current += delta
+    
+    // Physics loop - Fixed Timestep
+    while (accumulator.current >= FIXED_TIMESTEP) {
+      // 1. Apply Gravity first (matches server)
+      verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
 
-    // 2. Ground Check (reset jump count if on ground)
-    // Matches server: if (currentPos.y <= GROUND_Y + 0.05 && player.vy <= 0)
-    if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
-      jumpCount.current = 0
+      // 2. Ground Check (reset jump count if on ground)
+      if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+        jumpCount.current = 0
+      }
+
+      // 3. Handle Jump (overrides gravity for this frame)
+      if (input.jump && !prevJump.current && jumpCount.current < MAX_JUMPS) {
+        const jumpMult = serverState?.jumpMult || 1
+        const baseJumpForce = JUMP_FORCE * jumpMult
+        verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
+        jumpCount.current++
+        isOnGround.current = false
+      }
+      prevJump.current = input.jump
+
+      // Apply physics (local prediction)
+      const speedMult = serverState?.speedMult || 1
+      const speed = MOVE_SPEED * speedMult
+      // Smoothed velocity (matches server 0.3 factor)
+      const targetVx = moveDir.current.x * speed
+      const targetVz = moveDir.current.z * speed
+      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
+      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+      
+      // 4. Calculate new physics position
+      let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
+      let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
+      let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
+
+      // 5. Ground Clamp
+      if (newY <= GROUND_Y) {
+        newY = GROUND_Y
+        verticalVelocity.current = 0
+        isOnGround.current = true
+        jumpCount.current = 0
+      }
+
+      // Bounds checking
+      const wallMargin = 0.3
+      newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
+      newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+
+      // Update physics position
+      physicsPosition.current.set(newX, newY, newZ)
+
+      // Decrement accumulator
+      accumulator.current -= FIXED_TIMESTEP
     }
 
-    // 3. Handle Jump (overrides gravity for this frame)
-    if (input.jump && !prevJump.current && jumpCount.current < MAX_JUMPS) {
-      const jumpMult = serverState?.jumpMult || 1
-      const baseJumpForce = JUMP_FORCE * jumpMult
-      // Matches server: player.vy = player.jumpCount === 0 ? jumpForce : jumpForce * DOUBLE_JUMP_MULTIPLIER
-      verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
-      jumpCount.current++
-      isOnGround.current = false
-    }
-    prevJump.current = input.jump
-
-    // Handle kick - send to server
+    // Handle kick - send to server (outside fixed loop, event based)
     if (input.kick && sendKick) {
       // Kick cooldown (200ms) to prevent spam
       if (now - lastKickTime.current < 0.2) return
@@ -169,7 +211,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
       })
 
       // INSTANT LOCAL PREDICTION
-      // Apply the same boost server does (0.8 * kickMult)
       if (ballRef?.current?.userData?.predictKick) {
         ballRef.current.userData.predictKick({
           x: impulseX,
@@ -179,38 +220,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
     }
 
-    // Apply physics (local prediction)
-    const speedMult = serverState?.speedMult || 1
-    const speed = MOVE_SPEED * speedMult
-    // Smoothed velocity (matches server 0.3 factor)
-    const targetVx = moveDir.current.x * speed
-    const targetVz = moveDir.current.z * speed
-    velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
-    velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
-    
-    // 4. Calculate new physics position
-    let newX = physicsPosition.current.x + velocity.current.x * delta
-    let newY = physicsPosition.current.y + verticalVelocity.current * delta
-    let newZ = physicsPosition.current.z + velocity.current.z * delta
-
-    // 5. Ground Clamp
-    if (newY <= GROUND_Y) {
-      newY = GROUND_Y
-      verticalVelocity.current = 0
-      isOnGround.current = true
-      jumpCount.current = 0
-    }
-
-    // Bounds checking
-    const wallMargin = 0.3
-    newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
-    newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
-
-    // Update physics position
-    physicsPosition.current.set(newX, newY, newZ)
-
     // Visual Interpolation (Smooth Glide)
-    // The visual model glides toward the predicted physics position
     const visualLambda = 25
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
     groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
@@ -259,6 +269,17 @@ export const PlayerController = React.forwardRef((props, ref) => {
     if (now - lastInputTime.current >= INPUT_SEND_RATE && sendInput) {
       lastInputTime.current = now
       inputSequence.current++
+      
+      // Store input in history buffer
+      inputHistory.current.push({
+        tick: serverState?.tick || 0, // Approximate tick
+        input: { ...input, rotY: groupRef.current.rotation.y },
+        timestamp: now
+      })
+      // Keep buffer size manageable (e.g., last 2 seconds)
+      if (inputHistory.current.length > 120) {
+        inputHistory.current.shift()
+      }
       
       sendInput({
         x: moveDir.current.x,
