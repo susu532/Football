@@ -111,8 +111,8 @@ export const MAP_DATA = [
     position: [0, -6.6, 0], 
     emoji: '🏝️', 
     image: '/placeholders/Screenshots-20260105143421.png',
-    ambientIntensity: 0.6,
-    lightIntensity: 1.0,
+    ambientIntensity: 0.3,
+    lightIntensity: 0.5,
     environmentPreset: 'sunset'
   },
   { 
