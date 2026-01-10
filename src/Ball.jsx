@@ -7,6 +7,7 @@ import { useFrame } from '@react-three/fiber'
 import { useGLTF, Trail } from '@react-three/drei'
 import * as THREE from 'three'
 import { useSpring, a } from '@react-spring/three'
+import { PHYSICS } from './PhysicsConstants.js'
 
 // Soccer Ball Visual Component
 export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, ref) => {
@@ -86,14 +87,14 @@ const COLLISION_COOLDOWN = 0.004 // 4ms - near-instant re-collision
 const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
 const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
-const BALL_RADIUS = 0.8
-const PLAYER_RADIUS = 0.6 // Increased from 0.14 to match server cuboid(0.6, 0.2, 0.6)
+const BALL_RADIUS = PHYSICS.BALL_RADIUS
+const PLAYER_RADIUS = PHYSICS.PLAYER_RADIUS // Increased from 0.14 to match server cuboid(0.6, 0.2, 0.6)
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
-const BALL_RESTITUTION = 0.75
-const GRAVITY = 20
-const LINEAR_DAMPING = 1.5
+const BALL_RESTITUTION = PHYSICS.BALL_RESTITUTION
+const GRAVITY = PHYSICS.WORLD_GRAVITY
+const LINEAR_DAMPING = PHYSICS.BALL_LINEAR_DAMPING
 
 // Ultra-aggressive interpolation for instant response
 const LERP_NORMAL = 25 // Snappy base
@@ -221,7 +222,7 @@ export const ClientBallVisual = React.forwardRef(({
     obj.userData.predictKick = (impulse) => {
       // INSTANT local kick response - before server roundtrip
       // Apply impulse / mass to get velocity change (F = ma -> dv = J/m)
-      const invMass = 1 / 3.0 // Ball mass is 3.0kg
+      const invMass = 1 / PHYSICS.BALL_MASS 
       predictedVelocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
@@ -309,9 +310,9 @@ export const ClientBallVisual = React.forwardRef(({
     }
 
     // === WALL/ARENA COLLISION PREDICTION ===
-    const ARENA_HALF_WIDTH = 14.5
-    const ARENA_HALF_DEPTH = 9.5
-    const GOAL_HALF_WIDTH = 2.5
+    const ARENA_HALF_WIDTH = PHYSICS.ARENA_HALF_WIDTH
+    const ARENA_HALF_DEPTH = PHYSICS.ARENA_HALF_DEPTH
+    const GOAL_HALF_WIDTH = PHYSICS.GOAL_WIDTH / 2
     const GOAL_X = 11.2
     
     // X walls (with goal gaps)
@@ -433,7 +434,7 @@ export const ClientBallVisual = React.forwardRef(({
           const boostFactor = isGiant ? 2.0 : 1.2 // Giant kicks harder
           
           // Apply impulse scaled by confidence for speculative hits
-          const impulseFactor = isSpeculative && !isCurrentCollision ? 0.85 : 1.0
+          const impulseFactor = isSpeculative && !isCurrentCollision ? PHYSICS.SPECULATIVE_IMPULSE_FACTOR : 1.0
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
           predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)

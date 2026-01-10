@@ -6,14 +6,16 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import InputManager from './InputManager'
 import CharacterSkin from './CharacterSkin'
+import { PHYSICS } from './PhysicsConstants.js'
 
 // Physics constants
-const MOVE_SPEED = 8
-const JUMP_FORCE = 8
-const DOUBLE_JUMP_MULTIPLIER = 0.8
-const GRAVITY = 20
-const GROUND_Y = 0.1
-const MAX_JUMPS = 2
+// Physics constants
+const MOVE_SPEED = PHYSICS.MOVE_SPEED
+const JUMP_FORCE = PHYSICS.JUMP_FORCE
+const DOUBLE_JUMP_MULTIPLIER = PHYSICS.DOUBLE_JUMP_MULTIPLIER
+const GRAVITY = PHYSICS.GRAVITY
+const GROUND_Y = PHYSICS.GROUND_Y
+const MAX_JUMPS = PHYSICS.MAX_JUMPS
 const INPUT_SEND_RATE = 1 / 60 // 60Hz
 
 // PlayerController: Handles local player input => sends to server + local prediction
@@ -107,7 +109,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
   // Fixed timestep accumulator
   const accumulator = useRef(0)
-  const FIXED_TIMESTEP = 1 / 120
+  const FIXED_TIMESTEP = PHYSICS.FIXED_TIMESTEP
   const inputHistory = useRef([])
 
   useFrame((state, delta) => {
@@ -202,6 +204,21 @@ export const PlayerController = React.forwardRef((props, ref) => {
         pendingKick.current = false // Consume even if on cooldown
         return
       }
+
+      // Client-side distance validation (matches server SoccerRoom.js:394)
+      const playerPos = groupRef.current.position
+      const ballPos = ballRef.current?.position
+      let canKick = false
+      if (ballPos) {
+        const dist = playerPos.distanceTo(ballPos)
+        if (dist < 3.0) canKick = true
+      }
+
+      if (!canKick) {
+        pendingKick.current = false
+        return
+      }
+
       lastKickTime.current = now
 
       if (onLocalInteraction) onLocalInteraction()
@@ -210,7 +227,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const forwardX = Math.sin(rotation)
       const forwardZ = Math.cos(rotation)
       const kickMult = serverState?.kickMult || 1
-      const kickPower = 65 * kickMult
+      const kickPower = PHYSICS.KICK_POWER * kickMult
       
       const impulseX = forwardX * kickPower + velocity.current.x * 2
       const impulseY = 0.5 * kickPower
@@ -335,6 +352,14 @@ export const PlayerController = React.forwardRef((props, ref) => {
         
         // Prune old history
         inputHistory.current = validHistory
+
+        // SMOOTH RECONCILIATION: If error was significant but not massive, 
+        // we can blend the visual position to avoid a pop.
+        // The visual damp (line 240) already handles this if we update physicsPosition here.
+        // But if we want it even smoother for medium errors:
+        if (errorMagnitude < 0.5) {
+          // Optional: we could reduce the visualLambda temporarily
+        }
       }
     }
 
