@@ -281,6 +281,11 @@ export const ClientBallVisual = React.forwardRef(({
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
 
+    // Extrapolate target position by latency (ping) to see ball in "present" time
+    // This removes the feeling of input lag for the owner
+    const latencyCorrection = pingSeconds / 2 + 0.016 // Half RTT + 1 frame
+    targetPos.current.addScaledVector(serverVelocity.current, latencyCorrection)
+
     // === VELOCITY-WEIGHTED RECONCILIATION ===
     // If owner: Trust prediction MORE (less reconciliation)
     // If not owner: Trust server MORE (more reconciliation)
@@ -459,8 +464,16 @@ export const ClientBallVisual = React.forwardRef(({
     // 5. ULTRA-AGGRESSIVE visual interpolation with CONFIDENCE WEIGHTING
     const distance = groupRef.current.position.distanceTo(targetPos.current)
     
-    if (distance > LERP_SNAP_THRESHOLD) {
+    // NaN Protection: If target is invalid, snap to server immediately
+    if (isNaN(targetPos.current.x) || isNaN(targetPos.current.y) || isNaN(targetPos.current.z)) {
+      targetPos.current.copy(serverPosSmoothed.current)
+      predictedVelocity.current.copy(serverVelocity.current)
+    }
+
+    // PANIC SNAP: If divergence is too high, force snap to server (fixes freezing)
+    if (distance > 2.0) { // Reduced threshold from 8 to 2 meters
       groupRef.current.position.copy(targetPos.current)
+      predictedVelocity.current.copy(serverVelocity.current) // Reset velocity too
     } else if (collisionThisFrame.current) {
       // INSTANT snap on collision - confidence-weighted
       const confidenceBoost = 1 + collisionConfidence.current * 0.5

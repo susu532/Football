@@ -222,7 +222,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Visual Interpolation (Smooth Glide)
-    const visualLambda = 25
+    // Reduced from 25 to 15 for smoother feel
+    const visualLambda = 15
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
     groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
     groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)
@@ -267,80 +268,63 @@ export const PlayerController = React.forwardRef((props, ref) => {
           const { input } = historyItem
           
           // Re-run physics step (simplified version of main loop)
-          // Note: We assume 1 step per input for simplicity, 
-          // but ideally we'd store delta time with input
-          
-          // Apply Gravity
-          verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
-          
-          // Ground Check
-          if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
-            jumpCount.current = 0
-          }
-          
-          // Jump
-          if (input.jump && jumpCount.current < MAX_JUMPS) {
-             // We don't have prevJump state perfectly here, but it's a reasonable approx
-             // for reconciliation to assume jump input triggers jump if allowed
-             // A more robust system would store 'jumpPressedThisFrame' in history
-             const jumpMult = serverState.jumpMult || 1
-             const baseJumpForce = JUMP_FORCE * jumpMult
-             verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
-             jumpCount.current++
-          }
-          
-          // Movement
-          moveDir.current.set(0, 0, 0)
-          // We need to reconstruct moveDir from input.move (relative to camera at that time)
-          // But we stored raw input (x, z). We don't have camera history.
-          // Approximation: Use current camera or stored rotation?
-          // Better: We stored rotY in input history!
-          const forwardX = Math.sin(input.rotY)
-          const forwardZ = Math.cos(input.rotY)
-          const rightX = Math.cos(input.rotY)
-          const rightZ = -Math.sin(input.rotY)
-          
-          // Reconstruct world move vector
-          // input.move.z is forward/back (-1 is forward)
-          // input.move.x is left/right
-          // Note: InputManager returns z: -1 for forward.
-          // So forward movement is -(-1) * forwardVec = forwardVec
-          
-          // Actually, let's look at main loop:
-          // moveDir.addScaledVector(cameraForward, -input.move.z)
-          // moveDir.addScaledVector(cameraRight, input.move.x)
-          
-          // We can approximate using the stored rotation as "forward"
-          moveDir.current.x = forwardX * -input.move.z + rightX * input.move.x
-          moveDir.current.z = forwardZ * -input.move.z + rightZ * input.move.x
-          
-          if (moveDir.current.length() > 0) moveDir.current.normalize()
+          // Note: Inputs are at 60Hz, Physics is 120Hz.
+          // We must run 2 steps per input to match the simulation speed.
+          for (let i = 0; i < 2; i++) {
+            // Apply Gravity
+            verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
             
-          const speedMult = serverState.speedMult || 1
-          const speed = MOVE_SPEED * speedMult
-          const targetVx = moveDir.current.x * speed
-          const targetVz = moveDir.current.z * speed
-          
-          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
-          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
-          
-          // Integrate
-          let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
-          let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
-          let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
-          
-          // Ground Clamp
-          if (newY <= GROUND_Y) {
-            newY = GROUND_Y
-            verticalVelocity.current = 0
+            // Ground Check
+            if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+              jumpCount.current = 0
+            }
+            
+            // Jump (only on first step of the input frame to avoid double jumping)
+            if (i === 0 && input.jump && jumpCount.current < MAX_JUMPS) {
+               const jumpMult = serverState.jumpMult || 1
+               const baseJumpForce = JUMP_FORCE * jumpMult
+               verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
+               jumpCount.current++
+            }
+            
+            // Movement
+            moveDir.current.set(0, 0, 0)
+            const forwardX = Math.sin(input.rotY)
+            const forwardZ = Math.cos(input.rotY)
+            const rightX = Math.cos(input.rotY)
+            const rightZ = -Math.sin(input.rotY)
+            
+            moveDir.current.x = forwardX * -input.move.z + rightX * input.move.x
+            moveDir.current.z = forwardZ * -input.move.z + rightZ * input.move.x
+            
+            if (moveDir.current.length() > 0) moveDir.current.normalize()
+              
+            const speedMult = serverState.speedMult || 1
+            const speed = MOVE_SPEED * speedMult
+            const targetVx = moveDir.current.x * speed
+            const targetVz = moveDir.current.z * speed
+            
+            velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
+            velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+            
+            // Integrate
+            let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
+            let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
+            let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
+            
+            // Ground Clamp
+            if (newY <= GROUND_Y) {
+              newY = GROUND_Y
+              verticalVelocity.current = 0
+            }
+            
+            // Bounds
+            const wallMargin = 0.3
+            newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
+            newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+            
+            physicsPosition.current.set(newX, newY, newZ)
           }
-          
-          // Bounds
-          const wallMargin = 0.3
-          newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
-          newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
-          
-          physicsPosition.current.set(newX, newY, newZ)
         })
         
         // Prune old history
