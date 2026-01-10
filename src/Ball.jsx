@@ -205,12 +205,20 @@ export const ClientBallVisual = React.forwardRef(({
   const predictedVelocity = useRef(new THREE.Vector3(0, 0, 0))
   const kickFeedback = useRef(null)
   const lastCollisionTime = useRef(0)
+  const lastCollisionFrame = useRef(0)
   const collisionThisFrame = useRef(false)
   const lastCollisionNormal = useRef(new THREE.Vector3())
   const serverPosSmoothed = useRef(null) // For jitter smoothing EMA
   const collisionConfidence = useRef(0) // Confidence score for current prediction
   const subFrameTime = useRef(0) // For sub-frame collision timing
   
+  // Pre-allocated objects for per-frame calculations
+  const _v1 = useRef(new THREE.Vector3())
+  const _v2 = useRef(new THREE.Vector3())
+  const _v3 = useRef(new THREE.Vector3())
+  const _q1 = useRef(new THREE.Quaternion())
+  const _serverPos = useRef(new THREE.Vector3())
+
   // Ownership state
   const isOwner = localPlayerRef?.current?.userData?.sessionId === ballOwner
   
@@ -265,13 +273,15 @@ export const ClientBallVisual = React.forwardRef(({
     const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
     
     // === JITTER-AWARE EMA SMOOTHING ===
-    // High jitter = smoother (0.1), low jitter = more responsive (0.25)
-    const adaptiveEMA = Math.max(0.1, Math.min(0.25, 0.15 + (pingJitter / 200) * 0.1))
-    const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
+    // High jitter = smoother (0.1), low jitter = more responsive (0.6)
+    // If jitter is very low (< 5ms), we can almost disable smoothing (0.8)
+    const adaptiveEMA = pingJitter < 5 ? 0.8 : Math.max(0.1, Math.min(0.6, 0.4 - (pingJitter / 100) * 0.3))
+    
+    _serverPos.current.set(ballState.x, ballState.y, ballState.z)
     if (!serverPosSmoothed.current) {
-      serverPosSmoothed.current = serverPos.clone()
+      serverPosSmoothed.current = _serverPos.current.clone()
     } else {
-      serverPosSmoothed.current.lerp(serverPos, adaptiveEMA)
+      serverPosSmoothed.current.lerp(_serverPos.current, adaptiveEMA)
     }
 
     // 1. Sync server state with EMA smoothing
@@ -346,17 +356,17 @@ export const ClientBallVisual = React.forwardRef(({
       
       // === DYNAMIC COLLISION RADIUS for giant power-up ===
       const isGiant = localPlayerRef.current.userData?.giant || false
-      const giantScale = isGiant ? 5 : 1 // Reduced from 10 to 5 for stability
+      const giantScale = isGiant ? 2.5 : 1 // Reduced from 5 to 2.5 for stability
       const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
       const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
       
       // Anticipatory collision with dynamic lookahead
       const futureBall = predictFuturePosition(ballPos, vel, dynamicLookahead, GRAVITY)
-      const futurePlayer = {
-        x: playerPos.x + (playerVel.x || 0) * dynamicLookahead,
-        y: playerPos.y + (playerVel.y || 0) * dynamicLookahead,
-        z: playerPos.z + (playerVel.z || 0) * dynamicLookahead
-      }
+      const futurePlayer = _v1.current.set(
+        playerPos.x + (playerVel.x || 0) * dynamicLookahead,
+        playerPos.y + (playerVel.y || 0) * dynamicLookahead,
+        playerPos.z + (playerVel.z || 0) * dynamicLookahead
+      )
       
       // Distance checks
       const dx = ballPos.x - playerPos.x
@@ -370,7 +380,7 @@ export const ClientBallVisual = React.forwardRef(({
       const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
       
       // Sweep test with dynamic radius
-      const ballEnd = targetPos.current.clone()
+      const ballEnd = _v2.current.copy(targetPos.current)
       const sweepT = sweepSphereToSphere(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
       
       // Collision conditions
@@ -382,18 +392,28 @@ export const ClientBallVisual = React.forwardRef(({
       
       // === SPECULATIVE COLLISION DETECTION ===
       // Pre-detect likely collisions for ultra-early response
-      const isSpeculative = futureDist < currentDist * 0.4 && // Tightened from 0.5
+      const isSpeculative = futureDist < currentDist * 0.6 && // Increased from 0.4 to 0.6
                            futureDist < dynamicCombinedRadius * 0.9 && 
                            currentDist < dynamicCombinedRadius * 1.1 // Tightened from 1.3
       
-      if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
+      // PRIORITY SYSTEM: Only process the highest priority collision type
+      const hasCollision = isCurrentCollision || isSweepCollision || isAnticipatedCollision || isSpeculative
+      const frameCount = state.gl.info.render.frame
+      
+      if (hasCollision && currentDist > 0.05 && lastCollisionFrame.current !== frameCount) {
         let nx, ny, nz, contactDist
+        let collisionType = ""
         
+        if (isCurrentCollision) collisionType = "current"
+        else if (isSweepCollision) collisionType = "sweep"
+        else if (isAnticipatedCollision) collisionType = "anticipated"
+        else if (isSpeculative) collisionType = "speculative"
+
         // === SUB-FRAME COLLISION TIMING ===
         // Use sweep hit time for micro-precise contact moment
-        if (isSweepCollision && sweepT > 0) {
+        if (collisionType === "sweep" && sweepT > 0) {
           subFrameTime.current = sweepT
-          const contactPt = ballPos.clone().lerp(ballEnd, sweepT)
+          const contactPt = _v3.current.copy(ballPos).lerp(ballEnd, sweepT)
           const cx = contactPt.x - playerPos.x
           const cy = contactPt.y - playerPos.y
           const cz = contactPt.z - playerPos.z
@@ -425,6 +445,7 @@ export const ClientBallVisual = React.forwardRef(({
         
         if (approachSpeed < 0 || isCurrentCollision) {
           lastCollisionTime.current = now
+          lastCollisionFrame.current = frameCount
           collisionThisFrame.current = true
           lastCollisionNormal.current.set(nx, ny, nz)
           
@@ -433,7 +454,7 @@ export const ClientBallVisual = React.forwardRef(({
           const boostFactor = isGiant ? 2.0 : 1.2 // Giant kicks harder
           
           // Apply impulse scaled by confidence for speculative hits
-          const impulseFactor = isSpeculative && !isCurrentCollision ? 0.85 : 1.0
+          const impulseFactor = collisionType === "speculative" && !isCurrentCollision ? 0.85 : 1.0
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
           predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)
@@ -449,9 +470,13 @@ export const ClientBallVisual = React.forwardRef(({
           if (overlap > 0) {
             // Advance remaining time after collision
             const remainingTime = delta * (1 - subFrameTime.current)
-            targetPos.current.x += nx * overlap + vel.x * remainingTime * 0.3
-            targetPos.current.y += ny * overlap * 0.5
-            targetPos.current.z += nz * overlap + vel.z * remainingTime * 0.3
+            
+            // Push-out force that scales with overlap
+            const pushOutForce = overlap * (isGiant ? 2.0 : 1.0)
+            
+            targetPos.current.x += nx * pushOutForce + vel.x * remainingTime * 0.3
+            targetPos.current.y += ny * pushOutForce * 0.5
+            targetPos.current.z += nz * pushOutForce + vel.z * remainingTime * 0.3
             
             // Immediate visual push (confidence-weighted)
             const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)

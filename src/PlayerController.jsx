@@ -169,8 +169,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Smoothed velocity (matches server 0.3 factor)
       const targetVx = moveDir.current.x * speed
       const targetVz = moveDir.current.z * speed
-      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
-      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.5
+      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.5
       
       // 4. Calculate new physics position
       let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
@@ -277,8 +277,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
         jumpCount.current = serverState.jumpCount || 0 // Sync jump count!
         
         // REPLAY: Re-simulate inputs since server tick
-        // Filter history for inputs newer than server tick
-        const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
+        // Filter history for inputs newer than what the server has processed
+        const serverSeq = serverState.lastProcessedSeq || 0
+        const validHistory = inputHistory.current.filter(h => h.input.seq > serverSeq)
         
         validHistory.forEach(historyItem => {
           const { input, jumpCountSnapshot } = historyItem
