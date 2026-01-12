@@ -55,11 +55,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const moveDir = useRef(new THREE.Vector3())
   const serverPos = useRef(new THREE.Vector3())
   const errorVec = useRef(new THREE.Vector3())
-  
-  // Jitter buffer for smoothing server positions
-  const smoothedServerPos = useRef(new THREE.Vector3())
-  const serverPosInitialized = useRef(false)
-  const blendFactor = useRef(0) // For smooth reconciliation blending
 
   // Initialize position
   const lastSpawnRef = useRef('')
@@ -261,8 +256,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Visual Interpolation (Smooth Glide)
-    // Reduced for smoother feel - lower = smoother catch-up after corrections
-    const visualLambda = 10
+    // Reduced from 25 to 15 for smoother feel
+    const visualLambda = 15
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
     groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
     groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)
@@ -285,57 +280,91 @@ export const PlayerController = React.forwardRef((props, ref) => {
     if (serverState && serverState.tick > lastReconciledTick.current) {
       lastReconciledTick.current = serverState.tick
       
-      // 1. Apply jitter buffer - smooth incoming server positions
+      // 1. Calculate error between predicted position and server position
       serverPos.current.set(serverState.x, serverState.y, serverState.z)
-      if (!serverPosInitialized.current) {
-        smoothedServerPos.current.copy(serverPos.current)
-        serverPosInitialized.current = true
-      } else {
-        // Exponential moving average for jitter reduction
-        const jitterSmooth = 0.4 // Lower = more smoothing, higher = more responsive
-        smoothedServerPos.current.lerp(serverPos.current, jitterSmooth)
-      }
-      
-      // 2. Calculate error between predicted position and smoothed server position
-      errorVec.current.copy(smoothedServerPos.current).sub(physicsPosition.current)
+      errorVec.current.copy(serverPos.current).sub(physicsPosition.current)
       const errorMagnitude = errorVec.current.length()
       
-      // 3. Tiered reconciliation:
-      // - < 15cm: Ignore (within acceptable network jitter tolerance)
-      // - 15-40cm: Smooth blend over time (prevents visual pop)
-      // - > 40cm: Hard snap (likely teleport/respawn)
-      const IGNORE_THRESHOLD = 0.15  // 15cm
-      const SNAP_THRESHOLD = 0.40    // 40cm
-      
-      if (errorMagnitude > SNAP_THRESHOLD) {
-        // HARD SNAP: Large error, likely teleport or respawn
-        physicsPosition.current.copy(smoothedServerPos.current)
+      // 2. Decide whether to reconcile
+      // If error is small (< 5cm), ignore it to prevent micro-jitters
+      // If error is large (> 5cm), hard correct and replay inputs
+      if (errorMagnitude > 0.05) {
+        // REWIND: Snap to server state
+        physicsPosition.current.copy(serverPos.current)
         velocity.current.set(serverState.vx, serverState.vy, serverState.vz)
         verticalVelocity.current = serverState.vy
-        jumpCount.current = serverState.jumpCount || 0
-        blendFactor.current = 0 // Reset blend
+        jumpCount.current = serverState.jumpCount || 0 // Sync jump count!
         
-        // Clear history since we're doing a hard reset
-        inputHistory.current = []
+        // REPLAY: Re-simulate inputs since server tick
+        // Filter history for inputs newer than server tick
+        const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
         
-      } else if (errorMagnitude > IGNORE_THRESHOLD) {
-        // SMOOTH BLEND: Medium error, blend towards server over ~150ms
-        // Using exponential decay for natural deceleration
-        const blendSpeed = 0.08 // ~150ms to reach 90% correction at 60fps
+        validHistory.forEach(historyItem => {
+          const { input } = historyItem
+          
+          // Re-run physics step (simplified version of main loop)
+          // Note: Inputs are at 60Hz, Physics is 120Hz.
+          // We must run 2 steps per input to match the simulation speed.
+          for (let i = 0; i < 2; i++) {
+            // Apply Gravity
+            verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
+            
+            // Ground Check
+            if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+              jumpCount.current = 0
+            }
+            
+            // Jump (only on first step of the input frame to avoid double jumping)
+            // Use stored jumpPressed event for reliable replay
+            if (i === 0 && input.jumpPressed && jumpCount.current < MAX_JUMPS) {
+               const jumpMult = serverState.jumpMult || 1
+               const baseJumpForce = JUMP_FORCE * jumpMult
+               verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
+               jumpCount.current++
+               isOnGround.current = false
+            }
+            
+            // Movement - Use stored x/z from history (matches what was sent to server)
+            const speedMult = serverState.speedMult || 1
+            const speed = MOVE_SPEED * speedMult
+            const targetVx = (input.x || 0) * speed
+            const targetVz = (input.z || 0) * speed
+            
+            velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
+            velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+            
+            // Integrate
+            let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
+            let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
+            let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
+            
+            // Ground Clamp
+            if (newY <= GROUND_Y) {
+              newY = GROUND_Y
+              verticalVelocity.current = 0
+              jumpCount.current = 0 // Reset jump count on ground hit!
+            }
+            
+            // Bounds
+            const wallMargin = 0.3
+            newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
+            newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+            
+            physicsPosition.current.set(newX, newY, newZ)
+          }
+        })
         
-        // Blend physics position towards server
-        physicsPosition.current.lerp(smoothedServerPos.current, blendSpeed)
-        
-        // Sync velocity and jump state
-        velocity.current.x = THREE.MathUtils.lerp(velocity.current.x, serverState.vx, blendSpeed)
-        velocity.current.z = THREE.MathUtils.lerp(velocity.current.z, serverState.vz, blendSpeed)
-        verticalVelocity.current = THREE.MathUtils.lerp(verticalVelocity.current, serverState.vy, blendSpeed)
-        jumpCount.current = serverState.jumpCount || 0
-        
-        // Prune old input history
-        inputHistory.current = inputHistory.current.filter(h => h.tick > serverState.tick)
+        // Prune old history
+        inputHistory.current = validHistory
+
+        // SMOOTH RECONCILIATION: If error was significant but not massive, 
+        // we can blend the visual position to avoid a pop.
+        // The visual damp (line 240) already handles this if we update physicsPosition here.
+        // But if we want it even smoother for medium errors:
+        if (errorMagnitude < 0.5) {
+          // Optional: we could reduce the visualLambda temporarily
+        }
       }
-      // else: errorMagnitude <= IGNORE_THRESHOLD, do nothing (prediction is close enough)
     }
 
     // Update userData for effects sync and ball prediction

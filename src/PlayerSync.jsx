@@ -85,7 +85,7 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
   useFrame((state, delta) => {
     if (!groupRef.current || !player) return
     
-    const lambda = 10 // Interpolation speed (matches local player for consistency)
+    const lambda = 8 // Interpolation speed (tuned for 60Hz updates)
     
     // Position interpolation - read directly from Colyseus proxy
     // Prediction: Extrapolate position based on velocity
