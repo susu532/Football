@@ -13,8 +13,8 @@ const useStore = create((set) => ({
   // Audio settings
   audioSettings: {
     masterVolume: 0.4,
-    musicVolume: 0.1,
-    sfxVolume: 0.03,
+    musicVolume: 0.4,
+    sfxVolume: 0.1,
     muted: false
   },
   // Player customization actions
