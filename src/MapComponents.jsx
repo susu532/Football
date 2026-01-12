@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo } from 'react'
-import { useGLTF } from '@react-three/drei'
+import { useGLTF, useAnimations } from '@react-three/drei'
 import * as THREE from 'three'
 
 export const MAP_DATA = [
@@ -108,7 +108,7 @@ export const MAP_DATA = [
     name: 'Tropical Island', 
     path: '/maps_3/tropical_island.glb', 
     scale: 50, 
-    position: [0, -6.6, 0], 
+    position: [0, -6.4, 0], 
     emoji: '🏝️', 
     image: '/placeholders/Screenshots-20260105143421.png',
     ambientIntensity: 0.3,
@@ -224,6 +224,21 @@ export function MapRenderer({ mapId }) {
     })
     return cloned
   }, [gltf.scene, mapConfig])
+
+  // Handle animations if they exist
+  const { actions, names } = useAnimations(gltf.animations, scene)
+  
+  useEffect(() => {
+    if (names.length > 0) {
+      console.log(`Playing ${names.length} animations for map: ${mapConfig.name}`)
+      names.forEach(name => {
+        const action = actions[name]
+        if (action) {
+          action.reset().fadeIn(0.5).play()
+        }
+      })
+    }
+  }, [actions, names, mapConfig.name])
 
   return <primitive object={scene} position={mapConfig.position} scale={mapConfig.scale} />
 }
