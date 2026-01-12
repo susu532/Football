@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from 'react'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import * as THREE from 'three'
-import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils'
+import * as SkeletonUtils from 'three/examples/jsm/utils/SkeletonUtils.js'
 
 export const MAP_DATA = [
   { 
