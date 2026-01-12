@@ -145,18 +145,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
       moveDir.current.normalize()
     }
 
-    // Clamp delta to prevent spiral-of-death when tabbing away or during hitches
-    const clampedDelta = Math.min(delta, 0.1) // Max 100ms per frame
-    
     // Accumulate time for fixed timestep
-    accumulator.current += clampedDelta
+    accumulator.current += delta
     
     // Physics loop - Fixed Timestep
-    let iterations = 0
-    const MAX_ITERATIONS = 10 // Safety cap to prevent permanent lag
-    
-    while (accumulator.current >= FIXED_TIMESTEP && iterations < MAX_ITERATIONS) {
-      iterations++
+    while (accumulator.current >= FIXED_TIMESTEP) {
       // 1. Apply Gravity first (matches server)
       verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
 
@@ -209,11 +202,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
       // Decrement accumulator
       accumulator.current -= FIXED_TIMESTEP
-    }
-
-    // Reset accumulator if we hit the iteration cap to prevent "catching up" forever
-    if (iterations >= MAX_ITERATIONS) {
-      accumulator.current = 0
     }
 
     // Handle kick - send to server (outside fixed loop, event based)
@@ -275,10 +263,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Visual Interpolation (Smooth Glide)
     // Reduced for smoother feel - lower = smoother catch-up after corrections
     const visualLambda = 10
-    const visualLambdaY = 12 // Slightly faster for vertical to feel more responsive
-    
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
-    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambdaY, delta)
+    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
     groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)
 
     // Rotate player to face camera direction (strafe mode)
@@ -394,7 +380,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Consume buffered jump
       pendingJump.current = false
     }
-  }, 0) // Priority 0: Run before camera and other visual updates
+  })
 
   return (
     <group ref={groupRef}>
