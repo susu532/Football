@@ -109,12 +109,13 @@ export const MAP_DATA = [
     name: 'Tropical Island', 
     path: '/maps_3/tropical_island.glb', 
     scale: 50, 
-    position: [0, -4.0, 0], 
+    position: [0, -3.0, 0], 
     emoji: '🏝️', 
     image: '/placeholders/Screenshots-20260105143421.png',
     ambientIntensity: 0.3,
     lightIntensity: 0.5,
-    environmentPreset: 'sunset'
+    environmentPreset: 'sunset',
+    disableAnimations: true
   },
   { 
     id: 'ShipInClouds', 
@@ -231,6 +232,12 @@ export function MapRenderer({ mapId }) {
   
   useEffect(() => {
     console.log(`Map: ${mapConfig.name}, Animations found: ${gltf.animations.length}, Names: ${names.join(', ')}`)
+    
+    if (mapConfig.disableAnimations) {
+      console.log(`Animations disabled for map: ${mapConfig.name}`)
+      return
+    }
+
     if (names.length > 0) {
       names.forEach(name => {
         const action = actions[name]
@@ -240,7 +247,7 @@ export function MapRenderer({ mapId }) {
         }
       })
     }
-  }, [actions, names, mapConfig.name, gltf.animations])
+  }, [actions, names, mapConfig.name, gltf.animations, mapConfig.disableAnimations])
 
   return <primitive object={scene} position={mapConfig.position} scale={mapConfig.scale} />
 }
