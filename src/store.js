@@ -12,8 +12,8 @@ const useStore = create((set) => ({
   showFPS: false,
   // Audio settings
   audioSettings: {
-    masterVolume: 0.4,
-    musicVolume: 0.4,
+    masterVolume: 0.1,
+    musicVolume: 0.1,
     sfxVolume: 0.1,
     muted: false
   },

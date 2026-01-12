@@ -74,13 +74,17 @@ const CharacterSkin = React.forwardRef(({
     return cloned
   }, [scene, teamColor])
   
-  // Handle visual effects (invisibility)
-  useFrame(() => {
+  // Pre-allocated vector for scale lerping (avoids GC stutters)
+  const targetScaleVec = useRef(new THREE.Vector3(1, 1, 1))
+
+  // Consolidated visual effects and animation loop
+  useFrame((state, delta) => {
     if (!internalRef.current) return
+
+    // 1. Handle visual effects (invisibility)
     const currentIsInvisible = player ? player.invisible : invisible
     const targetOpacity = currentIsInvisible ? (isRemote ? 0.0 : 0.3) : 1.0
     
-    // Only update if opacity changed significantly
     internalRef.current.traverse((child) => {
       if (child.isMesh && child.material) {
         if (Math.abs(child.material.opacity - targetOpacity) > 0.01) {
@@ -92,31 +96,20 @@ const CharacterSkin = React.forwardRef(({
         }
       }
     })
-  })
 
-  // Handle visual effects (giant scaling)
-  useFrame((_, delta) => {
-    if (!internalRef.current) return
+    // 2. Handle visual effects (giant scaling)
+    const currentIsGiant = player ? player.giant : giant
+    const targetScale = currentIsGiant ? 5.0 : 1.0
     
-    // Apply giant scaling effect
-    const currentIsGiant = player ? player.giant : giant
-    const targetScale = currentIsGiant ? 5.0 : 1.0 // Reduced from 10.0 to 5.0
     if (Math.abs(internalRef.current.scale.x - targetScale) > 0.01) {
-      internalRef.current.scale.lerp(
-        new THREE.Vector3(targetScale, targetScale, targetScale), 
-        0.1
-      )
+      targetScaleVec.current.set(targetScale, targetScale, targetScale)
+      internalRef.current.scale.lerp(targetScaleVec.current, 0.1)
     }
-  })
 
-  // Idle Breathing Animation
-  useFrame((state) => {
-    if (!internalRef.current) return
-    // Only breathe if not giant
-    const currentIsGiant = player ? player.giant : giant
+    // 3. Idle Breathing Animation (only if not giant)
     if (!currentIsGiant) {
       const t = state.clock.getElapsedTime()
-      const breatheScale = 1.0 + Math.sin(t * 3) * 0.03 // Subtle pulse
+      const breatheScale = 1.0 + Math.sin(t * 3) * 0.03
       internalRef.current.scale.setY(breatheScale)
     }
   })
