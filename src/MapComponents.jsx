@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo } from 'react'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import * as THREE from 'three'
+import { SkeletonUtils } from 'three/examples/jsm/utils/SkeletonUtils'
 
 export const MAP_DATA = [
   { 
@@ -108,7 +109,7 @@ export const MAP_DATA = [
     name: 'Tropical Island', 
     path: '/maps_3/tropical_island.glb', 
     scale: 50, 
-    position: [0, -6.4, 0], 
+    position: [0, -6.2, 0], 
     emoji: '🏝️', 
     image: '/placeholders/Screenshots-20260105143421.png',
     ambientIntensity: 0.3,
@@ -193,7 +194,7 @@ export function MapRenderer({ mapId }) {
   }, [mapConfig.path, mapConfig.name])
 
   const scene = useMemo(() => {
-    const cloned = gltf.scene.clone()
+    const cloned = SkeletonUtils.clone(gltf.scene)
     cloned.traverse((child) => {
       if (child.isMesh) {
         // REMOVED: computeVertexNormals to save CPU
@@ -229,16 +230,17 @@ export function MapRenderer({ mapId }) {
   const { actions, names } = useAnimations(gltf.animations, scene)
   
   useEffect(() => {
+    console.log(`Map: ${mapConfig.name}, Animations found: ${gltf.animations.length}, Names: ${names.join(', ')}`)
     if (names.length > 0) {
-      console.log(`Playing ${names.length} animations for map: ${mapConfig.name}`)
       names.forEach(name => {
         const action = actions[name]
         if (action) {
+          console.log(`Starting animation: ${name}`)
           action.reset().fadeIn(0.5).play()
         }
       })
     }
-  }, [actions, names, mapConfig.name])
+  }, [actions, names, mapConfig.name, gltf.animations])
 
   return <primitive object={scene} position={mapConfig.position} scale={mapConfig.scale} />
 }
