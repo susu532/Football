@@ -109,7 +109,7 @@ export const MAP_DATA = [
     name: 'Tropical Island', 
     path: '/maps_3/tropical_island.glb', 
     scale: 50, 
-    position: [0, -6.2, 0], 
+    position: [0, -4.0, 0], 
     emoji: '🏝️', 
     image: '/placeholders/Screenshots-20260105143421.png',
     ambientIntensity: 0.3,

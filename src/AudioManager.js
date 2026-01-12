@@ -17,7 +17,7 @@ class AudioManager {
     
     // Define sounds
     const soundFiles = {
-      kick: '/sounds/kick.mp3',
+      kick: '/sounds/kick.wav',
       jump: '/sounds/jump.mp3',
       goal: '/sounds/goal.mp3',
       powerup: '/sounds/powerup.mp3',
