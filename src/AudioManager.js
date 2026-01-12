@@ -39,20 +39,21 @@ class AudioManager {
     for (const [name, path] of Object.entries(musicFiles)) {
       const audio = new Audio(path)
       audio.loop = true
+      audio.onerror = () => console.error(`Failed to load music file: ${path}`)
       this.music[name] = audio
     }
 
     // Subscribe to store changes
-    useStore.subscribe(
-      (state) => state.audioSettings,
-      (settings) => {
-        this.updateVolumes(settings)
+    useStore.subscribe((state) => {
+      if (state.audioSettings) {
+        this.updateVolumes(state.audioSettings)
       }
-    )
+    })
 
     // Initial volume update
     this.updateVolumes(useStore.getState().audioSettings)
     
+    console.log('AudioManager initialized')
     this.initialized = true
   }
 
@@ -65,8 +66,10 @@ class AudioManager {
     }
 
     // Update Music volumes
-    for (const music of Object.values(this.music)) {
-      music.volume = muted ? 0 : masterVolume * musicVolume
+    for (const [name, music] of Object.entries(this.music)) {
+      const vol = muted ? 0 : masterVolume * musicVolume
+      music.volume = vol
+      console.log(`Music ${name} volume set to: ${vol}`)
     }
   }
 
@@ -90,7 +93,30 @@ class AudioManager {
     const music = this.music[name]
     if (music) {
       this.currentMusic = music
-      music.play().catch(e => console.warn(`Failed to play music ${name}:`, e))
+      console.log(`Attempting to play music: ${name}, volume: ${music.volume}`)
+      music.play()
+        .then(() => console.log(`Music ${name} playing successfully`))
+        .catch(e => {
+          console.warn(`Failed to play music ${name}:`, e)
+          if (e.name === 'NotAllowedError') {
+            console.log('Autoplay blocked. Will retry on first user interaction.')
+            const retry = () => {
+              music.play()
+                .then(() => {
+                  console.log(`Music ${name} playing after interaction`)
+                  window.removeEventListener('click', retry)
+                  window.removeEventListener('keydown', retry)
+                  window.removeEventListener('touchstart', retry)
+                })
+                .catch(err => console.warn('Retry failed:', err))
+            }
+            window.addEventListener('click', retry)
+            window.addEventListener('keydown', retry)
+            window.addEventListener('touchstart', retry)
+          }
+        })
+    } else {
+      console.warn(`Music ${name} not found in AudioManager`)
     }
   }
 

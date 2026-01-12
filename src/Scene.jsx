@@ -300,6 +300,14 @@ export default function Scene() {
     }
   }, [gameOverData])
 
+  // Start background music when joined
+  useEffect(() => {
+    if (hasJoined) {
+      console.log('User joined, triggering background music')
+      AudioManager.playMusic('bgMusic')
+    }
+  }, [hasJoined])
+
   // Auto-join room when team select completes
   useEffect(() => {
     if (hasJoined && isLaunched && !isConnected) {
@@ -309,8 +317,6 @@ export default function Scene() {
         character: playerCharacter,
         map: playerMap
       })
-      // Start background music on join
-      AudioManager.playMusic('bgMusic')
     }
   }, [hasJoined, isLaunched, isConnected, joinRoom, playerName, playerTeam, playerCharacter, playerMap])
 
