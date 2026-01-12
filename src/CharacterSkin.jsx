@@ -27,8 +27,8 @@ const CharacterSkin = React.forwardRef(({
     ? '/models/cat.glb' 
     : '/models/low_poly_car.glb'
   
-  // Character scaling: cat uses 0.01, car uses 0.0015
-  const characterScale = characterType === 'cat' ? 0.01 : 0.0015
+  // Character scaling: cat uses 0.025, car uses 0.004
+  const characterScale = characterType === 'cat' ? 0.025 : 0.004
    
   // Load the GLB model
   const { scene } = useGLTF(MODEL_PATH)
