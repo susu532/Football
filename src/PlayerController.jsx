@@ -286,24 +286,16 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Jitter Fix: Velocity-aware smoothing + Visual Offset Decay
     
     // 1. Decay visual offset (hide the snap)
-    // Jitter Fix: Slower decay for smoother visual correction
-    const speed = velocity.current.length()
-    const decayRate = Math.min(0.15, 0.05 + speed * 0.01)
-    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), decayRate)
-    
-    // Clamp offset to prevent runaway accumulation
-    if (visualOffset.current.length() > 0.5) {
-      visualOffset.current.normalize().multiplyScalar(0.5)
-    }
+    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame)
     
     // 2. Calculate target visual position
     const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
     
     // 3. Apply smoothing
-    const baseLambda = 15          // Snappier base
-    const speedFactor = Math.min(1.5, speed / 8)
-    const pingFactor = Math.max(0.5, 1 - ping / 200)
-    const visualLambda = (baseLambda + speedFactor * 10) * pingFactor
+    const speed = velocity.current.length()
+    const baseLambda = 12
+    const speedFactor = Math.min(1, speed / 10)
+    const visualLambda = baseLambda + speedFactor * 8 // Range: 12 - 20
     
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetVisualPos.x, visualLambda, delta)
     groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetVisualPos.y, visualLambda, delta)
@@ -344,12 +336,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Jitter Fix: Visual Offset Pattern
       // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
       // Latency-Adaptive Threshold: Higher ping = more lenient to reduce jitter
-      const BASE_THRESHOLD = 0.03    // 3cm base tolerance
-      const PING_SCALE = 0.00015     // Less aggressive ping scaling
-      const MAX_THRESHOLD = 0.20     // Allow up to 20cm at high ping
-      // Velocity-aware: moving players tolerate more error
-      const velocityThreshold = velocity.current.length() * 0.01
-      const RECONCILE_THRESHOLD = Math.min(MAX_THRESHOLD, BASE_THRESHOLD + ping * PING_SCALE + velocityThreshold)
+      const BASE_THRESHOLD = 0.01 // 1cm - strict physics sync
+      const PING_SCALE = 0.0002   // 0.02cm per 100ms ping
+      const MAX_THRESHOLD = 0.15  // Cap at 15cm even for very high ping
+      const RECONCILE_THRESHOLD = Math.min(MAX_THRESHOLD, BASE_THRESHOLD + ping * PING_SCALE)
 
       if (errorMagnitude > RECONCILE_THRESHOLD) {
         // Capture position BEFORE snap
