@@ -27,8 +27,8 @@ const CharacterSkin = React.forwardRef(({
     ? '/models/cat.glb' 
     : '/models/low_poly_car.glb'
   
-  // Character scaling: cat uses 0.025, car uses 0.004
-  const characterScale = characterType === 'cat' ? 0.020 : 0.0014
+  // Character scaling: cat uses 0.01, car uses 0.0015
+  const characterScale = characterType === 'cat' ? 0.01 : 0.0015
    
   // Load the GLB model
   const { scene } = useGLTF(MODEL_PATH)
@@ -100,7 +100,7 @@ const CharacterSkin = React.forwardRef(({
     
     // Apply giant scaling effect
     const currentIsGiant = player ? player.giant : giant
-    const targetScale = currentIsGiant ? 5.0 : 1.0 // Reduced from 10.0 to 5.0
+    const targetScale = currentIsGiant ? 10.0 : 1.0
     if (Math.abs(internalRef.current.scale.x - targetScale) > 0.01) {
       internalRef.current.scale.lerp(
         new THREE.Vector3(targetScale, targetScale, targetScale), 

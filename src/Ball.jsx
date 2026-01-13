@@ -7,7 +7,6 @@ import { useFrame } from '@react-three/fiber'
 import { useGLTF, Trail } from '@react-three/drei'
 import * as THREE from 'three'
 import { useSpring, a } from '@react-spring/three'
-import { PHYSICS } from './PhysicsConstants.js'
 
 // Soccer Ball Visual Component
 export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, ref) => {
@@ -87,14 +86,14 @@ const COLLISION_COOLDOWN = 0.004 // 4ms - near-instant re-collision
 const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
 const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
-const BALL_RADIUS = PHYSICS.BALL_RADIUS
-const PLAYER_RADIUS = PHYSICS.PLAYER_RADIUS // Increased from 0.14 to match server cuboid(0.6, 0.2, 0.6)
+const BALL_RADIUS = 0.8
+const PLAYER_RADIUS = 0.14
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
 
 // RAPIER-matched physics constants
-const BALL_RESTITUTION = PHYSICS.BALL_RESTITUTION
-const GRAVITY = PHYSICS.WORLD_GRAVITY
-const LINEAR_DAMPING = PHYSICS.BALL_LINEAR_DAMPING
+const BALL_RESTITUTION = 0.75
+const GRAVITY = 20
+const LINEAR_DAMPING = 1.5
 
 // Ultra-aggressive interpolation for instant response
 const LERP_NORMAL = 25 // Snappy base
@@ -137,58 +136,6 @@ const predictFuturePosition = (pos, vel, time, gravity) => ({
   z: pos.z + vel.z * time
 })
 
-// Trajectory Line Component
-const TrajectoryLine = ({ startPos, startVel, gravity = 20 }) => {
-  const points = useMemo(() => {
-    const pts = []
-    const pos = startPos.clone()
-    const vel = startVel.clone()
-    const dt = 1/60
-    const maxSteps = 120 // 2 seconds
-    
-    // Simple physics simulation
-    for (let i = 0; i < maxSteps; i++) {
-      pts.push(pos.clone())
-      
-      pos.addScaledVector(vel, dt)
-      vel.y -= gravity * dt
-      
-      // Floor bounce
-      if (pos.y < 0.8) {
-        pos.y = 0.8
-        vel.y *= -PHYSICS.BALL_RESTITUTION
-        vel.x *= 0.85
-        vel.z *= 0.85
-      }
-      
-      // Wall bounces (approximate)
-      if (Math.abs(pos.x) > 14.5) {
-        pos.x = Math.sign(pos.x) * 14.5
-        vel.x *= -PHYSICS.BALL_RESTITUTION
-      }
-      if (Math.abs(pos.z) > 9.5) {
-        pos.z = Math.sign(pos.z) * 9.5
-        vel.z *= -PHYSICS.BALL_RESTITUTION
-      }
-    }
-    return pts
-  }, [startPos, startVel, gravity])
-
-  return (
-    <line>
-      <bufferGeometry>
-        <bufferAttribute
-          attach="attributes-position"
-          count={points.length}
-          array={new Float32Array(points.flatMap(p => [p.x, p.y, p.z]))}
-          itemSize={3}
-        />
-      </bufferGeometry>
-      <lineBasicMaterial color="white" opacity={0.3} transparent />
-    </line>
-  )
-}
-
 // ClientBallVisual - PING-AWARE 0-ping prediction
 // Now accepts ping prop for latency-scaled prediction
 export const ClientBallVisual = React.forwardRef(({ 
@@ -196,8 +143,7 @@ export const ClientBallVisual = React.forwardRef(({
   onKickMessage, 
   localPlayerRef,
   ping = 0, // Network latency in ms
-  pingJitter = 0, // Network jitter for adaptive smoothing
-  ballOwner = '' // Session ID of ball owner
+  pingJitter = 0 // Network jitter for adaptive smoothing
 }, ref) => {
   const groupRef = useRef()
   const targetPos = useRef(new THREE.Vector3(0, 2, 0))
@@ -212,9 +158,6 @@ export const ClientBallVisual = React.forwardRef(({
   const collisionConfidence = useRef(0) // Confidence score for current prediction
   const subFrameTime = useRef(0) // For sub-frame collision timing
   
-  // Ownership state
-  const isOwner = localPlayerRef?.current?.userData?.sessionId === ballOwner
-  
   useImperativeHandle(ref, () => {
     const obj = groupRef.current || {}
     // Expose instant kick predictor for PlayerController
@@ -222,7 +165,7 @@ export const ClientBallVisual = React.forwardRef(({
     obj.userData.predictKick = (impulse) => {
       // INSTANT local kick response - before server roundtrip
       // Apply impulse / mass to get velocity change (F = ma -> dv = J/m)
-      const invMass = 1 / PHYSICS.BALL_MASS 
+      const invMass = 1 / 3.0 // Ball mass is 3.0kg
       predictedVelocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
@@ -282,22 +225,12 @@ export const ClientBallVisual = React.forwardRef(({
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
 
-    // Extrapolate target position by latency (ping) to see ball in "present" time
-    // This removes the feeling of input lag for the owner
-    const latencyCorrection = pingSeconds / 2 + 0.016 // Half RTT + 1 frame
-    targetPos.current.addScaledVector(serverVelocity.current, latencyCorrection)
-
     // === VELOCITY-WEIGHTED RECONCILIATION ===
-    // If owner: Trust prediction MORE (less reconciliation)
-    // If not owner: Trust server MORE (more reconciliation)
+    // Fast ball = trust prediction more, slow ball = trust server more
     const speed = serverVelocity.current.length()
     const velocityFactor = Math.max(0.3, 1 - speed / 40) // 0.3 at high speed, 1.0 at rest
     const pingFactor = Math.max(0.3, 1 - ping / 300)
-    
-    // Ownership influence on reconciliation
-    const ownershipFactor = isOwner ? 0.2 : 1.0 // Owner reconciles 5x slower (trusts local physics)
-    
-    const reconcileRate = 1 - Math.exp(-12 * pingFactor * velocityFactor * ownershipFactor * delta)
+    const reconcileRate = 1 - Math.exp(-12 * pingFactor * velocityFactor * delta)
     
     predictedVelocity.current.lerp(serverVelocity.current, reconcileRate)
 
@@ -310,22 +243,23 @@ export const ClientBallVisual = React.forwardRef(({
     }
 
     // === WALL/ARENA COLLISION PREDICTION ===
-    const ARENA_HALF_WIDTH = PHYSICS.ARENA_HALF_WIDTH
-    const ARENA_HALF_DEPTH = PHYSICS.ARENA_HALF_DEPTH
-    const GOAL_HALF_WIDTH = PHYSICS.GOAL_WIDTH / 2
+    const ARENA_HALF_WIDTH = 14.5
+    const ARENA_HALF_DEPTH = 9.5
+    const GOAL_HALF_WIDTH = 2.5
+    const GOAL_X = 11.2
     
     // X walls (with goal gaps)
     if (Math.abs(targetPos.current.x) > ARENA_HALF_WIDTH) {
       const inGoalZone = Math.abs(targetPos.current.z) < GOAL_HALF_WIDTH && targetPos.current.y < 4
       if (!inGoalZone) {
-        predictedVelocity.current.x *= -PHYSICS.BALL_RESTITUTION
+        predictedVelocity.current.x *= -BALL_RESTITUTION
         targetPos.current.x = Math.sign(targetPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
       }
     }
     
     // Z walls
     if (Math.abs(targetPos.current.z) > ARENA_HALF_DEPTH) {
-      predictedVelocity.current.z *= -PHYSICS.BALL_RESTITUTION
+      predictedVelocity.current.z *= -BALL_RESTITUTION
       targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
     }
 
@@ -346,7 +280,7 @@ export const ClientBallVisual = React.forwardRef(({
       
       // === DYNAMIC COLLISION RADIUS for giant power-up ===
       const isGiant = localPlayerRef.current.userData?.giant || false
-      const giantScale = isGiant ? 5 : 1 // Reduced from 10 to 5 for stability
+      const giantScale = isGiant ? 10 : 1
       const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
       const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
       
@@ -429,11 +363,11 @@ export const ClientBallVisual = React.forwardRef(({
           lastCollisionNormal.current.set(nx, ny, nz)
           
           // RAPIER-matched impulse with boost (scaled for giant)
-          const impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed
+          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
           const boostFactor = isGiant ? 2.0 : 1.2 // Giant kicks harder
           
           // Apply impulse scaled by confidence for speculative hits
-          const impulseFactor = isSpeculative && !isCurrentCollision ? PHYSICS.SPECULATIVE_IMPULSE_FACTOR : 1.0
+          const impulseFactor = isSpeculative && !isCurrentCollision ? 0.85 : 1.0
           
           predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
           predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)
@@ -444,8 +378,7 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z += (playerVel.z || 0) * 0.5
           
           // INSTANT position correction with sub-frame advancement
-          // Clamp overlap to prevent teleports with giant powerup
-          const overlap = Math.min(1.0, dynamicCombinedRadius - contactDist + 0.02)
+          const overlap = dynamicCombinedRadius - contactDist + 0.02
           if (overlap > 0) {
             // Advance remaining time after collision
             const remainingTime = delta * (1 - subFrameTime.current)
@@ -465,16 +398,8 @@ export const ClientBallVisual = React.forwardRef(({
     // 5. ULTRA-AGGRESSIVE visual interpolation with CONFIDENCE WEIGHTING
     const distance = groupRef.current.position.distanceTo(targetPos.current)
     
-    // NaN Protection: If target is invalid, snap to server immediately
-    if (isNaN(targetPos.current.x) || isNaN(targetPos.current.y) || isNaN(targetPos.current.z)) {
-      targetPos.current.copy(serverPosSmoothed.current)
-      predictedVelocity.current.copy(serverVelocity.current)
-    }
-
-    // PANIC SNAP: If divergence is too high, force snap to server (fixes freezing)
-    if (distance > 2.0) { // Reduced threshold from 8 to 2 meters
+    if (distance > LERP_SNAP_THRESHOLD) {
       groupRef.current.position.copy(targetPos.current)
-      predictedVelocity.current.copy(serverVelocity.current) // Reset velocity too
     } else if (collisionThisFrame.current) {
       // INSTANT snap on collision - confidence-weighted
       const confidenceBoost = 1 + collisionConfidence.current * 0.5
@@ -491,7 +416,7 @@ export const ClientBallVisual = React.forwardRef(({
     if (groupRef.current.position.y < BALL_RADIUS) {
       groupRef.current.position.y = BALL_RADIUS
       if (predictedVelocity.current.y < 0) {
-        predictedVelocity.current.y = Math.abs(predictedVelocity.current.y) * PHYSICS.BALL_RESTITUTION
+        predictedVelocity.current.y = Math.abs(predictedVelocity.current.y) * BALL_RESTITUTION
         // Floor friction
         predictedVelocity.current.x *= 0.85
         predictedVelocity.current.z *= 0.85
@@ -512,12 +437,6 @@ export const ClientBallVisual = React.forwardRef(({
       >
         <SoccerBall onKickFeedback={kickFeedback} />
       </Trail>
-      {isOwner && (
-        <TrajectoryLine 
-          startPos={groupRef.current?.position || new THREE.Vector3()} 
-          startVel={predictedVelocity.current} 
-        />
-      )}
     </group>
   )
 })
