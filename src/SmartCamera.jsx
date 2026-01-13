@@ -134,7 +134,7 @@ export const SmartCamera = React.forwardRef(({
     const idealZ = targetPos.z + offsetZ + lookAhead.z
 
     // 3. Update Position with Damp (Replaced Springs)
-    const posLambda = 6 // Softer (was 10)
+    const posLambda = 8 // Balanced (was 6)
     const camX = THREE.MathUtils.damp(camera.position.x, idealX, posLambda, dt)
     const camY = THREE.MathUtils.damp(camera.position.y, idealY, posLambda, dt)
     const camZ = THREE.MathUtils.damp(camera.position.z, idealZ, posLambda, dt)

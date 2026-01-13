@@ -333,7 +333,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // 1. Decay visual offset (hide the snap)
     // Use damp for frame-rate independent smoothing
     // Lower lambda = slower decay = smoother correction
-    const decayLambda = 4.0 
+    const decayLambda = 2.5 
     visualOffset.current.x = THREE.MathUtils.damp(visualOffset.current.x, 0, decayLambda, delta)
     visualOffset.current.y = THREE.MathUtils.damp(visualOffset.current.y, 0, decayLambda, delta)
     visualOffset.current.z = THREE.MathUtils.damp(visualOffset.current.z, 0, decayLambda, delta)
@@ -382,7 +382,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Jitter Fix: Visual Offset Pattern
       // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
       // Latency-Adaptive Threshold: Higher ping = more lenient to reduce jitter
-      const BASE_THRESHOLD = 0.15   // 15cm base (was 10cm)
+      const BASE_THRESHOLD = 0.20   // 20cm base (was 15cm)
       const PING_SCALE = 0.0004   // 0.04cm per 100ms ping
       const MAX_THRESHOLD = 0.6    // 60cm max (was 50cm)
       const RECONCILE_THRESHOLD = Math.min(MAX_THRESHOLD, BASE_THRESHOLD + ping * PING_SCALE)
