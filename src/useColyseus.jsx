@@ -233,6 +233,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       if (roomRef.current) {
         roomRef.current.leave()
       }
+      AudioManager.stopMusic()
     }
   }, [serverUrl])
 
@@ -354,6 +355,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setIsConnected(false)
       setPlayers([])
       setRoomCode(null)
+      AudioManager.stopMusic()
     }
   }, [])
 

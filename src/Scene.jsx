@@ -427,6 +427,7 @@ export default function Scene() {
     setShowExitConfirm(false)
     leaveRoom()
     leaveGame()
+    AudioManager.stopMusic()
   }, [leaveRoom, leaveGame])
 
   const rooming = useMemo(() => ({
