@@ -83,9 +83,9 @@ SoccerBall.displayName = 'SoccerBall'
 // Designed for 0-ping visual feel at ANY latency
 
 // Collision constants - ultra-aggressive for instant feel
-const COLLISION_COOLDOWN = 0.004 // 4ms - near-instant re-collision
-const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
-const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
+const COLLISION_COOLDOWN = 0.008 // 8ms cooldown (was 4ms, too fast)
+const BASE_LOOKAHEAD = 0.025 // Reduced base lookahead
+const MAX_LOOKAHEAD = 0.08 // Reduced max lookahead
 const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
 const BALL_RADIUS = PHYSICS.BALL_RADIUS
 const PLAYER_RADIUS = PHYSICS.PLAYER_RADIUS // Increased from 0.14 to match server cuboid(0.6, 0.2, 0.6)
@@ -100,7 +100,7 @@ const LINEAR_DAMPING = PHYSICS.BALL_LINEAR_DAMPING
 const LERP_NORMAL = 25 // Snappy base
 const LERP_COLLISION = 80 // Near-instant snap on collision
 const LERP_SNAP_THRESHOLD = 8
-const SPECULATIVE_THRESHOLD = 0.5 // Tightened from 0.7
+const SPECULATIVE_THRESHOLD = 0.4 // Tighter speculative detection
 
 // Sub-frame sweep test
 const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
@@ -266,14 +266,17 @@ export const ClientBallVisual = React.forwardRef(({
     const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
     
     // === JITTER-AWARE EMA SMOOTHING ===
-    // High jitter = smoother (0.1), low jitter = more responsive (0.25)
-    const adaptiveEMA = Math.max(0.1, Math.min(0.25, 0.15 + (pingJitter / 200) * 0.1))
+    // Direct server position with velocity-based smoothing
     const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
+    const serverSpeed = serverVelocity.current.length()
+    
+    // Fast-moving ball: track server more closely (less smoothing)
+    // Slow/stationary: smooth more to hide small jitter
+    const trackingRate = Math.min(0.4, 0.15 + serverSpeed / 100)
     if (!serverPosSmoothed.current) {
       serverPosSmoothed.current = serverPos.clone()
-    } else {
-      serverPosSmoothed.current.lerp(serverPos, adaptiveEMA)
     }
+    serverPosSmoothed.current.lerp(serverPos, trackingRate)
 
     // 1. Sync server state with EMA smoothing
     targetPos.current.copy(serverPosSmoothed.current)
@@ -305,9 +308,10 @@ export const ClientBallVisual = React.forwardRef(({
     const vel = predictedVelocity.current
     
     // Apply Linear Damping (matches server RAPIER)
-    const dampingFactor = 1 - PHYSICS.BALL_LINEAR_DAMPING * delta
-    vel.x *= dampingFactor
-    vel.z *= dampingFactor
+    // NOTE: Damping now only applied at end (line 508) to match server physics
+    // const dampingFactor = 1 - PHYSICS.BALL_LINEAR_DAMPING * delta
+    // vel.x *= dampingFactor
+    // vel.z *= dampingFactor
     
     targetPos.current.addScaledVector(vel, delta)
     
@@ -324,14 +328,14 @@ export const ClientBallVisual = React.forwardRef(({
     if (Math.abs(targetPos.current.x) > ARENA_HALF_WIDTH) {
       const inGoalZone = Math.abs(targetPos.current.z) < GOAL_HALF_WIDTH && targetPos.current.y < 4
       if (!inGoalZone) {
-        predictedVelocity.current.x *= -0.8 // Match server side wall restitution
+        predictedVelocity.current.x *= -PHYSICS.BALL_RESTITUTION // Match server side wall restitution
         targetPos.current.x = Math.sign(targetPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
       }
     }
     
     // Z walls
     if (Math.abs(targetPos.current.z) > ARENA_HALF_DEPTH) {
-      predictedVelocity.current.z *= -0.8 // Match server side wall restitution
+      predictedVelocity.current.z *= -PHYSICS.BALL_RESTITUTION // Match server side wall restitution
       targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
     }
 
