@@ -24,8 +24,7 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
     isFreeLook = null, 
     characterType = 'cat',
     onLocalInteraction = null,
-    serverState = null,
-    ping = 0 // Network latency for adaptive reconciliation
+    serverState = null
   } = props
   
   const controllerRef = useRef()
@@ -58,7 +57,6 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
         characterType={characterType}
         onLocalInteraction={onLocalInteraction}
         serverState={serverState}
-        ping={ping}
       />
       {playerName && (
         <group ref={labelRef}>
@@ -87,7 +85,7 @@ export const ClientPlayerVisual = React.forwardRef((props, ref) => {
   useFrame((state, delta) => {
     if (!groupRef.current || !player) return
     
-    const lambda = 8 // Interpolation speed (tuned for 60Hz updates)
+    const lambda = 10 // Interpolation speed (tuned for 60Hz updates)
     
     // Position interpolation - read directly from Colyseus proxy
     // Prediction: Extrapolate position based on velocity

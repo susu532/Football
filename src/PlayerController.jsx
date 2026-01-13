@@ -6,18 +6,15 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import InputManager from './InputManager'
 import CharacterSkin from './CharacterSkin'
-import { PHYSICS } from './PhysicsConstants.js'
-import AudioManager from './AudioManager'
 
 // Physics constants
-// Physics constants
-const MOVE_SPEED = PHYSICS.MOVE_SPEED
-const JUMP_FORCE = PHYSICS.JUMP_FORCE
-const DOUBLE_JUMP_MULTIPLIER = PHYSICS.DOUBLE_JUMP_MULTIPLIER
-const GRAVITY = PHYSICS.GRAVITY
-const GROUND_Y = PHYSICS.GROUND_Y
-const MAX_JUMPS = PHYSICS.MAX_JUMPS
-const INPUT_SEND_RATE = 1 / 30 // 30Hz
+const MOVE_SPEED = 8
+const JUMP_FORCE = 8
+const DOUBLE_JUMP_MULTIPLIER = 0.8
+const GRAVITY = 20
+const GROUND_Y = 0.1
+const MAX_JUMPS = 2
+const INPUT_SEND_RATE = 1 / 60 // 60Hz
 
 // PlayerController: Handles local player input => sends to server + local prediction
 export const PlayerController = React.forwardRef((props, ref) => {
@@ -35,8 +32,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     onCollectPowerUp = null,
     isFreeLook = null,
     onLocalInteraction = null,
-    serverState = null, // Server state for reconciliation
-    ping = 0 // Network latency for adaptive reconciliation
+    serverState = null // Server state for reconciliation
   } = props
 
   const groupRef = useRef()
@@ -56,11 +52,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const moveDir = useRef(new THREE.Vector3())
   const serverPos = useRef(new THREE.Vector3())
   const errorVec = useRef(new THREE.Vector3())
-  
-  // Jitter Fix: Visual Offset for reconciliation hiding
-  const visualOffset = useRef(new THREE.Vector3())
-  // Jitter Fix: Physics tick tracking for reliable input history
-  const physicsTick = useRef(0)
 
   // Initialize position
   const lastSpawnRef = useRef('')
@@ -86,12 +77,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const lastInputTime = useRef(0)
   const lastKickTime = useRef(0)
   const inputSequence = useRef(0)
-  const lastReconciledTick = useRef(0)
-  
-  // Input Buffering (Captures events between frames)
-  const currentJumpRequestId = useRef(0)
-  const prevJumpRequestId = useRef(0)
-  const pendingKick = useRef(false)
 
   useImperativeHandle(ref, () => ({
     get position() { return groupRef.current?.position || new THREE.Vector3() },
@@ -115,22 +100,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Handled on server
   }, [])
 
-  // Fixed timestep accumulator
-  const accumulator = useRef(0)
-  const FIXED_TIMESTEP = PHYSICS.FIXED_TIMESTEP
-  const inputHistory = useRef([])
-
   useFrame((state, delta) => {
     if (!groupRef.current) return
 
     const now = state.clock.getElapsedTime()
     const input = InputManager.getInput()
-    
-    // Buffer events
-    if (input.jumpRequestId > currentJumpRequestId.current) {
-      currentJumpRequestId.current = input.jumpRequestId
-    }
-    if (input.kick) pendingKick.current = true
     
     // Get camera direction for relative movement (reuse pre-allocated vectors)
     camera.getWorldDirection(cameraForward.current)
@@ -149,105 +123,30 @@ export const PlayerController = React.forwardRef((props, ref) => {
       moveDir.current.normalize()
     }
 
-    // Accumulate time for fixed timestep
-    accumulator.current += delta
-    
-    // Physics loop - Fixed Timestep
-    while (accumulator.current >= FIXED_TIMESTEP) {
-      // Increment simulation tick
-      physicsTick.current++
+    // 1. Apply Gravity first (matches server)
+    verticalVelocity.current -= GRAVITY * delta
 
-      // 1. Apply Gravity first (matches server)
-      verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
-
-      // 2. Ground Check (reset jump count if on ground)
-      if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
-        jumpCount.current = 0
-      }
-
-      // 3. Handle Jump (overrides gravity for this frame)
-      const jumpRequested = currentJumpRequestId.current > prevJumpRequestId.current
-      if (jumpRequested && jumpCount.current < MAX_JUMPS) {
-        const jumpMult = serverState?.jumpMult || 1
-        const baseJumpForce = JUMP_FORCE * jumpMult
-        verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
-        jumpCount.current++
-        isOnGround.current = false
-        AudioManager.playSFX('jump')
-        
-        // Mark this jump ID as processed
-        prevJumpRequestId.current = currentJumpRequestId.current
-      }
-
-      // Apply physics (local prediction)
-      const speedMult = serverState?.speedMult || 1
-      const speed = MOVE_SPEED * speedMult
-      // Smoothed velocity (matches server 0.8 factor)
-      const targetVx = moveDir.current.x * speed
-      const targetVz = moveDir.current.z * speed
-      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
-      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
-      
-      // 4. Calculate new physics position
-      let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
-      let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
-      let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
-
-      // 5. Ground Clamp
-      if (newY <= GROUND_Y) {
-        newY = GROUND_Y
-        verticalVelocity.current = 0
-        isOnGround.current = true
-        jumpCount.current = 0
-      }
-
-      // Bounds checking
-      newX = Math.max(-PHYSICS.ARENA_HALF_WIDTH, Math.min(PHYSICS.ARENA_HALF_WIDTH, newX))
-      newZ = Math.max(-PHYSICS.ARENA_HALF_DEPTH, Math.min(PHYSICS.ARENA_HALF_DEPTH, newZ))
-
-      // Update physics position
-      physicsPosition.current.set(newX, newY, newZ)
-
-      // RECORD INPUT HISTORY (1:1 with physics tick)
-      inputHistory.current.push({
-        tick: physicsTick.current,
-        x: moveDir.current.x,
-        z: moveDir.current.z,
-        jumpRequestId: currentJumpRequestId.current,
-        rotY: groupRef.current.rotation.y
-      })
-      
-      // Keep buffer size manageable (2 seconds @ 120Hz = 240 items)
-      if (inputHistory.current.length > 240) {
-        inputHistory.current.shift()
-      }
-
-      // Decrement accumulator
-      accumulator.current -= FIXED_TIMESTEP
+    // 2. Ground Check (reset jump count if on ground)
+    // Matches server: if (currentPos.y <= GROUND_Y + 0.05 && player.vy <= 0)
+    if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+      jumpCount.current = 0
     }
 
-    // Handle kick - send to server (outside fixed loop, event based)
-    if (pendingKick.current && sendKick) {
+    // 3. Handle Jump (overrides gravity for this frame)
+    if (input.jump && !prevJump.current && jumpCount.current < MAX_JUMPS) {
+      const jumpMult = serverState?.jumpMult || 1
+      const baseJumpForce = JUMP_FORCE * jumpMult
+      // Matches server: player.vy = player.jumpCount === 0 ? jumpForce : jumpForce * DOUBLE_JUMP_MULTIPLIER
+      verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
+      jumpCount.current++
+      isOnGround.current = false
+    }
+    prevJump.current = input.jump
+
+    // Handle kick - send to server
+    if (input.kick && sendKick) {
       // Kick cooldown (200ms) to prevent spam
-      if (now - lastKickTime.current < 0.2) {
-        pendingKick.current = false // Consume even if on cooldown
-        return
-      }
-
-      // Client-side distance validation (matches server SoccerRoom.js:394)
-      const playerPos = groupRef.current.position
-      const ballPos = ballRef.current?.position
-      let canKick = false
-      if (ballPos) {
-        const dist = playerPos.distanceTo(ballPos)
-        if (dist < 3.0) canKick = true
-      }
-
-      if (!canKick) {
-        pendingKick.current = false
-        return
-      }
-
+      if (now - lastKickTime.current < 0.2) return
       lastKickTime.current = now
 
       if (onLocalInteraction) onLocalInteraction()
@@ -256,10 +155,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const forwardX = Math.sin(rotation)
       const forwardZ = Math.cos(rotation)
       const kickMult = serverState?.kickMult || 1
-      const kickPower = PHYSICS.KICK_POWER * kickMult
+      const kickPower = 65 * kickMult
       
       const impulseX = forwardX * kickPower + velocity.current.x * 2
-      const impulseY = 0.5 * kickPower // Server adds 0.8 vertical boost automatically
+      const impulseY = 0.5 * kickPower
       const impulseZ = forwardZ * kickPower + velocity.current.z * 2
 
       // Send to server
@@ -268,10 +167,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
         impulseY,
         impulseZ
       })
-      
-      AudioManager.playSFX('kick')
 
       // INSTANT LOCAL PREDICTION
+      // Apply the same boost server does (0.8 * kickMult)
       if (ballRef?.current?.userData?.predictKick) {
         ballRef.current.userData.predictKick({
           x: impulseX,
@@ -279,27 +177,44 @@ export const PlayerController = React.forwardRef((props, ref) => {
           z: impulseZ
         })
       }
-      pendingKick.current = false
     }
 
+    // Apply physics (local prediction)
+    const speedMult = serverState?.speedMult || 1
+    const speed = MOVE_SPEED * speedMult
+    // Smoothed velocity (matches server 0.3 factor)
+    const targetVx = moveDir.current.x * speed
+    const targetVz = moveDir.current.z * speed
+    velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
+    velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+    
+    // 4. Calculate new physics position
+    let newX = physicsPosition.current.x + velocity.current.x * delta
+    let newY = physicsPosition.current.y + verticalVelocity.current * delta
+    let newZ = physicsPosition.current.z + velocity.current.z * delta
+
+    // 5. Ground Clamp
+    if (newY <= GROUND_Y) {
+      newY = GROUND_Y
+      verticalVelocity.current = 0
+      isOnGround.current = true
+      jumpCount.current = 0
+    }
+
+    // Bounds checking
+    const wallMargin = 0.3
+    newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
+    newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+
+    // Update physics position
+    physicsPosition.current.set(newX, newY, newZ)
+
     // Visual Interpolation (Smooth Glide)
-    // Jitter Fix: Velocity-aware smoothing + Visual Offset Decay
-    
-    // 1. Decay visual offset (hide the snap)
-    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame)
-    
-    // 2. Calculate target visual position
-    const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
-    
-    // 3. Apply smoothing
-    const speed = velocity.current.length()
-    const baseLambda = 12
-    const speedFactor = Math.min(1, speed / 10)
-    const visualLambda = baseLambda + speedFactor * 8 // Range: 12 - 20
-    
-    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetVisualPos.x, visualLambda, delta)
-    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetVisualPos.y, visualLambda, delta)
-    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetVisualPos.z, visualLambda, delta)
+    // The visual model glides toward the predicted physics position
+    const visualLambda = 25
+    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
+    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
+    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)
 
     // Rotate player to face camera direction (strafe mode)
     if (!isFreeLook || !isFreeLook.current) {
@@ -314,150 +229,44 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Server reconciliation (smooth correction of physics position)
-    // We only reconcile if we have a valid server state and it's newer than our last check
-    
-    // Server reconciliation (smooth correction of physics position)
-    // We only reconcile if we have a valid server state and it's newer than our last check
-    
-    if (serverState && serverState.tick > lastReconciledTick.current) {
-      // Initialize physicsTick if this is the first server state
-      if (lastReconciledTick.current === 0) {
-        physicsTick.current = serverState.tick
-      }
-
-      lastReconciledTick.current = serverState.tick
-      
-      // 1. Calculate error between predicted position and server position
+    // Skip reconciliation if actively moving - prediction is more accurate
+    const isMoving = moveDir.current.length() > 0.1 || Math.abs(verticalVelocity.current) > 0.5
+    if (serverState && !isMoving) {
       serverPos.current.set(serverState.x, serverState.y, serverState.z)
       errorVec.current.copy(serverPos.current).sub(physicsPosition.current)
-      const errorMagnitude = errorVec.current.length()
       
-      // 2. Decide whether to reconcile
-      // Jitter Fix: Visual Offset Pattern
-      // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
-      // Latency-Adaptive Threshold: Higher ping = more lenient to reduce jitter
-      const BASE_THRESHOLD = 0.01 // 1cm - strict physics sync
-      const PING_SCALE = 0.0002   // 0.02cm per 100ms ping
-      const MAX_THRESHOLD = 0.15  // Cap at 15cm even for very high ping
-      const RECONCILE_THRESHOLD = Math.min(MAX_THRESHOLD, BASE_THRESHOLD + ping * PING_SCALE)
-
-      if (errorMagnitude > RECONCILE_THRESHOLD) {
-        // Capture position BEFORE snap
-        const beforeSnap = physicsPosition.current.clone()
-        
-        // HARD SNAP PHYSICS
+      const errorMagnitude = errorVec.current.length()
+      if (errorMagnitude > 0.5 && errorMagnitude < 5) {
+        // Soft correction of physics position - frame-rate independent
+        const correctionAlpha = 1 - Math.exp(-5 * delta)
+        physicsPosition.current.add(errorVec.current.multiplyScalar(correctionAlpha))
+      } else if (errorMagnitude >= 5) {
+        // Snap physics position if way off
         physicsPosition.current.copy(serverPos.current)
-        velocity.current.set(serverState.vx, serverState.vy, serverState.vz)
-        verticalVelocity.current = serverState.vy
-        jumpCount.current = serverState.jumpCount || 0
-        
-        // Replay inputs
-        const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
-        
-        // Find the input state at the start of replay (server state) to know the initial jump ID
-        const startInput = inputHistory.current.find(h => h.tick === serverState.tick)
-        let replayLastJumpId = startInput ? startInput.jumpRequestId : 0
-        
-        validHistory.forEach(input => {
-          // Jitter Fix: 1:1 Replay (1 step per history item)
-          // No loop needed because we record 1 item per physics step now
-          
-          // Apply Gravity
-          verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
-          
-          // Ground Check
-          if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
-            jumpCount.current = 0
-          }
-          
-          // Jump
-          // Detect change in jumpRequestId
-          if (input.jumpRequestId > replayLastJumpId && jumpCount.current < MAX_JUMPS) {
-             const jumpMult = serverState.jumpMult || 1
-             const baseJumpForce = JUMP_FORCE * jumpMult
-             verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
-             jumpCount.current++
-             isOnGround.current = false
-             replayLastJumpId = input.jumpRequestId
-          }
-          
-          // Movement
-          const speedMult = serverState.speedMult || 1
-          const speed = MOVE_SPEED * speedMult
-          const targetVx = (input.x || 0) * speed
-          const targetVz = (input.z || 0) * speed
-          
-          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
-          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
-          
-          // Integrate
-          let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
-          let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
-          let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
-          
-          // Ground Clamp
-          if (newY <= GROUND_Y) {
-            newY = GROUND_Y
-            verticalVelocity.current = 0
-            jumpCount.current = 0
-          }
-          
-          // Bounds
-          newX = Math.max(-PHYSICS.ARENA_HALF_WIDTH, Math.min(PHYSICS.ARENA_HALF_WIDTH, newX))
-          newZ = Math.max(-PHYSICS.ARENA_HALF_DEPTH, Math.min(PHYSICS.ARENA_HALF_DEPTH, newZ))
-          
-          physicsPosition.current.set(newX, newY, newZ)
-        })
-        
-        // Sync physics tick to the end of replay
-        if (validHistory.length > 0) {
-          physicsTick.current = validHistory[validHistory.length - 1].tick
-        } else {
-          physicsTick.current = serverState.tick
-        }
-
-        inputHistory.current = validHistory
-        
-        // VISUAL OFFSET CALCULATION
-        // Offset = OldPos - NewPos
-        // We add this to the current offset so multiple snaps accumulate correctly
-        const afterSnap = physicsPosition.current
-        visualOffset.current.x += beforeSnap.x - afterSnap.x
-        visualOffset.current.y += beforeSnap.y - afterSnap.y
-        visualOffset.current.z += beforeSnap.z - afterSnap.z
       }
     }
 
+    // Update userData for effects sync and ball prediction
+    groupRef.current.userData.invisible = serverState?.invisible || false
+    groupRef.current.userData.giant = serverState?.giant || false
     groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
     groupRef.current.userData.velocityTimestamp = now // Timestamp for temporal correlation
 
     // Check power-up collisions
     checkPowerUpCollision(physicsPosition.current)
 
-    // Send input batch to server (throttled at 60Hz)
+    // Send input to server (throttled at 60Hz)
     if (now - lastInputTime.current >= INPUT_SEND_RATE && sendInput) {
       lastInputTime.current = now
       inputSequence.current++
       
-      // Get all inputs generated since last send
-      // We filter history to find inputs that haven't been acknowledged yet?
-      // Actually, simpler: just send the last N inputs that cover the time since last send.
-      // But we need to be precise.
-      // Let's send the last 5 inputs (approx 40ms coverage) to be safe against packet loss.
-      // Server will deduplicate based on tick.
-      
-      const inputsToSend = inputHistory.current.slice(-5) // Send last 5 ticks
-      
-      if (inputsToSend.length > 0) {
-        sendInput({
-          inputs: inputsToSend,
-          seq: inputSequence.current
-        })
-      }
-
-      // Consume buffered jump (it's recorded in history now)
-      // No need to reset pendingJump, the ID stays until it changes
-      // pendingJump.current = false 
+      sendInput({
+        x: moveDir.current.x,
+        z: moveDir.current.z,
+        jump: input.jump,
+        rotY: groupRef.current.rotation.y,
+        seq: inputSequence.current
+      })
     }
   })
 
