@@ -12,23 +12,23 @@ Volume controls
 Implementation:
 javascript// Add to store.js
 audioSettings: {
-  masterVolume: 0.7,
-  musicVolume: 0.5,
-  sfxVolume: 0.8,
-  muted: false
+masterVolume: 0.7,
+musicVolume: 0.5,
+sfxVolume: 0.8,
+muted: false
 }
 
 // Create AudioManager.js
 class AudioManager {
-  constructor() {
-    this.sounds = {
-      kick: new Audio('/sounds/kick.mp3'),
-      jump: new Audio('/sounds/jump.mp3'),
-      powerup: new Audio('/sounds/powerup.mp3'),
-      bgMusic: new Audio('/sounds/bg-music.mp3')
-    }
-  }
-  play(soundName, volume = 1) { /* ... */ }
+constructor() {
+this.sounds = {
+kick: new Audio('/sounds/kick.mp3'),
+jump: new Audio('/sounds/jump.mp3'),
+powerup: new Audio('/sounds/powerup.mp3'),
+bgMusic: new Audio('/sounds/bg-music.mp3')
+}
+}
+play(soundName, volume = 1) { /_ ... _/ }
 }
 Assets Needed:
 
@@ -37,7 +37,6 @@ Kick sound (whoosh + impact)
 Jump sound (spring/bounce)
 Power-up collection (sparkle/chime)
 UI sounds (button clicks, menu navigation)
-
 
 1.2 Settings Menu ⚙️
 Priority: HIGH | Effort: Low | Impact: High
@@ -80,23 +79,6 @@ Space - Jump (press twice for double jump)
 Left Click - Kick
 Mouse Move - Camera
 ESC - Menu
-Enter - Chat
-
-
-1.5 Quick Polish Items ✨
-Priority: MEDIUM | Effort: Very Low | Impact: Medium
-
-Add ball trail effect (already has Trail component in Ball.jsx)
-Show player nametags above characters
-Add "You scored!" / "Enemy scored!" text differentiation
-Kick cooldown visual indicator
-Power-up timer display when active
-Add field markings (center circle, penalty box outlines)
-
-
-PHASE 2: CONTENT & VARIETY 🎨 (2-3 weeks)
-Medium impact, medium effort additions
-2.1 Character Expansion 🐾🚗
 Priority: HIGH | Effort: Medium | Impact: High
 Current: 2 characters (Cat, Car)
 Target: 6-8 characters
@@ -115,7 +97,6 @@ Have unique animations
 Maintain balanced hitboxes
 Include 2-3 color variations (team colors + neutral)
 
-
 2.2 Character Customization System 🎨
 Priority: MEDIUM | Effort: Medium | Impact: Medium
 Features:
@@ -124,7 +105,6 @@ Unlock system (play X matches to unlock)
 Color customization (within team constraints)
 Accessories (hats, trails, victory animations)
 Store customization in localStorage + server profile
-
 
 2.3 Additional Game Modes 🎮
 Priority: MEDIUM | Effort: Medium-High | Impact: High
@@ -146,7 +126,6 @@ Mode 3: Training Course
 Obstacle course with checkpoints
 Time trial challenges
 Teach advanced mechanics (double jump timing, kickoffs)
-
 
 2.4 Bot Players (AI) 🤖
 Priority: MEDIUM | Effort: High | Impact: High
@@ -191,7 +170,6 @@ Player card in lobby showing level, title, favorite character
 Achievement showcase (3 selected badges)
 Match history (last 10 games)
 
-
 3.2 Global Leaderboards 🏅
 Priority: HIGH | Effort: Medium-High | Impact: High
 Categories:
@@ -209,7 +187,6 @@ Add MongoDB/PostgreSQL for persistent stats
 API endpoints for leaderboard queries
 Anti-cheat validation
 
-
 3.3 Match Replay System 📹
 Priority: MEDIUM | Effort: Very High | Impact: Medium
 Features:
@@ -225,7 +202,6 @@ Technical Approach:
 Record server state snapshots at 10Hz
 Compress using delta encoding
 Store locally in IndexedDB (limit: 100MB)
-
 
 3.4 Social Features 👥
 Priority: MEDIUM | Effort: High | Impact: High
@@ -243,7 +219,6 @@ Team stats and rankings
 Team invite system
 Team color/emblem customization
 
-
 PHASE 4: ADVANCED FEATURES 🚀 (4+ weeks)
 Long-term improvements
 4.1 Ranked Mode 🎖️
@@ -256,7 +231,6 @@ Seasonal resets
 Ranked rewards
 Leaver penalties
 
-
 4.2 Spectator Mode 👁️
 Priority: LOW | Effort: High | Impact: Medium
 Features:
@@ -265,7 +239,6 @@ Watch ongoing matches
 Switch between player views
 Free camera mode
 No player limit increase (observers don't count)
-
 
 4.3 Tournament System 🏆
 Priority: LOW | Effort: Very High | Impact: Medium
@@ -277,40 +250,15 @@ Auto-scheduling
 Tournament leaderboard
 Prize distribution (cosmetics, titles)
 
-
 🔧 TECHNICAL RECOMMENDATIONS
-Code Quality Improvements
-
-Error Handling
-
-Add try-catch blocks around Colyseus connection
-Graceful handling of network disconnections
-Reconnection logic with state restoration
-
-
-Performance Monitoring
-
-Add FPS counter (optional in settings)
-Network stats overlay (ping graph, packet loss)
-Memory usage tracking (warn if > 80%)
-
-
-Code Organization
-
-Extract constants to constants.js
-Create utils/ folder for helper functions
 Separate audio logic into AudioManager.js
 Create components/UI/ folder for UI components
-
 
 Testing
 
 Add unit tests for game logic (vitest already configured)
 Integration tests for multiplayer scenarios
 Load testing for server (simulate 10+ concurrent matches)
-
-
-
 
 Security Considerations
 
@@ -321,15 +269,11 @@ Rate limiting on kick/jump actions
 Sanity checks on player positions (teleport detection)
 Hash verification for critical state updates
 
-
 Data Validation
 
 Sanitize chat messages (XSS prevention)
 Validate room codes (prevent injection)
 Limit player name length/characters
-
-
-
 
 📏 SUCCESS METRICS
 Key Performance Indicators (KPIs)
@@ -353,7 +297,6 @@ Character usage distribution (goal: balanced)
 Map selection distribution (identify favorites)
 Power-up impact on win rate
 Most popular game modes
-
 
 🎨 OPTIONAL ENHANCEMENTS
 Visual Polish
@@ -379,7 +322,6 @@ Battle pass system
 Character unlock packs
 Map editor (user-generated content)
 
-
 🏁 CONCLUSION & RECOMMENDATIONS
 Immediate Next Steps (This Week)
 
@@ -401,7 +343,6 @@ Ranked matchmaking
 Tournament system
 Full progression system with unlockables
 Mobile app release (PWA already supported!)
-
 
 💡 FINAL THOUGHTS
 Omni-Pitch Soccer is already a technically impressive and fun game. The core gameplay loop is solid, the physics feel great, and the multiplayer networking is robust. The biggest opportunities for growth are:

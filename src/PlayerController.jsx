@@ -141,7 +141,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Accumulate time for fixed timestep
-    accumulator.current += delta
+    // Clamp delta to prevent physics explosions on frame spikes
+    const clampedDelta = Math.min(delta, 0.05)
+    accumulator.current += clampedDelta
     
     // Physics loop - Fixed Timestep
     while (accumulator.current >= FIXED_TIMESTEP) {
@@ -188,9 +190,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
 
       // Bounds checking
-      const wallMargin = 0.3
-      newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
-      newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+      // Match server bounds: ARENA_HALF_WIDTH + 0.2, ARENA_HALF_DEPTH + 0.2
+      const HALF_WIDTH = PHYSICS.ARENA_HALF_WIDTH + 0.2
+      const HALF_DEPTH = PHYSICS.ARENA_HALF_DEPTH + 0.2
+      newX = Math.max(-HALF_WIDTH, Math.min(HALF_WIDTH, newX))
+      newZ = Math.max(-HALF_DEPTH, Math.min(HALF_DEPTH, newZ))
 
       // Update physics position
       physicsPosition.current.set(newX, newY, newZ)
@@ -256,11 +260,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Visual Interpolation (Smooth Glide)
-    // Reduced from 25 to 15 for smoother feel
-    const visualLambda = 15
-    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
-    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
-    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)
+    // Frame-rate independent exponential interpolation
+    // Higher lambda = snappier response
+    const visualLambda = 20
+    const lerpFactor = 1 - Math.exp(-visualLambda * clampedDelta)
+    groupRef.current.position.lerp(physicsPosition.current, lerpFactor)
 
     // Rotate player to face camera direction (strafe mode)
     if (!isFreeLook || !isFreeLook.current) {
@@ -286,15 +290,27 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const errorMagnitude = errorVec.current.length()
       
       // 2. Decide whether to reconcile
-      // If error is small (< 5cm), ignore it to prevent micro-jitters
-      // If error is large (> 5cm), hard correct and replay inputs
-      if (errorMagnitude > 0.05) {
-        // REWIND: Snap to server state
+      // Soft correction zone: 0.05-0.15m (smooth blend)
+      // Hard correction zone: >0.5m (snap)
+      if (errorMagnitude > 0.5) {
+        // HARD SNAP: Teleport to server (major desync)
         physicsPosition.current.copy(serverPos.current)
-        velocity.current.set(serverState.vx, serverState.vy, serverState.vz)
-        verticalVelocity.current = serverState.vy
-        jumpCount.current = serverState.jumpCount || 0 // Sync jump count!
+        velocity.current.set(serverState.vx || 0, 0, serverState.vz || 0)
+        verticalVelocity.current = serverState.vy || 0
+        jumpCount.current = serverState.jumpCount || 0
+      } else if (errorMagnitude > 0.05) {
+        // SOFT CORRECTION: Blend toward server over time
+        // The visual damp already handles the smoothing, but we correct the physics state
+        const blendFactor = Math.min(0.3, errorMagnitude * 0.5)
+        physicsPosition.current.lerp(serverPos.current, blendFactor)
         
+        // Also blend velocity slightly to match server trend
+        velocity.current.x += (serverState.vx - velocity.current.x) * 0.1
+        velocity.current.z += (serverState.vz - velocity.current.z) * 0.1
+      }
+
+      // 3. Replay inputs if there was a correction
+      if (errorMagnitude > 0.05) {
         // REPLAY: Re-simulate inputs since server tick
         // Filter history for inputs newer than server tick
         const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
@@ -383,7 +399,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       
       // Store input in history buffer
       inputHistory.current.push({
-        tick: serverState?.tick || 0, // Approximate tick
+        tick: (serverState?.tick || 0) + 1, // Next tick (what server will process)
         input: { 
           ...input, 
           x: moveDir.current.x, // Store the exact direction sent to server
@@ -405,8 +421,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
         rotY: groupRef.current.rotation.y,
         seq: inputSequence.current
       })
+    }
 
-      // Consume buffered jump
+    // Consume buffered jump AFTER physics loop and send
+    // This ensures it's processed for the frame it was intended and replicated
+    if (!InputManager.getInput().jump) {
       pendingJump.current = false
     }
   })
