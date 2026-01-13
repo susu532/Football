@@ -179,8 +179,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Smoothed velocity (matches server 0.8 factor)
       const targetVx = moveDir.current.x * speed
       const targetVz = moveDir.current.z * speed
-      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
-      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
+      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * PHYSICS.MOVEMENT_SMOOTHING
+      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * PHYSICS.MOVEMENT_SMOOTHING
       
       // 4. Calculate new physics position
       let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
@@ -281,7 +281,12 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Jitter Fix: Velocity-aware smoothing + Visual Offset Decay
     
     // 1. Decay visual offset (hide the snap)
-    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame)
+    // visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame) - FRAME RATE DEPENDENT!
+    // Fix: Use damp for frame-rate independence
+    const decayLambda = 15
+    visualOffset.current.x = THREE.MathUtils.damp(visualOffset.current.x, 0, decayLambda, delta)
+    visualOffset.current.y = THREE.MathUtils.damp(visualOffset.current.y, 0, decayLambda, delta)
+    visualOffset.current.z = THREE.MathUtils.damp(visualOffset.current.z, 0, decayLambda, delta)
     
     // 2. Calculate target visual position
     const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
@@ -330,7 +335,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // 2. Decide whether to reconcile
       // Jitter Fix: Visual Offset Pattern
       // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
-      const RECONCILE_THRESHOLD = 0.01 // 1cm - strict physics sync
+      // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
+      const RECONCILE_THRESHOLD = 0.05 // 5cm - looser threshold to prevent micro-snaps
 
       if (errorMagnitude > RECONCILE_THRESHOLD) {
         // Capture position BEFORE snap
@@ -372,8 +378,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
           const targetVx = (input.x || 0) * speed
           const targetVz = (input.z || 0) * speed
           
-          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
-          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
+          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * PHYSICS.MOVEMENT_SMOOTHING
+          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * PHYSICS.MOVEMENT_SMOOTHING
           
           // Integrate
           let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
