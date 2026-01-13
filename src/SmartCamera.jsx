@@ -150,20 +150,7 @@ export const SmartCamera = React.forwardRef(({
     const camY = THREE.MathUtils.damp(camera.position.y, clampedY, posLambda, dt)
     const camZ = THREE.MathUtils.damp(camera.position.z, clampedZ, posLambda, dt)
 
-    // 5. Dynamic FOV with Damp
-    const speed = targetVel.length()
-    const baseFov = 45
-    const maxFov = 65
-    const targetFov = baseFov + (Math.min(speed, 20) / 20) * (maxFov - baseFov)
-    
-    const currentFov = THREE.MathUtils.damp(camera.fov, targetFov, 5, dt)
-    
-    if (Math.abs(camera.fov - currentFov) > 0.1) {
-      camera.fov = currentFov
-      camera.updateProjectionMatrix()
-    }
-
-    // 6. Camera Shake
+    // 5. Camera Shake
     let shakeX = 0, shakeY = 0, shakeZ = 0
     if (shakeState.current.intensity > 0.01) {
       shakeState.current.time += dt
