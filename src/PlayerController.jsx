@@ -331,17 +331,19 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Jitter Fix: Velocity-aware smoothing + Visual Offset Decay
     
     // 1. Decay visual offset (hide the snap)
-    // Aggressive velocity-aware decay
-    const speed = velocity.current.length()
-    const decayRate = Math.min(0.25, PHYSICS.VISUAL_OFFSET_DECAY + speed * 0.02)
-    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), decayRate)
+    // Use damp for frame-rate independent smoothing
+    // Lower lambda = slower decay = smoother correction
+    const decayLambda = 4.0 
+    visualOffset.current.x = THREE.MathUtils.damp(visualOffset.current.x, 0, decayLambda, delta)
+    visualOffset.current.y = THREE.MathUtils.damp(visualOffset.current.y, 0, decayLambda, delta)
+    visualOffset.current.z = THREE.MathUtils.damp(visualOffset.current.z, 0, decayLambda, delta)
     
     // 2. Calculate target visual position
     const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
     
     // 3. Apply smoothing
     const baseLambda = PHYSICS.VISUAL_LAMBDA_MIN
-    const speedFactor = Math.min(1, speed / 10)
+    const speedFactor = Math.min(1, velocity.current.length() / 10)
     const visualLambda = baseLambda + speedFactor * (PHYSICS.VISUAL_LAMBDA_MAX - baseLambda)
     
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetVisualPos.x, visualLambda, delta)
@@ -363,9 +365,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Server reconciliation (smooth correction of physics position)
     // We only reconcile if we have a valid server state and it's newer than our last check
     
-    // Server reconciliation (smooth correction of physics position)
-    // We only reconcile if we have a valid server state and it's newer than our last check
-    
     if (serverState && serverState.tick > lastReconciledTick.current) {
       // Initialize physicsTick if this is the first server state
       if (lastReconciledTick.current === 0) {
@@ -383,9 +382,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Jitter Fix: Visual Offset Pattern
       // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
       // Latency-Adaptive Threshold: Higher ping = more lenient to reduce jitter
-      const BASE_THRESHOLD = 0.1   // 10cm base (was 1cm)
-      const PING_SCALE = 0.0002   // 0.02cm per 100ms ping
-      const MAX_THRESHOLD = 0.5    // 50cm max (was 15cm)
+      const BASE_THRESHOLD = 0.15   // 15cm base (was 10cm)
+      const PING_SCALE = 0.0004   // 0.04cm per 100ms ping
+      const MAX_THRESHOLD = 0.6    // 60cm max (was 50cm)
       const RECONCILE_THRESHOLD = Math.min(MAX_THRESHOLD, BASE_THRESHOLD + ping * PING_SCALE)
 
       if (errorMagnitude > RECONCILE_THRESHOLD) {
