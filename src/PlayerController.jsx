@@ -390,8 +390,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
             newY = GROUND_Y
             verticalVelocity.current = 0
             jumpCount.current = 0
-            replayIsOnGround = true
-            replayLastGroundedTick = replayTick
           }
           
           // Bounds
