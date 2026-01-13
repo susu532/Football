@@ -52,11 +52,15 @@ export const SmartCamera = React.forwardRef(({
 
   // Spring System for smooth follow
   const springs = useRef({
-    x: new Spring(100, 15),
-    y: new Spring(100, 15),
-    z: new Spring(100, 15),
+    x: new Spring(80, 20),
+    y: new Spring(80, 20),
+    z: new Spring(80, 20),
     fov: new Spring(50, 10)
   })
+
+  // LookAt Smoothing State
+  const smoothedLookTarget = useRef(new THREE.Vector3())
+  const isInitialized = useRef(false)
 
   // Shake State
   const shakeState = useRef({
@@ -147,7 +151,7 @@ export const SmartCamera = React.forwardRef(({
 
     // 2. Calculate Ideal Camera Position
     // Add "Look Ahead" based on velocity
-    const lookAhead = targetVel.clone().multiplyScalar(0.3)
+    const lookAhead = targetVel.clone().multiplyScalar(0.1)
     lookAhead.y = 0 // Don't look ahead vertically
     
     const { azimuth, polar, distance } = orbit.current
@@ -223,7 +227,15 @@ export const SmartCamera = React.forwardRef(({
     // Add velocity influence to look target (look where you're going)
     lookTarget.add(targetVel.clone().multiplyScalar(0.1))
     
-    camera.lookAt(lookTarget)
+    // Smooth lookAt to prevent micro-jitter
+    if (!isInitialized.current) {
+      smoothedLookTarget.current.copy(lookTarget)
+      isInitialized.current = true
+    } else {
+      smoothedLookTarget.current.lerp(lookTarget, dt * 10)
+    }
+    
+    camera.lookAt(smoothedLookTarget.current)
   })
 
   return null
