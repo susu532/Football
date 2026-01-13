@@ -148,9 +148,12 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     
     // Use pre-allocated vector and frame-rate independent damp
     cameraTarget.current.set(x, y, z)
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
+    
+    // Jitter Fix: Decoupled camera smoothing (lower lambda = smoother, less oscillation)
+    const cameraLambda = 10 
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, cameraLambda, delta)
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, cameraLambda, delta)
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, cameraLambda, delta)
     
     camera.lookAt(p.x, p.y + 1, p.z)
   }, 1) // Priority 1: Run after player physics (Priority 0)

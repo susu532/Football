@@ -55,6 +55,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const moveDir = useRef(new THREE.Vector3())
   const serverPos = useRef(new THREE.Vector3())
   const errorVec = useRef(new THREE.Vector3())
+  
+  // Jitter Fix: Smoothed server position for reconciliation
+  const smoothedServerPos = useRef(new THREE.Vector3())
+  // Jitter Fix: Client-side tick tracking for reliable input history
+  const clientTick = useRef(0)
 
   // Initialize position
   const lastSpawnRef = useRef('')
@@ -142,6 +147,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
     // Accumulate time for fixed timestep
     accumulator.current += delta
+    
+    // Jitter Fix: Increment client tick
+    clientTick.current++
     
     // Physics loop - Fixed Timestep
     while (accumulator.current >= FIXED_TIMESTEP) {
@@ -256,17 +264,16 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Visual Interpolation (Smooth Glide)
-    // We damp towards the EXTRAPOLATED position (physics + velocity * accumulator)
-    // This prevents jitter because the target moves every frame, not just on physics ticks
-    const targetX = physicsPosition.current.x + velocity.current.x * accumulator.current
-    const targetY = physicsPosition.current.y + verticalVelocity.current * accumulator.current
-    const targetZ = physicsPosition.current.z + velocity.current.z * accumulator.current
-
-    // Higher lambda = snappier response. 25-30 is good for 60Hz+
-    const visualLambda = 30
-    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetX, visualLambda, delta)
-    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetY, visualLambda, delta)
-    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetZ, visualLambda, delta)
+    // Jitter Fix: Velocity-aware smoothing
+    // Moving fast = higher lambda (responsive), Standing = lower lambda (smooth)
+    const speed = velocity.current.length()
+    const baseLambda = 12
+    const speedFactor = Math.min(1, speed / 10)
+    const visualLambda = baseLambda + speedFactor * 8 // Range: 12 - 20
+    
+    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
+    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
+    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)
 
     // Rotate player to face camera direction (strafe mode)
     if (!isFreeLook || !isFreeLook.current) {
@@ -288,29 +295,36 @@ export const PlayerController = React.forwardRef((props, ref) => {
       
       // 1. Calculate error between predicted position and server position
       serverPos.current.set(serverState.x, serverState.y, serverState.z)
-      errorVec.current.copy(serverPos.current).sub(physicsPosition.current)
+      
+      // Jitter Fix: EMA Filter on server position
+      // Smooths out network jitter before we compare
+      const serverEMA = 0.3
+      if (smoothedServerPos.current.lengthSq() === 0) {
+        smoothedServerPos.current.copy(serverPos.current)
+      } else {
+        smoothedServerPos.current.lerp(serverPos.current, serverEMA)
+      }
+      
+      errorVec.current.copy(smoothedServerPos.current).sub(physicsPosition.current)
       const errorMagnitude = errorVec.current.length()
       
       // 2. Decide whether to reconcile
-      // If error is small (< 5cm), ignore it to prevent micro-jitters
-      // If error is large (> 5cm), hard correct and replay inputs
-      if (errorMagnitude > 0.05) {
-        // REWIND: Snap to server state
-        physicsPosition.current.copy(serverPos.current)
+      // Jitter Fix: Two-tier reconciliation
+      const SOFT_THRESHOLD = 0.05 // 5cm
+      const HARD_THRESHOLD = 0.5  // 50cm
+
+      if (errorMagnitude > HARD_THRESHOLD) {
+        // HARD SNAP: For large desyncs (teleports, respawns)
+        physicsPosition.current.copy(smoothedServerPos.current)
         velocity.current.set(serverState.vx, serverState.vy, serverState.vz)
         verticalVelocity.current = serverState.vy
-        jumpCount.current = serverState.jumpCount || 0 // Sync jump count!
+        jumpCount.current = serverState.jumpCount || 0
         
-        // REPLAY: Re-simulate inputs since server tick
-        // Filter history for inputs newer than server tick
+        // Replay inputs
         const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
         
         validHistory.forEach(historyItem => {
           const { input } = historyItem
-          
-          // Re-run physics step (simplified version of main loop)
-          // Note: Inputs are at 60Hz, Physics is 120Hz.
-          // We must run 2 steps per input to match the simulation speed.
           for (let i = 0; i < 2; i++) {
             // Apply Gravity
             verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
@@ -320,8 +334,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
               jumpCount.current = 0
             }
             
-            // Jump (only on first step of the input frame to avoid double jumping)
-            // Use stored jumpPressed event for reliable replay
+            // Jump
             if (i === 0 && input.jumpPressed && jumpCount.current < MAX_JUMPS) {
                const jumpMult = serverState.jumpMult || 1
                const baseJumpForce = JUMP_FORCE * jumpMult
@@ -330,7 +343,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
                isOnGround.current = false
             }
             
-            // Movement - Use stored x/z from history (matches what was sent to server)
+            // Movement
             const speedMult = serverState.speedMult || 1
             const speed = MOVE_SPEED * speedMult
             const targetVx = (input.x || 0) * speed
@@ -348,7 +361,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
             if (newY <= GROUND_Y) {
               newY = GROUND_Y
               verticalVelocity.current = 0
-              jumpCount.current = 0 // Reset jump count on ground hit!
+              jumpCount.current = 0
             }
             
             // Bounds
@@ -360,22 +373,15 @@ export const PlayerController = React.forwardRef((props, ref) => {
           }
         })
         
-        // Prune old history
         inputHistory.current = validHistory
 
-        // SMOOTH RECONCILIATION: If error was significant but not massive, 
-        // we can blend the visual position to avoid a pop.
-        // The visual damp (line 240) already handles this if we update physicsPosition here.
-        // But if we want it even smoother for medium errors:
-        if (errorMagnitude < 0.5) {
-          // Optional: we could reduce the visualLambda temporarily
-        }
+      } else if (errorMagnitude > SOFT_THRESHOLD) {
+        // SOFT BLEND: For small drifts
+        // Nudge physics position 20% towards server
+        physicsPosition.current.lerp(smoothedServerPos.current, 0.2)
       }
     }
 
-    // Update userData for effects sync and ball prediction
-    groupRef.current.userData.invisible = serverState?.invisible || false
-    groupRef.current.userData.giant = serverState?.giant || false
     groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
     groupRef.current.userData.velocityTimestamp = now // Timestamp for temporal correlation
 
@@ -389,7 +395,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       
       // Store input in history buffer
       inputHistory.current.push({
-        tick: serverState?.tick || 0, // Approximate tick
+        tick: clientTick.current, // Jitter Fix: Use client tick
         input: { 
           ...input, 
           x: moveDir.current.x, // Store the exact direction sent to server
