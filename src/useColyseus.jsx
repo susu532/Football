@@ -4,6 +4,8 @@
 import { useState, useEffect, useRef, useCallback, createContext, useContext } from 'react'
 import { Client } from 'colyseus.js'
 import { GameState } from './schema/GameState.js'
+import { stateHistory } from './StateHistory.js'
+import AudioManager from './AudioManager'
 
 // Context for sharing room across components
 const ColyseusContext = createContext(null)
@@ -59,7 +61,9 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [ballState, setBallState] = useState({
     x: 0, y: 2, z: 0,
     vx: 0, vy: 0, vz: 0,
-    rx: 0, ry: 0, rz: 0, rw: 1
+    rx: 0, ry: 0, rz: 0, rw: 1,
+    tick: 0,
+    ownerSessionId: ''
   })
   const [scores, setScores] = useState({ red: 0, blue: 0 })
   const [gamePhase, setGamePhase] = useState('waiting')
@@ -104,6 +108,12 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
     joinedRoom.onMessage('goal-scored', (message) => {
       console.log('Goal scored:', message)
+      AudioManager.playSFX('goal')
+    })
+
+    joinedRoom.onMessage('powerup-collected', (message) => {
+      console.log('Powerup collected:', message)
+      AudioManager.playSFX('powerup')
     })
 
     joinedRoom.onMessage('game-over', (message) => {
@@ -168,6 +178,14 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
         setBallState(state.ball)
       }
 
+      // Push to history for reconciliation
+      stateHistory.push({
+        tick: state.currentTick || 0,
+        timestamp: Date.now(),
+        ball: { ...state.ball },
+        players: new Map(state.players)
+      })
+
       // Sync Game Info
       setScores({ red: state.redScore, blue: state.blueScore })
       setGamePhase(state.gamePhase)
@@ -215,6 +233,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       if (roomRef.current) {
         roomRef.current.leave()
       }
+      AudioManager.stopMusic()
     }
   }, [serverUrl])
 
@@ -336,6 +355,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setIsConnected(false)
       setPlayers([])
       setRoomCode(null)
+      AudioManager.stopMusic()
     }
   }, [])
 
@@ -419,6 +439,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     // State
     players,
     ballState,
+    ballOwner: ballState.ownerSessionId,
     scores,
     gameState: gamePhase,
     gameTimer,

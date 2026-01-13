@@ -5,9 +5,16 @@ class InputManagerClass {
   constructor() {
     this.keys = {}
     this.mobileInput = { move: { x: 0, y: 0 }, jump: false, kick: false }
-    this.jumpPressed = false
+    this.jumpRequestId = 0 // Increments on every jump press
     this.kickPressed = false
     this.isInitialized = false
+    
+    // Reusable objects to reduce GC
+    this._reusableInput = {
+      move: { x: 0, z: 0 },
+      jumpRequestId: 0,
+      kick: false
+    }
   }
 
   init() {
@@ -40,7 +47,7 @@ class InputManagerClass {
     
     // Track one-shot actions
     if (e.code === 'Space') {
-      this.jumpPressed = true
+      this.jumpRequestId++
     }
     if (key === 'f') {
       this.kickPressed = true
@@ -61,7 +68,7 @@ class InputManagerClass {
   }
 
   setMobileJump() {
-    this.jumpPressed = true
+    this.jumpRequestId++
   }
 
   setMobileKick() {
@@ -82,7 +89,12 @@ class InputManagerClass {
       // Consume one-shots even if focused to prevent "stuck" actions
       this.jumpPressed = false
       this.kickPressed = false
-      return { move: { x: 0, z: 0 }, jump: false, kick: false }
+      
+      this._reusableInput.move.x = 0
+      this._reusableInput.move.z = 0
+      this._reusableInput.jumpRequestId = this.jumpRequestId
+      this._reusableInput.kick = false
+      return this._reusableInput
     }
 
     let moveX = 0
@@ -113,17 +125,24 @@ class InputManagerClass {
     this.jumpPressed = false
     this.kickPressed = false
 
-    return {
-      move: { x: moveX, z: moveZ },
-      jump,
-      kick
-    }
+    this.kickPressed = false
+    
+    this._reusableInput.move.x = moveX
+    this._reusableInput.move.z = moveZ
+    this._reusableInput.jumpRequestId = this.jumpRequestId
+    this._reusableInput.kick = kick
+    
+    return this._reusableInput
   }
 
   // Peek at input without consuming one-shots (for prediction)
   peekInput() {
     if (this.isInputFocused()) {
-      return { move: { x: 0, z: 0 }, jump: false, kick: false }
+      this._reusableInput.move.x = 0
+      this._reusableInput.move.z = 0
+      this._reusableInput.jumpRequestId = this.jumpRequestId
+      this._reusableInput.kick = false
+      return this._reusableInput
     }
 
     let moveX = 0
@@ -145,11 +164,12 @@ class InputManagerClass {
       moveZ /= length
     }
 
-    return {
-      move: { x: moveX, z: moveZ },
-      jump: this.jumpPressed,
-      kick: this.kickPressed
-    }
+    this._reusableInput.move.x = moveX
+    this._reusableInput.move.z = moveZ
+    this._reusableInput.jumpRequestId = this.jumpRequestId
+    this._reusableInput.kick = this.kickPressed
+    
+    return this._reusableInput
   }
 
   // Check if any movement input is active
