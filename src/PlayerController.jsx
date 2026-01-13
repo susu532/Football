@@ -424,21 +424,28 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Check power-up collisions
     checkPowerUpCollision(physicsPosition.current)
 
-    // Send input to server (throttled at 60Hz)
+    // Send input batch to server (throttled at 60Hz)
     if (now - lastInputTime.current >= INPUT_SEND_RATE && sendInput) {
       lastInputTime.current = now
       inputSequence.current++
       
-      // Send input (History is now handled in physics loop)
-      sendInput({
-        x: moveDir.current.x,
-        z: moveDir.current.z,
-        jump: pendingJump.current, // Send the buffered jump
-        rotY: groupRef.current.rotation.y,
-        seq: inputSequence.current
-      })
+      // Get all inputs generated since last send
+      // We filter history to find inputs that haven't been acknowledged yet?
+      // Actually, simpler: just send the last N inputs that cover the time since last send.
+      // But we need to be precise.
+      // Let's send the last 5 inputs (approx 40ms coverage) to be safe against packet loss.
+      // Server will deduplicate based on tick.
+      
+      const inputsToSend = inputHistory.current.slice(-5) // Send last 5 ticks
+      
+      if (inputsToSend.length > 0) {
+        sendInput({
+          inputs: inputsToSend,
+          seq: inputSequence.current
+        })
+      }
 
-      // Consume buffered jump
+      // Consume buffered jump (it's recorded in history now)
       pendingJump.current = false
     }
   })
