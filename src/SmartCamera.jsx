@@ -133,22 +133,11 @@ export const SmartCamera = React.forwardRef(({
     const idealY = targetPos.y + offsetY + 2.0 // Look slightly above player
     const idealZ = targetPos.z + offsetZ + lookAhead.z
 
-    // 3. Collision Avoidance (Simple Arena Bounds)
-    const ARENA_MARGIN = 2.0
-    const minX = -PHYSICS.ARENA_HALF_WIDTH - ARENA_MARGIN
-    const maxX = PHYSICS.ARENA_HALF_WIDTH + ARENA_MARGIN
-    const minZ = -PHYSICS.ARENA_HALF_DEPTH - ARENA_MARGIN
-    const maxZ = PHYSICS.ARENA_HALF_DEPTH + ARENA_MARGIN
-
-    const clampedX = THREE.MathUtils.clamp(idealX, minX, maxX)
-    const clampedZ = THREE.MathUtils.clamp(idealZ, minZ, maxZ)
-    const clampedY = Math.max(1.0, idealY)
-
-    // 4. Update Position with Damp (Replaced Springs)
+    // 3. Update Position with Damp (Replaced Springs)
     const posLambda = 10 // Higher = snappier
-    const camX = THREE.MathUtils.damp(camera.position.x, clampedX, posLambda, dt)
-    const camY = THREE.MathUtils.damp(camera.position.y, clampedY, posLambda, dt)
-    const camZ = THREE.MathUtils.damp(camera.position.z, clampedZ, posLambda, dt)
+    const camX = THREE.MathUtils.damp(camera.position.x, idealX, posLambda, dt)
+    const camY = THREE.MathUtils.damp(camera.position.y, idealY, posLambda, dt)
+    const camZ = THREE.MathUtils.damp(camera.position.z, idealZ, posLambda, dt)
 
     // 5. Camera Shake
     let shakeX = 0, shakeY = 0, shakeZ = 0
