@@ -10,7 +10,7 @@ import { useSpring, a } from '@react-spring/three'
 import { PHYSICS } from './PhysicsConstants.js'
 
 // Soccer Ball Visual Component
-export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, ref) => {
+export const SoccerBall = React.forwardRef(({ radius = PHYSICS.BALL_RADIUS, onKickFeedback }, ref) => {
   const internalRef = useRef()
   useImperativeHandle(ref, () => internalRef.current)
   const { scene } = useGLTF('/models/soccer_ball.glb')
@@ -155,8 +155,8 @@ const TrajectoryLine = ({ startPos, startVel, gravity = 20 }) => {
       vel.y -= gravity * dt
       
       // Floor bounce
-      if (pos.y < 0.8) {
-        pos.y = 0.8
+      if (pos.y < PHYSICS.BALL_RADIUS) {
+        pos.y = PHYSICS.BALL_RADIUS
         vel.y *= -PHYSICS.BALL_RESTITUTION
         vel.x *= 0.85
         vel.z *= 0.85
@@ -338,14 +338,14 @@ export const ClientBallVisual = React.forwardRef(({
     if (Math.abs(targetPos.current.x) > ARENA_HALF_WIDTH) {
       const inGoalZone = Math.abs(targetPos.current.z) < GOAL_HALF_WIDTH && targetPos.current.y < 4
       if (!inGoalZone) {
-        predictedVelocity.current.x *= -0.8 // Match server side wall restitution
+        predictedVelocity.current.x *= -PHYSICS.WALL_RESTITUTION // Match server side wall restitution
         targetPos.current.x = Math.sign(targetPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
       }
     }
     
     // Z walls
     if (Math.abs(targetPos.current.z) > ARENA_HALF_DEPTH) {
-      predictedVelocity.current.z *= -0.8 // Match server side wall restitution
+      predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION // Match server side wall restitution
       targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
     }
 
@@ -492,7 +492,7 @@ export const ClientBallVisual = React.forwardRef(({
       const dz = targetPos.current.z - playerPos.z
       const horizontalDist = Math.sqrt(dx * dx + dz * dz)
       
-      const headTopY = playerPos.y + (isGiant ? 4.0 : 0.8)
+      const headTopY = playerPos.y + (isGiant ? 4.0 : PHYSICS.PLAYER_HEIGHT)
       const dy = targetPos.current.y - headTopY
       
       const zoneRadius = PHYSICS.HEAD_ZONE_RADIUS * (isGiant ? 5.0 : 1.0)

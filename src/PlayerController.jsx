@@ -178,7 +178,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       verticalVelocity.current -= GRAVITY * SUB_FRAME_TIMESTEP
 
       // 2. Ground Check (reset jump count if on ground)
-      if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+      if (physicsPosition.current.y <= GROUND_Y + PHYSICS.GROUND_CHECK_EPSILON && verticalVelocity.current <= 0) {
         jumpCount.current = 0
       }
 
@@ -320,7 +320,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       if (ballRef?.current?.userData?.predictKick) {
         ballRef.current.userData.predictKick({
           x: impulseX,
-          y: impulseY + 0.8 * kickMult,
+          y: impulseY + PHYSICS.KICK_VERTICAL_BOOST * kickMult,
           z: impulseZ
         })
       }
@@ -413,7 +413,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
           verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
           
           // Ground Check
-          if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+          if (physicsPosition.current.y <= GROUND_Y + PHYSICS.GROUND_CHECK_EPSILON && verticalVelocity.current <= 0) {
             jumpCount.current = 0
           }
           
