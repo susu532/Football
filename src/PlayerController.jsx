@@ -19,6 +19,10 @@ const GROUND_Y = PHYSICS.GROUND_Y
 const MAX_JUMPS = PHYSICS.MAX_JUMPS
 const INPUT_SEND_RATE = 1 / 30 // 30Hz
 
+// Sub-frame Physics Constants
+const SUB_FRAME_TIMESTEP = PHYSICS.SUB_FRAME_TIMESTEP // 120Hz
+const VISUAL_TIMESTEP = PHYSICS.FIXED_TIMESTEP // 60Hz
+
 // PlayerController: Handles local player input => sends to server + local prediction
 export const PlayerController = React.forwardRef((props, ref) => {
   const { 
@@ -49,6 +53,14 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const isOnGround = useRef(true)
   const jumpCount = useRef(0)
   const prevJump = useRef(false) // For edge detection
+
+  // Enhanced Jump Prediction State
+  const jumpPredictionState = useRef({
+    predictedY: 0,
+    predictedVy: 0,
+    confidence: 0,
+    startTick: 0
+  })
 
   // Pre-allocated vectors for per-frame calculations (avoids GC stutters)
   const cameraForward = useRef(new THREE.Vector3())
@@ -116,7 +128,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
   }, [])
 
   // Fixed timestep accumulator
+  // Fixed timestep accumulator
   const accumulator = useRef(0)
+  const subFrameAccumulator = useRef(0)
   const FIXED_TIMESTEP = PHYSICS.FIXED_TIMESTEP
   const inputHistory = useRef([])
 
@@ -151,14 +165,16 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
     // Accumulate time for fixed timestep
     accumulator.current += delta
+    subFrameAccumulator.current += delta
     
-    // Physics loop - Fixed Timestep
-    while (accumulator.current >= FIXED_TIMESTEP) {
-      // Increment simulation tick
-      physicsTick.current++
-
+    // Physics loop - Sub-Frame Precision (120Hz)
+    // We run physics faster than server to catch input nuances
+    while (subFrameAccumulator.current >= SUB_FRAME_TIMESTEP) {
+      // Increment simulation tick (virtual sub-ticks)
+      // We map 2 sub-ticks to 1 server tick roughly
+      
       // 1. Apply Gravity first (matches server)
-      verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
+      verticalVelocity.current -= GRAVITY * SUB_FRAME_TIMESTEP
 
       // 2. Ground Check (reset jump count if on ground)
       if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
@@ -177,6 +193,14 @@ export const PlayerController = React.forwardRef((props, ref) => {
         
         // Mark this jump ID as processed
         prevJumpRequestId.current = currentJumpRequestId.current
+        
+        // Init jump prediction
+        jumpPredictionState.current = {
+          predictedY: physicsPosition.current.y,
+          predictedVy: verticalVelocity.current,
+          confidence: 1.0,
+          startTick: physicsTick.current
+        }
       }
 
       // Apply physics (local prediction)
@@ -185,13 +209,16 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Smoothed velocity (matches server 0.8 factor)
       const targetVx = moveDir.current.x * speed
       const targetVz = moveDir.current.z * speed
-      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
-      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
+      
+      // Sub-frame smoothing (adjusted for 120Hz)
+      // 0.8 at 60Hz is approx 0.9 at 120Hz
+      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.9
+      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.9
       
       // 4. Calculate new physics position
-      let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
-      let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
-      let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
+      let newX = physicsPosition.current.x + velocity.current.x * SUB_FRAME_TIMESTEP
+      let newY = physicsPosition.current.y + verticalVelocity.current * SUB_FRAME_TIMESTEP
+      let newZ = physicsPosition.current.z + velocity.current.z * SUB_FRAME_TIMESTEP
 
       // 5. Ground Clamp
       if (newY <= GROUND_Y) {
@@ -208,21 +235,29 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Update physics position
       physicsPosition.current.set(newX, newY, newZ)
 
-      // RECORD INPUT HISTORY (1:1 with physics tick)
+      // Decrement accumulator
+      subFrameAccumulator.current -= SUB_FRAME_TIMESTEP
+    }
+    
+    // Server Tick Sync (60Hz) - Record history for reconciliation
+    while (accumulator.current >= FIXED_TIMESTEP) {
+      physicsTick.current++
+      
+      // RECORD INPUT HISTORY (1:1 with server tick)
       inputHistory.current.push({
         tick: physicsTick.current,
         x: moveDir.current.x,
         z: moveDir.current.z,
         jumpRequestId: currentJumpRequestId.current,
-        rotY: groupRef.current.rotation.y
+        rotY: groupRef.current.rotation.y,
+        timestamp: typeof performance !== 'undefined' ? performance.now() : Date.now()
       })
       
-      // Keep buffer size manageable (2 seconds @ 120Hz = 240 items)
-      if (inputHistory.current.length > 240) {
+      // Keep buffer size manageable (2 seconds @ 60Hz = 120 items)
+      if (inputHistory.current.length > 120) {
         inputHistory.current.shift()
       }
-
-      // Decrement accumulator
+      
       accumulator.current -= FIXED_TIMESTEP
     }
 
@@ -286,16 +321,18 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Jitter Fix: Velocity-aware smoothing + Visual Offset Decay
     
     // 1. Decay visual offset (hide the snap)
-    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame)
+    // Aggressive velocity-aware decay
+    const speed = velocity.current.length()
+    const decayRate = Math.min(0.25, PHYSICS.VISUAL_OFFSET_DECAY + speed * 0.02)
+    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), decayRate)
     
     // 2. Calculate target visual position
     const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
     
     // 3. Apply smoothing
-    const speed = velocity.current.length()
-    const baseLambda = 12
+    const baseLambda = PHYSICS.VISUAL_LAMBDA_MIN
     const speedFactor = Math.min(1, speed / 10)
-    const visualLambda = baseLambda + speedFactor * 8 // Range: 12 - 20
+    const visualLambda = baseLambda + speedFactor * (PHYSICS.VISUAL_LAMBDA_MAX - baseLambda)
     
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetVisualPos.x, visualLambda, delta)
     groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetVisualPos.y, visualLambda, delta)

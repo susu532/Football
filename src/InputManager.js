@@ -13,8 +13,14 @@ class InputManagerClass {
     this._reusableInput = {
       move: { x: 0, z: 0 },
       jumpRequestId: 0,
-      kick: false
+      kick: false,
+      timestamp: 0
     }
+    
+    // Sub-frame input tracking
+    this.inputQueue = []
+    this.lastInputTime = 0
+    this.inputVelocity = { x: 0, z: 0 }
   }
 
   init() {
@@ -45,6 +51,10 @@ class InputManagerClass {
     this.keys[key] = true
     this.keys[code] = true
     
+    // Sub-frame timestamping
+    const timestamp = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    this.inputQueue.push({ type: 'down', key, code, timestamp })
+    
     // Track one-shot actions
     if (e.code === 'Space') {
       this.jumpRequestId++
@@ -60,6 +70,9 @@ class InputManagerClass {
     
     this.keys[key] = false
     this.keys[code] = false
+    
+    const timestamp = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    this.inputQueue.push({ type: 'up', key, code, timestamp })
   }
 
   // Mobile input setters
@@ -131,6 +144,12 @@ class InputManagerClass {
     this._reusableInput.move.z = moveZ
     this._reusableInput.jumpRequestId = this.jumpRequestId
     this._reusableInput.kick = kick
+    this._reusableInput.timestamp = typeof performance !== 'undefined' ? performance.now() : Date.now()
+    
+    // Update input velocity (simple difference)
+    // In a real sub-frame system we'd use the queue, but for now just tracking current vs last
+    this.inputVelocity.x = moveX
+    this.inputVelocity.z = moveZ
     
     return this._reusableInput
   }

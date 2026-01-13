@@ -101,6 +101,7 @@ const LERP_NORMAL = 25 // Snappy base
 const LERP_COLLISION = 80 // Near-instant snap on collision
 const LERP_SNAP_THRESHOLD = 8
 const SPECULATIVE_THRESHOLD = 0.5 // Tightened from 0.7
+const KICK_VISUAL_SNAP = 0.95 // Near-instant visual response
 
 // Sub-frame sweep test
 const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
@@ -219,13 +220,26 @@ export const ClientBallVisual = React.forwardRef(({
     const obj = groupRef.current || {}
     // Expose instant kick predictor for PlayerController
     obj.userData = obj.userData || {}
-    obj.userData.predictKick = (impulse) => {
+    obj.userData.predictKick = (impulse, timestamp) => {
       // INSTANT local kick response - before server roundtrip
       // Apply impulse / mass to get velocity change (F = ma -> dv = J/m)
       const invMass = 1 / PHYSICS.BALL_MASS 
+      
+      // Sub-frame timing compensation
+      // If kick happened 8ms ago (half frame), advance physics by 8ms
+      const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      const frameOffset = timestamp ? Math.max(0, (now - timestamp) / 1000) : 0
+      
       predictedVelocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
+      
+      // Apply sub-frame advancement
+      if (frameOffset > 0) {
+         predictedVelocity.current.y -= GRAVITY * frameOffset
+         targetPos.current.addScaledVector(predictedVelocity.current, frameOffset)
+      }
+      
       collisionThisFrame.current = true
     }
     return obj
