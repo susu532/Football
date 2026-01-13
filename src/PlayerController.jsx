@@ -176,11 +176,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Apply physics (local prediction)
       const speedMult = serverState?.speedMult || 1
       const speed = MOVE_SPEED * speedMult
-      // Smoothed velocity (matches server 0.3 factor)
+      // Smoothed velocity (matches server 0.8 factor)
       const targetVx = moveDir.current.x * speed
       const targetVz = moveDir.current.z * speed
-      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
-      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
+      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
       
       // 4. Calculate new physics position
       let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
@@ -376,8 +376,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
           const targetVx = (input.x || 0) * speed
           const targetVz = (input.z || 0) * speed
           
-          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
-          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
+          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
           
           // Integrate
           let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
