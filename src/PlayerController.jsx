@@ -17,7 +17,7 @@ const DOUBLE_JUMP_MULTIPLIER = PHYSICS.DOUBLE_JUMP_MULTIPLIER
 const GRAVITY = PHYSICS.GRAVITY
 const GROUND_Y = PHYSICS.GROUND_Y
 const MAX_JUMPS = PHYSICS.MAX_JUMPS
-const INPUT_SEND_RATE = 1 / 60 // 60Hz
+const INPUT_SEND_RATE = 1 / 30 // 30Hz
 
 // PlayerController: Handles local player input => sends to server + local prediction
 export const PlayerController = React.forwardRef((props, ref) => {
