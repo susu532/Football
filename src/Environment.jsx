@@ -3,6 +3,7 @@ import { useThree, useFrame } from '@react-three/fiber'
 import { Stars, Sparkles, useGLTF, RoundedBox } from '@react-three/drei'
 import * as THREE from 'three'
 import { RigidBody, CuboidCollider, CylinderCollider } from '@react-three/rapier'
+import { PHYSICS } from './PhysicsConstants'
 
 // Rapier Arena (Host Only)
 export function RapierArena() {
@@ -13,9 +14,9 @@ export function RapierArena() {
   const goalWidth = 6
   
   return (
-    <RigidBody type="fixed" friction={0.2} restitution={0.6}>
+    <RigidBody type="fixed" friction={0.2} restitution={PHYSICS.WALL_RESTITUTION}>
        {/* Ground */}
-       <CuboidCollider args={[30/2, 0.5/2, 20/2]} position={[0, -0.5/2, 0]} friction={1.0} restitution={0.6} />
+       <CuboidCollider args={[30/2, 0.5/2, 20/2]} position={[0, -0.5/2, 0]} friction={1.0} restitution={PHYSICS.GROUND_RESTITUTION} />
        
        {/* Walls */}
        <CuboidCollider args={[(pitchWidth + wallThickness * 2)/2, wallHeight/2, wallThickness/2]} position={[0, wallHeight/2, -pitchDepth/2 - wallThickness/2]} />
@@ -30,13 +31,13 @@ export function RapierArena() {
        <CuboidCollider args={[wallThickness/2, wallHeight/2, (goalWidth+2)/2]} position={[-13 - wallThickness, wallHeight/2, 0]} />
        <CuboidCollider args={[wallThickness/2, wallHeight/2, (goalWidth+2)/2]} position={[13 + wallThickness, wallHeight/2, 0]} />
        
-       <CylinderCollider args={[2, 0.06]} position={[-10.8, 2, -2.5]} restitution={0.8} />
-       <CylinderCollider args={[2, 0.06]} position={[-10.8, 2, 2.5]} restitution={0.8} />
-       <CylinderCollider args={[2, 0.06]} position={[10.8, 2, -2.5]} restitution={0.8} />
-       <CylinderCollider args={[2, 0.06]} position={[10.8, 2, 2.5]} restitution={0.8} />
+       <CylinderCollider args={[2, 0.06]} position={[-10.8, 2, -2.5]} restitution={PHYSICS.POST_RESTITUTION} />
+       <CylinderCollider args={[2, 0.06]} position={[-10.8, 2, 2.5]} restitution={PHYSICS.POST_RESTITUTION} />
+       <CylinderCollider args={[2, 0.06]} position={[10.8, 2, -2.5]} restitution={PHYSICS.POST_RESTITUTION} />
+       <CylinderCollider args={[2, 0.06]} position={[10.8, 2, 2.5]} restitution={PHYSICS.POST_RESTITUTION} />
        
-       <CylinderCollider args={[3, 0.04]} position={[-10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={0.8} />
-       <CylinderCollider args={[3, 0.04]} position={[10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={0.8} />
+       <CylinderCollider args={[3, 0.04]} position={[-10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={PHYSICS.POST_RESTITUTION} />
+       <CylinderCollider args={[3, 0.04]} position={[10.8, 4, 0]} rotation={[0, 0, Math.PI/2]} restitution={PHYSICS.POST_RESTITUTION} />
        
        <CuboidCollider args={[pitchWidth/2, 0.1, pitchDepth/2]} position={[0, wallHeight, 0]} />
 
