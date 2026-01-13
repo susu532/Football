@@ -81,7 +81,14 @@ export const SmartCamera = React.forwardRef(({
     const onClick = (e) => {
       if (e.target.tagName === 'BUTTON' || e.target.closest('button')) return
       if (document.pointerLockElement !== document.body) {
-        try { document.body.requestPointerLock() } catch (e) {}
+               // Handle promise rejection for modern browsers
+        const promise = document.body.requestPointerLock()
+        if (promise && promise.catch) {
+          promise.catch(err => {
+            // Suppress the error if it's just the user exiting or spamming click
+            // console.warn('Pointer lock failed:', err)
+          })
+        }
       }
     }
 
