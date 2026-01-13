@@ -287,6 +287,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     
     // 1. Decay visual offset (hide the snap)
     // Jitter Fix: Slower decay for smoother visual correction
+    const speed = velocity.current.length()
     const decayRate = Math.min(0.15, 0.05 + speed * 0.01)
     visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), decayRate)
     
@@ -299,7 +300,6 @@ export const PlayerController = React.forwardRef((props, ref) => {
     const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
     
     // 3. Apply smoothing
-    const speed = velocity.current.length()
     const baseLambda = 15          // Snappier base
     const speedFactor = Math.min(1.5, speed / 8)
     const pingFactor = Math.max(0.5, 1 - ping / 200)
