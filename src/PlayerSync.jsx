@@ -24,7 +24,8 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
     isFreeLook = null, 
     characterType = 'cat',
     onLocalInteraction = null,
-    serverState = null
+    serverState = null,
+    ping = 0 // Network latency for adaptive reconciliation
   } = props
   
   const controllerRef = useRef()
@@ -57,6 +58,7 @@ export const LocalPlayer = React.forwardRef((props, ref) => {
         characterType={characterType}
         onLocalInteraction={onLocalInteraction}
         serverState={serverState}
+        ping={ping}
       />
       {playerName && (
         <group ref={labelRef}>

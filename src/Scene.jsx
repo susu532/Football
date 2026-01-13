@@ -822,6 +822,7 @@ export default function Scene() {
               isFreeLook={isFreeLook}
               onLocalInteraction={handleLocalInteraction}
               serverState={myServerState}
+              ping={realPing}
             />
           )}
 

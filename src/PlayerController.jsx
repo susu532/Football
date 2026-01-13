@@ -35,7 +35,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
     onCollectPowerUp = null,
     isFreeLook = null,
     onLocalInteraction = null,
-    serverState = null // Server state for reconciliation
+    serverState = null, // Server state for reconciliation
+    ping = 0 // Network latency for adaptive reconciliation
   } = props
 
   const groupRef = useRef()
@@ -90,6 +91,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
   // Input Buffering (Captures events between frames)
   const pendingJump = useRef(false)
   const pendingKick = useRef(false)
+  
+  // Coyote Time & Jump Buffer
+  const lastGroundedTime = useRef(0) // Time when player was last on ground
+  const jumpBufferTime = useRef(0)   // Time when jump was last requested
 
   useImperativeHandle(ref, () => ({
     get position() { return groupRef.current?.position || new THREE.Vector3() },
@@ -156,19 +161,40 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // 1. Apply Gravity first (matches server)
       verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
 
-      // 2. Ground Check (reset jump count if on ground)
+      // 2. Ground Check (reset jump count if on ground, track coyote time)
+      const wasOnGround = isOnGround.current
       if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
         jumpCount.current = 0
+        isOnGround.current = true
+        lastGroundedTime.current = now // Reset coyote timer
+      } else {
+        isOnGround.current = false
       }
 
-      // 3. Handle Jump (overrides gravity for this frame)
-      const jumpTriggered = pendingJump.current && !prevJump.current
-      if (jumpTriggered && jumpCount.current < MAX_JUMPS) {
+      // 3. Handle Jump with Coyote Time and Jump Buffer
+      // Coyote Time: Allow jump for COYOTE_TIME seconds after leaving ground
+      const coyoteActive = (now - lastGroundedTime.current) < PHYSICS.COYOTE_TIME
+      const canCoyoteJump = !isOnGround.current && coyoteActive && jumpCount.current === 0
+      
+      // Jump Buffer: If jump was pressed recently, execute it when landing
+      if (pendingJump.current && !prevJump.current) {
+        jumpBufferTime.current = now // Record when jump was requested
+      }
+      const jumpBuffered = (now - jumpBufferTime.current) < PHYSICS.JUMP_BUFFER_TIME
+      
+      // Determine if we should jump
+      const wantsJump = pendingJump.current && !prevJump.current
+      const bufferedLanding = jumpBuffered && wasOnGround === false && isOnGround.current
+      const shouldJump = (wantsJump || bufferedLanding) && 
+                         (isOnGround.current || canCoyoteJump || jumpCount.current < MAX_JUMPS)
+      
+      if (shouldJump && jumpCount.current < MAX_JUMPS) {
         const jumpMult = serverState?.jumpMult || 1
         const baseJumpForce = JUMP_FORCE * jumpMult
         verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
         jumpCount.current++
         isOnGround.current = false
+        jumpBufferTime.current = 0 // Clear buffer after successful jump
         AudioManager.playSFX('jump')
       }
       prevJump.current = pendingJump.current
@@ -179,8 +205,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Smoothed velocity (matches server 0.8 factor)
       const targetVx = moveDir.current.x * speed
       const targetVz = moveDir.current.z * speed
-      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * PHYSICS.MOVEMENT_SMOOTHING
-      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * PHYSICS.MOVEMENT_SMOOTHING
+      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
+      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
       
       // 4. Calculate new physics position
       let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
@@ -281,12 +307,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Jitter Fix: Velocity-aware smoothing + Visual Offset Decay
     
     // 1. Decay visual offset (hide the snap)
-    // visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame) - FRAME RATE DEPENDENT!
-    // Fix: Use damp for frame-rate independence
-    const decayLambda = 15
-    visualOffset.current.x = THREE.MathUtils.damp(visualOffset.current.x, 0, decayLambda, delta)
-    visualOffset.current.y = THREE.MathUtils.damp(visualOffset.current.y, 0, decayLambda, delta)
-    visualOffset.current.z = THREE.MathUtils.damp(visualOffset.current.z, 0, decayLambda, delta)
+    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame)
     
     // 2. Calculate target visual position
     const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
@@ -335,8 +356,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // 2. Decide whether to reconcile
       // Jitter Fix: Visual Offset Pattern
       // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
-      // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
-      const RECONCILE_THRESHOLD = 0.05 // 5cm - looser threshold to prevent micro-snaps
+      // Latency-Adaptive Threshold: Higher ping = more lenient to reduce jitter
+      const BASE_THRESHOLD = 0.01 // 1cm - strict physics sync
+      const PING_SCALE = 0.0002   // 0.02cm per 100ms ping
+      const MAX_THRESHOLD = 0.15  // Cap at 15cm even for very high ping
+      const RECONCILE_THRESHOLD = Math.min(MAX_THRESHOLD, BASE_THRESHOLD + ping * PING_SCALE)
 
       if (errorMagnitude > RECONCILE_THRESHOLD) {
         // Capture position BEFORE snap
@@ -348,29 +372,60 @@ export const PlayerController = React.forwardRef((props, ref) => {
         verticalVelocity.current = serverState.vy
         jumpCount.current = serverState.jumpCount || 0
         
-        // Replay inputs
+        // Replay inputs with coyote time and jump buffer
         const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
         
-        validHistory.forEach(input => {
-          // Jitter Fix: 1:1 Replay (1 step per history item)
-          // No loop needed because we record 1 item per physics step now
+        // Replay state tracking
+        let replayLastGroundedTick = serverState.tick
+        let replayJumpBufferTick = 0
+        let replayIsOnGround = serverState.y <= GROUND_Y + 0.05
+        let replayPrevJump = false
+        
+        validHistory.forEach((input, idx) => {
+          const replayTick = serverState.tick + idx + 1
           
           // Apply Gravity
           verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
           
-          // Ground Check
+          // Ground Check with coyote time tracking
+          const wasOnGround = replayIsOnGround
           if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
             jumpCount.current = 0
+            replayIsOnGround = true
+            replayLastGroundedTick = replayTick
+          } else {
+            replayIsOnGround = false
           }
           
-          // Jump
-          if (input.jump && jumpCount.current < MAX_JUMPS) {
+          // Coyote Time (convert to ticks)
+          const coyoteTicks = Math.floor(PHYSICS.COYOTE_TIME * PHYSICS.TICK_RATE)
+          const ticksSinceGrounded = replayTick - replayLastGroundedTick
+          const coyoteActive = ticksSinceGrounded < coyoteTicks
+          const canCoyoteJump = !replayIsOnGround && coyoteActive && jumpCount.current === 0
+          
+          // Jump Buffer
+          const jumpBufferTicks = Math.floor(PHYSICS.JUMP_BUFFER_TIME * PHYSICS.TICK_RATE)
+          if (input.jump && !replayPrevJump) {
+            replayJumpBufferTick = replayTick
+          }
+          const ticksSinceJumpRequest = replayTick - replayJumpBufferTick
+          const jumpBuffered = ticksSinceJumpRequest < jumpBufferTicks && replayJumpBufferTick > 0
+          
+          // Determine if should jump
+          const wantsJump = input.jump && !replayPrevJump
+          const bufferedLanding = jumpBuffered && !wasOnGround && replayIsOnGround
+          const shouldJump = (wantsJump || bufferedLanding) && 
+                             (replayIsOnGround || canCoyoteJump || jumpCount.current < MAX_JUMPS)
+          
+          if (shouldJump && jumpCount.current < MAX_JUMPS) {
              const jumpMult = serverState.jumpMult || 1
              const baseJumpForce = JUMP_FORCE * jumpMult
              verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
              jumpCount.current++
-             isOnGround.current = false
+             replayIsOnGround = false
+             replayJumpBufferTick = 0
           }
+          replayPrevJump = input.jump
           
           // Movement
           const speedMult = serverState.speedMult || 1
@@ -378,8 +433,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
           const targetVx = (input.x || 0) * speed
           const targetVz = (input.z || 0) * speed
           
-          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * PHYSICS.MOVEMENT_SMOOTHING
-          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * PHYSICS.MOVEMENT_SMOOTHING
+          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
+          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
           
           // Integrate
           let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
@@ -391,6 +446,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
             newY = GROUND_Y
             verticalVelocity.current = 0
             jumpCount.current = 0
+            replayIsOnGround = true
+            replayLastGroundedTick = replayTick
           }
           
           // Bounds
