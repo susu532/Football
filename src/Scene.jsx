@@ -216,7 +216,7 @@ export default function Scene() {
       setCelebration({ team: data.team, id: Date.now() })
       
       AudioManager.playSFX('winner')
-      if (cameraRef.current) cameraRef.current.shake(1.0) // Big shake on goal
+      if (cameraRef.current) cameraRef.current.shake(0.5) // Reduced shake on goal (1.0 -> 0.5)
       
       setTimeout(() => setCelebration(null), 3000)
 

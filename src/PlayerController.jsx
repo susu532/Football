@@ -191,7 +191,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         jumpCount.current++
         isOnGround.current = false
         AudioManager.playSFX('jump')
-        if (onShake) onShake(0.2) // Small shake on jump
+        if (onShake) onShake(0.1) // Reduced shake on jump (0.2 -> 0.1)
         
         // Mark this jump ID as processed
         prevJumpRequestId.current = currentJumpRequestId.current
@@ -314,7 +314,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       })
       
       AudioManager.playSFX('kick')
-      if (onShake) onShake(0.3) // Medium shake on kick
+      if (onShake) onShake(0.15) // Reduced shake on kick (0.3 -> 0.15)
 
       // INSTANT LOCAL PREDICTION
       if (ballRef?.current?.userData?.predictKick) {

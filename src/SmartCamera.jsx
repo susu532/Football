@@ -3,6 +3,31 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PHYSICS } from './PhysicsConstants'
 
+// Simple Spring Physics Class
+class Spring {
+  constructor(stiffness = 120, damping = 20) {
+    this.stiffness = stiffness
+    this.damping = damping
+    this.current = 0
+    this.target = 0
+    this.velocity = 0
+  }
+
+  update(dt) {
+    const force = (this.target - this.current) * this.stiffness
+    const accel = force - this.velocity * this.damping
+    this.velocity += accel * dt
+    this.current += this.velocity * dt
+    return this.current
+  }
+
+  reset(val) {
+    this.current = val
+    this.target = val
+    this.velocity = 0
+  }
+}
+
 // Procedural Noise for Shake
 const noise = (t) => {
   return Math.sin(t * 123.45) * Math.sin(t * 67.89) * Math.sin(t * 23.45)
@@ -25,13 +50,21 @@ export const SmartCamera = React.forwardRef(({
     isLocked: false
   })
 
+  // Spring System for smooth follow
+  const springs = useRef({
+    x: new Spring(60, 25), // Softer stiffness (100->60), higher damping (15->25)
+    y: new Spring(60, 25),
+    z: new Spring(60, 25),
+    fov: new Spring(50, 10)
+  })
+
   // Velocity Smoothing State
   const smoothedVelocity = useRef(new THREE.Vector3())
 
   // Shake State
   const shakeState = useRef({
     intensity: 0,
-    decay: 5,
+    decay: 8, // Faster decay (5 -> 8)
     time: 0
   })
 
@@ -43,7 +76,10 @@ export const SmartCamera = React.forwardRef(({
     reset: () => {
       if (targetRef.current) {
         const { x, y, z } = targetRef.current.position
-        camera.position.set(x, y + 5, z + 10)
+        springs.current.x.reset(x)
+        springs.current.y.reset(y + 5)
+        springs.current.z.reset(z + 10)
+        springs.current.fov.reset(45)
       }
     }
   }))
@@ -133,11 +169,28 @@ export const SmartCamera = React.forwardRef(({
     const idealY = targetPos.y + offsetY + 2.0 // Look slightly above player
     const idealZ = targetPos.z + offsetZ + lookAhead.z
 
-    // 3. Update Position with Damp (Replaced Springs)
-    const posLambda = 10 // Higher = snappier
-    const camX = THREE.MathUtils.damp(camera.position.x, idealX, posLambda, dt)
-    const camY = THREE.MathUtils.damp(camera.position.y, idealY, posLambda, dt)
-    const camZ = THREE.MathUtils.damp(camera.position.z, idealZ, posLambda, dt)
+    // 3. Update Springs for Position
+    springs.current.x.target = idealX
+    springs.current.y.target = idealY
+    springs.current.z.target = idealZ
+
+    const camX = springs.current.x.update(dt)
+    const camY = springs.current.y.update(dt)
+    const camZ = springs.current.z.update(dt)
+
+    // 4. Dynamic FOV with Springs
+    const speed = targetVel.length()
+    const baseFov = 45
+    const maxFov = 65
+    const targetFov = baseFov + (Math.min(speed, 20) / 20) * (maxFov - baseFov)
+    
+    springs.current.fov.target = targetFov
+    const currentFov = springs.current.fov.update(dt)
+    
+    if (Math.abs(camera.fov - currentFov) > 0.1) {
+      camera.fov = currentFov
+      camera.updateProjectionMatrix()
+    }
 
     // 5. Camera Shake
     let shakeX = 0, shakeY = 0, shakeZ = 0
@@ -146,15 +199,15 @@ export const SmartCamera = React.forwardRef(({
       const t = shakeState.current.time
       const i = shakeState.current.intensity
       
-      shakeX = noise(t) * i
-      shakeY = noise(t + 100) * i
-      shakeZ = noise(t + 200) * i
+      shakeX = noise(t) * i * 0.7 // Scale down vibration
+      shakeY = noise(t + 100) * i * 0.7
+      shakeZ = noise(t + 200) * i * 0.7
       
       // Decay
       shakeState.current.intensity = THREE.MathUtils.lerp(i, 0, dt * shakeState.current.decay)
     }
 
-    // 7. Apply to Camera
+    // 6. Apply to Camera
     camera.position.set(camX + shakeX, camY + shakeY, camZ + shakeZ)
     
     // Look At Target (with slight smoothing)
