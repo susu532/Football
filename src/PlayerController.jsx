@@ -206,13 +206,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // RECORD INPUT HISTORY (1:1 with physics tick)
       inputHistory.current.push({
         tick: physicsTick.current,
-        input: { 
-          ...input, 
-          x: moveDir.current.x, 
-          z: moveDir.current.z,
-          jumpPressed: pendingJump.current,
-          rotY: groupRef.current.rotation.y 
-        }
+        x: moveDir.current.x,
+        z: moveDir.current.z,
+        jump: pendingJump.current,
+        rotY: groupRef.current.rotation.y
       })
       
       // Keep buffer size manageable (2 seconds @ 120Hz = 240 items)
@@ -348,8 +345,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         // Replay inputs
         const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
         
-        validHistory.forEach(historyItem => {
-          const { input } = historyItem
+        validHistory.forEach(input => {
           // Jitter Fix: 1:1 Replay (1 step per history item)
           // No loop needed because we record 1 item per physics step now
           
@@ -362,7 +358,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
           }
           
           // Jump
-          if (input.jumpPressed && jumpCount.current < MAX_JUMPS) {
+          if (input.jump && jumpCount.current < MAX_JUMPS) {
              const jumpMult = serverState.jumpMult || 1
              const baseJumpForce = JUMP_FORCE * jumpMult
              verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
