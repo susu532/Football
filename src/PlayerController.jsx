@@ -39,6 +39,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
     onCollectPowerUp = null,
     isFreeLook = null,
     onLocalInteraction = null,
+    onShake = null, // Camera shake callback
     serverState = null, // Server state for reconciliation
     ping = 0 // Network latency for adaptive reconciliation
   } = props
@@ -190,6 +191,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         jumpCount.current++
         isOnGround.current = false
         AudioManager.playSFX('jump')
+        if (onShake) onShake(0.2) // Small shake on jump
         
         // Mark this jump ID as processed
         prevJumpRequestId.current = currentJumpRequestId.current
@@ -305,6 +307,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       })
       
       AudioManager.playSFX('kick')
+      if (onShake) onShake(0.3) // Medium shake on kick
 
       // INSTANT LOCAL PREDICTION
       if (ballRef?.current?.userData?.predictKick) {

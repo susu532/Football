@@ -25,6 +25,7 @@ import AudioManager from './AudioManager'
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
 import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect, MobileSky } from './Environment'
+import { SmartCamera } from './SmartCamera'
 
 const CSS_ANIMATIONS = `
   @keyframes popIn {
@@ -40,126 +41,7 @@ const CSS_ANIMATIONS = `
 // Server URL - change for production
 const SERVER_URL = import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567'
 
-// Camera Controller
-function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
-  const { camera } = useThree()
-  const orbit = useRef({
-    azimuth: 0,
-    polar: Math.PI / 4,
-    distance: 8,
-    targetDistance: 8,
-    isLocked: false
-  })
-
-  // Pre-allocated vector for camera target (avoids GC stutters)
-  const cameraTarget = useRef(new THREE.Vector3())
-
-  useEffect(() => {
-    if (cameraOrbit) {
-      cameraOrbit.current = orbit.current
-    }
-  }, [cameraOrbit])
-
-  useEffect(() => {
-    const onPointerLockChange = () => {
-      const isLocked = document.pointerLockElement === document.body
-      orbit.current.isLocked = isLocked
-    }
-
-    const onPointerLockError = (e) => {
-      orbit.current.isLocked = false
-      console.warn('Pointer lock error:', e)
-    }
-
-    const onClick = (e) => {
-      // Ignore clicks on buttons, inputs, or interactive elements
-      if (
-        e.target.tagName === 'BUTTON' || 
-        e.target.tagName === 'INPUT' || 
-        e.target.closest('button') || 
-        e.target.closest('.interactive-ui')
-      ) {
-        return
-      }
-
-      // Request lock
-      if (document.pointerLockElement !== document.body) {
-        try {
-          const maybePromise = document.body.requestPointerLock()
-          if (maybePromise && typeof maybePromise.catch === 'function') {
-            maybePromise.catch((err) => {
-              console.warn('Pointer lock request rejected:', err)
-            })
-          }
-        } catch (err) {
-          console.warn('Pointer lock request failed:', err)
-        }
-      }
-    }
-
-    const onMouseMove = (e) => {
-      if (document.pointerLockElement !== document.body) return
-      
-      const sensitivity = 0.002
-      orbit.current.azimuth -= e.movementX * sensitivity
-      orbit.current.polar -= e.movementY * sensitivity
-      orbit.current.polar = Math.max(0.2, Math.min(Math.PI / 2, orbit.current.polar))
-    }
-
-    const onWheel = (e) => {
-      const delta = e.deltaY
-      const zoomSensitivity = 0.025
-      const minDistance = 3
-      const maxDistance = 18
-      orbit.current.targetDistance = THREE.MathUtils.clamp(
-        orbit.current.targetDistance + delta * zoomSensitivity, 
-        minDistance, 
-        maxDistance
-      )
-    }
-
-    document.addEventListener('pointerlockchange', onPointerLockChange)
-    document.addEventListener('pointerlockerror', onPointerLockError)
-    document.body.addEventListener('click', onClick)
-    document.addEventListener('mousemove', onMouseMove)
-    window.addEventListener('wheel', onWheel, { passive: true })
-
-    return () => {
-      document.removeEventListener('pointerlockchange', onPointerLockChange)
-      document.removeEventListener('pointerlockerror', onPointerLockError)
-      document.body.removeEventListener('click', onClick)
-      document.removeEventListener('mousemove', onMouseMove)
-      window.removeEventListener('wheel', onWheel)
-    }
-  }, [])
-
-  useFrame((_, delta) => {
-    const p = (targetRef.current && targetRef.current.position) || { x: 0, y: 0, z: 0 }
-    const { azimuth, polar } = orbit.current
-    orbit.current.distance = THREE.MathUtils.lerp(
-      orbit.current.distance, 
-      orbit.current.targetDistance ?? orbit.current.distance, 
-      0.12
-    )
-    const distance = orbit.current.distance
-    const x = p.x + distance * Math.sin(polar) * Math.sin(azimuth)
-    const y = p.y + distance * Math.cos(polar) + 2.2
-    const z = p.z + distance * Math.sin(polar) * Math.cos(azimuth)
-    
-    // Use pre-allocated vector and frame-rate independent damp
-    cameraTarget.current.set(x, y, z)
-    
-    // Jitter Fix: Decoupled camera smoothing (lower lambda = smoother, less oscillation)
-    const cameraLambda = 10 
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, cameraLambda, delta)
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, cameraLambda, delta)
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, cameraLambda, delta)
-    
-    camera.lookAt(p.x, p.y + 1, p.z)
-  }, 1) // Priority 1: Run after player physics (Priority 0)
-
-  return null
-}
+// CameraController removed - replaced by SmartCamera
 
 export default function Scene() {
   // Store state
@@ -234,6 +116,7 @@ export default function Scene() {
   const ballRef = useRef()
   const isFreeLook = useRef(false)
   const cameraOrbit = useRef(null)
+  const cameraRef = useRef() // SmartCamera ref
   const lastLocalInteraction = useRef(0)
 
   // UI State
@@ -330,7 +213,10 @@ export default function Scene() {
     const unsubGoal = onMessage('goal-scored', (data) => {
       setCelebration({ team: data.team, id: Date.now() })
       
+      setCelebration({ team: data.team, id: Date.now() })
+      
       AudioManager.playSFX('winner')
+      if (cameraRef.current) cameraRef.current.shake(1.0) // Big shake on goal
       
       setTimeout(() => setCelebration(null), 3000)
 
@@ -411,6 +297,10 @@ export default function Scene() {
 
   const handleLocalInteraction = useCallback(() => {
     lastLocalInteraction.current = Date.now()
+  }, [])
+
+  const handleShake = useCallback((intensity) => {
+    if (cameraRef.current) cameraRef.current.shake(intensity)
   }, [])
 
   const handleCollectPowerUp = useCallback((id, type) => {
@@ -831,7 +721,13 @@ export default function Scene() {
             <ClientPlayerVisual key={p.sessionId} player={p} />
           ))}
 
-          <CameraController targetRef={playerRef} isFreeLook={isFreeLook} cameraOrbit={cameraOrbit} />
+          {/* Smart Camera System */}
+          <SmartCamera 
+            ref={cameraRef}
+            targetRef={playerRef}
+            isFreeLook={isFreeLook}
+            cameraOrbit={cameraOrbit}
+          />
 
           {/* Power-ups from server */}
           {powerUps && powerUps.map(p => (
