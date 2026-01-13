@@ -9,63 +9,30 @@ import * as THREE from 'three'
 import { useSpring, a } from '@react-spring/three'
 import { PHYSICS } from './PhysicsConstants.js'
 
-// Soccer Ball Visual Component with Squash/Stretch
-export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback, onImpactFeedback }, ref) => {
+// Soccer Ball Visual Component
+export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback }, ref) => {
   const internalRef = useRef()
   useImperativeHandle(ref, () => internalRef.current)
   const { scene } = useGLTF('/models/soccer_ball.glb')
   
-  // Spring for kick feedback (uniform scale pop)
-  const [kickSpring, kickApi] = useSpring(() => ({
+  const [spring, api] = useSpring(() => ({
     scale: 5,
     config: { tension: 400, friction: 10 }
   }))
-  
-  // Spring for squash/stretch (non-uniform scale)
-  const [deformSpring, deformApi] = useSpring(() => ({
-    scaleX: 1,
-    scaleY: 1,
-    scaleZ: 1,
-    config: { tension: 600, friction: 15 }
-  }))
 
-  // Kick feedback effect (uniform pop)
+  // Kick feedback effect
   useEffect(() => {
     if (onKickFeedback) {
       const handleKick = () => {
-        kickApi.start({
+        api.start({
           from: { scale: 7 },
           to: { scale: 5 }
         })
       }
+      // Store callback for external trigger
       onKickFeedback.current = handleKick
     }
-  }, [kickApi, onKickFeedback])
-  
-  // Impact feedback effect (squash/stretch)
-  useEffect(() => {
-    if (onImpactFeedback) {
-      const handleImpact = (impactNormal, impactStrength) => {
-        // Squash in impact direction, stretch perpendicular
-        const squashAmount = Math.min(0.3, impactStrength * 0.02)
-        
-        if (Math.abs(impactNormal.y) > 0.7) {
-          // Ground impact - flatten vertically
-          deformApi.start({
-            from: { scaleX: 1 + squashAmount * 0.5, scaleY: 1 - squashAmount, scaleZ: 1 + squashAmount * 0.5 },
-            to: { scaleX: 1, scaleY: 1, scaleZ: 1 }
-          })
-        } else {
-          // Horizontal impact - stretch horizontally
-          deformApi.start({
-            from: { scaleX: 1 - squashAmount * 0.5, scaleY: 1 + squashAmount * 0.3, scaleZ: 1 - squashAmount * 0.5 },
-            to: { scaleX: 1, scaleY: 1, scaleZ: 1 }
-          })
-        }
-      }
-      onImpactFeedback.current = handleImpact
-    }
-  }, [deformApi, onImpactFeedback])
+  }, [api, onKickFeedback])
 
   const clonedBall = useMemo(() => {
     const cloned = scene.clone()
@@ -95,23 +62,19 @@ export const SoccerBall = React.forwardRef(({ radius = 0.8, onKickFeedback, onIm
 
         child.castShadow = true
         child.receiveShadow = false // Disable receive shadow for performance
+        
+        // REMOVED: computeVertexNormals to save CPU
       }
     })
     return cloned
   }, [scene])
 
   return (
-    <a.group 
+    <a.primitive 
       ref={internalRef}
-      scale-x={deformSpring.scaleX}
-      scale-y={deformSpring.scaleY}
-      scale-z={deformSpring.scaleZ}
-    >
-      <a.primitive 
-        object={clonedBall} 
-        scale={kickSpring.scale} 
-      />
-    </a.group>
+      object={clonedBall} 
+      scale={spring.scale} 
+    />
   )
 })
 SoccerBall.displayName = 'SoccerBall'
@@ -242,7 +205,6 @@ export const ClientBallVisual = React.forwardRef(({
   const serverVelocity = useRef(new THREE.Vector3(0, 0, 0))
   const predictedVelocity = useRef(new THREE.Vector3(0, 0, 0))
   const kickFeedback = useRef(null)
-  const impactFeedback = useRef(null) // For squash/stretch on impact
   const lastCollisionTime = useRef(0)
   const collisionThisFrame = useRef(false)
   const lastCollisionNormal = useRef(new THREE.Vector3())
@@ -525,48 +487,19 @@ export const ClientBallVisual = React.forwardRef(({
     
     groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-15 * delta))
     
-    // 6. Floor collision with variable bounce and enhanced friction
-    const isOnGround = groupRef.current.position.y < BALL_RADIUS + 0.05
+    // 6. Floor collision with friction
     if (groupRef.current.position.y < BALL_RADIUS) {
       groupRef.current.position.y = BALL_RADIUS
       if (predictedVelocity.current.y < 0) {
-        // Variable bounce - lower restitution at high speeds for more realistic feel
-        const impactSpeed = Math.abs(predictedVelocity.current.y)
-        const speedRatio = Math.min(1, impactSpeed / PHYSICS.BALL_RESTITUTION_SPEED_THRESHOLD)
-        const dynamicRestitution = PHYSICS.BALL_RESTITUTION_MAX - 
-          (PHYSICS.BALL_RESTITUTION_MAX - PHYSICS.BALL_RESTITUTION_MIN) * speedRatio
-        
-        // Trigger squash/stretch impact visual
-        if (impactFeedback.current && impactSpeed > 2) {
-          impactFeedback.current({ x: 0, y: 1, z: 0 }, impactSpeed)
-        }
-        
-        predictedVelocity.current.y = Math.abs(predictedVelocity.current.y) * dynamicRestitution
-        // Floor friction on horizontal velocity
+        predictedVelocity.current.y = Math.abs(predictedVelocity.current.y) * PHYSICS.BALL_RESTITUTION
+        // Floor friction
         predictedVelocity.current.x *= 0.85
         predictedVelocity.current.z *= 0.85
       }
     }
-    
-    // 7. Enhanced damping - different for ground vs air
-    const dampingSpeed = predictedVelocity.current.length()
-    
-    // Air resistance (quadratic drag)
-    if (dampingSpeed > 0.1) {
-      const dragForce = PHYSICS.BALL_AIR_DRAG * dampingSpeed * dampingSpeed
-      const dragFactor = 1 - Math.min(0.1, dragForce)
-      predictedVelocity.current.multiplyScalar(dragFactor)
-    }
-    
-    // Ground-aware damping
-    if (isOnGround && Math.abs(predictedVelocity.current.y) < 1) {
-      const groundDampingFactor = 1 - (PHYSICS.BALL_GROUND_DAMPING * 0.01)
-      predictedVelocity.current.x *= groundDampingFactor
-      predictedVelocity.current.z *= groundDampingFactor
-    } else {
-      // Lower air damping
-      predictedVelocity.current.multiplyScalar(1 - PHYSICS.BALL_AIR_DAMPING * delta)
-    }
+
+    // 7. Linear damping
+    predictedVelocity.current.multiplyScalar(1 - LINEAR_DAMPING * delta)
   })
 
   return (
@@ -577,7 +510,7 @@ export const ClientBallVisual = React.forwardRef(({
         color="#ffffff"
         attenuation={(t) => t * t}
       >
-        <SoccerBall onKickFeedback={kickFeedback} onImpactFeedback={impactFeedback} />
+        <SoccerBall onKickFeedback={kickFeedback} />
       </Trail>
       {isOwner && (
         <TrajectoryLine 
