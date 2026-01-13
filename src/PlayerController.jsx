@@ -94,7 +94,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
   
   // Coyote Time & Jump Buffer
   const lastGroundedTime = useRef(0) // Time when player was last on ground
-  const jumpBufferTime = useRef(0)   // Time when jump was last requested
+  const jumpBufferTime = useRef(-10) // Time when jump was last requested (init to -10 to avoid start jump)
 
   useImperativeHandle(ref, () => ({
     get position() { return groupRef.current?.position || new THREE.Vector3() },
@@ -104,6 +104,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       physicsPosition.current.set(x, y, z)
       velocity.current.set(0, 0, 0)
       verticalVelocity.current = 0
+      jumpCount.current = 0
+      isOnGround.current = true
     }
   }))
 
@@ -219,6 +221,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         verticalVelocity.current = 0
         isOnGround.current = true
         jumpCount.current = 0
+        lastGroundedTime.current = now // Ensure coyote time is valid after clamping
       }
 
       // Bounds checking
