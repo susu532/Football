@@ -212,10 +212,17 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const targetVx = moveDir.current.x * speed
       const targetVz = moveDir.current.z * speed
       
-      // Sub-frame smoothing (adjusted for 120Hz)
-      // 0.8 at 60Hz is approx 0.9 at 120Hz
-      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.9
-      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.9
+      // Instant stop when no input, smooth otherwise (matches server)
+      if (targetVx === 0 && targetVz === 0) {
+        velocity.current.x *= 0.5
+        velocity.current.z *= 0.5
+        if (Math.abs(velocity.current.x) < 0.01) velocity.current.x = 0
+        if (Math.abs(velocity.current.z) < 0.01) velocity.current.z = 0
+      } else {
+        const smoothing = PHYSICS.VELOCITY_SMOOTHING_SUB
+        velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * smoothing
+        velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * smoothing
+      }
       
       // 4. Calculate new physics position
       let newX = physicsPosition.current.x + velocity.current.x * SUB_FRAME_TIMESTEP
@@ -427,8 +434,16 @@ export const PlayerController = React.forwardRef((props, ref) => {
           const targetVx = (input.x || 0) * speed
           const targetVz = (input.z || 0) * speed
           
-          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
-          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
+          if (targetVx === 0 && targetVz === 0) {
+            velocity.current.x *= 0.5
+            velocity.current.z *= 0.5
+            if (Math.abs(velocity.current.x) < 0.01) velocity.current.x = 0
+            if (Math.abs(velocity.current.z) < 0.01) velocity.current.z = 0
+          } else {
+            const smoothing = PHYSICS.VELOCITY_SMOOTHING
+            velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * smoothing
+            velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * smoothing
+          }
           
           // Integrate
           let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP

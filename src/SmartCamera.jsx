@@ -3,31 +3,6 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PHYSICS } from './PhysicsConstants'
 
-// Simple Spring Physics Class
-class Spring {
-  constructor(stiffness = 120, damping = 20) {
-    this.stiffness = stiffness
-    this.damping = damping
-    this.current = 0
-    this.target = 0
-    this.velocity = 0
-  }
-
-  update(dt) {
-    const force = (this.target - this.current) * this.stiffness
-    const accel = force - this.velocity * this.damping
-    this.velocity += accel * dt
-    this.current += this.velocity * dt
-    return this.current
-  }
-
-  reset(val) {
-    this.current = val
-    this.target = val
-    this.velocity = 0
-  }
-}
-
 // Procedural Noise for Shake
 const noise = (t) => {
   return Math.sin(t * 123.45) * Math.sin(t * 67.89) * Math.sin(t * 23.45)
@@ -50,14 +25,6 @@ export const SmartCamera = React.forwardRef(({
     isLocked: false
   })
 
-  // Spring System for smooth follow
-  const springs = useRef({
-    x: new Spring(60, 25), // Softer stiffness (100->60), higher damping (15->25)
-    y: new Spring(60, 25),
-    z: new Spring(60, 25),
-    fov: new Spring(50, 10)
-  })
-
   // Velocity Smoothing State
   const smoothedVelocity = useRef(new THREE.Vector3())
 
@@ -76,9 +43,7 @@ export const SmartCamera = React.forwardRef(({
     reset: () => {
       if (targetRef.current) {
         const { x, y, z } = targetRef.current.position
-        springs.current.x.reset(x)
-        springs.current.y.reset(y + 5)
-        springs.current.z.reset(z + 10)
+        camera.position.set(x, y + 5, z + 10)
       }
     }
   }))
@@ -169,37 +134,29 @@ export const SmartCamera = React.forwardRef(({
     const idealZ = targetPos.z + offsetZ + lookAhead.z
 
     // 3. Collision Avoidance (Simple Arena Bounds)
-    // If camera goes outside arena walls, push it in
     const ARENA_MARGIN = 2.0
     const minX = -PHYSICS.ARENA_HALF_WIDTH - ARENA_MARGIN
     const maxX = PHYSICS.ARENA_HALF_WIDTH + ARENA_MARGIN
     const minZ = -PHYSICS.ARENA_HALF_DEPTH - ARENA_MARGIN
     const maxZ = PHYSICS.ARENA_HALF_DEPTH + ARENA_MARGIN
 
-    // We don't hard clamp, but we add a "repulsive force" to the spring target
-    // Actually, hard clamping the *target* is better for stability
     const clampedX = THREE.MathUtils.clamp(idealX, minX, maxX)
     const clampedZ = THREE.MathUtils.clamp(idealZ, minZ, maxZ)
-    // Floor check
     const clampedY = Math.max(1.0, idealY)
 
-    // 4. Update Springs
-    springs.current.x.target = clampedX
-    springs.current.y.target = clampedY
-    springs.current.z.target = clampedZ
+    // 4. Update Position with Damp (Replaced Springs)
+    const posLambda = 10 // Higher = snappier
+    const camX = THREE.MathUtils.damp(camera.position.x, clampedX, posLambda, dt)
+    const camY = THREE.MathUtils.damp(camera.position.y, clampedY, posLambda, dt)
+    const camZ = THREE.MathUtils.damp(camera.position.z, clampedZ, posLambda, dt)
 
-    const camX = springs.current.x.update(dt)
-    const camY = springs.current.y.update(dt)
-    const camZ = springs.current.z.update(dt)
-
-    // 5. Dynamic FOV
+    // 5. Dynamic FOV with Damp
     const speed = targetVel.length()
     const baseFov = 45
     const maxFov = 65
     const targetFov = baseFov + (Math.min(speed, 20) / 20) * (maxFov - baseFov)
     
-    springs.current.fov.target = targetFov
-    const currentFov = springs.current.fov.update(dt)
+    const currentFov = THREE.MathUtils.damp(camera.fov, targetFov, 5, dt)
     
     if (Math.abs(camera.fov - currentFov) > 0.1) {
       camera.fov = currentFov
@@ -225,9 +182,7 @@ export const SmartCamera = React.forwardRef(({
     camera.position.set(camX + shakeX, camY + shakeY, camZ + shakeZ)
     
     // Look At Target (with slight smoothing)
-    // We look at the player + a bit of velocity prediction
     const lookTarget = targetPos.clone().add(new THREE.Vector3(0, 1.5, 0))
-    // Add velocity influence to look target (look where you're going)
     lookTarget.add(targetVel.clone().multiplyScalar(0.1))
     
     camera.lookAt(lookTarget)
