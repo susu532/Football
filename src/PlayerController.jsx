@@ -56,8 +56,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const serverPos = useRef(new THREE.Vector3())
   const errorVec = useRef(new THREE.Vector3())
   
-  // Jitter Fix: Smoothed server position for reconciliation
-  const smoothedServerPos = useRef(new THREE.Vector3())
+  // Jitter Fix: Visual Offset for reconciliation hiding
+  const visualOffset = useRef(new THREE.Vector3())
   // Jitter Fix: Client-side tick tracking for reliable input history
   const clientTick = useRef(0)
 
@@ -264,16 +264,23 @@ export const PlayerController = React.forwardRef((props, ref) => {
     }
 
     // Visual Interpolation (Smooth Glide)
-    // Jitter Fix: Velocity-aware smoothing
-    // Moving fast = higher lambda (responsive), Standing = lower lambda (smooth)
+    // Jitter Fix: Velocity-aware smoothing + Visual Offset Decay
+    
+    // 1. Decay visual offset (hide the snap)
+    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame)
+    
+    // 2. Calculate target visual position
+    const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
+    
+    // 3. Apply smoothing
     const speed = velocity.current.length()
     const baseLambda = 12
     const speedFactor = Math.min(1, speed / 10)
     const visualLambda = baseLambda + speedFactor * 8 // Range: 12 - 20
     
-    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, physicsPosition.current.x, visualLambda, delta)
-    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, physicsPosition.current.y, visualLambda, delta)
-    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, physicsPosition.current.z, visualLambda, delta)
+    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetVisualPos.x, visualLambda, delta)
+    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetVisualPos.y, visualLambda, delta)
+    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetVisualPos.z, visualLambda, delta)
 
     // Rotate player to face camera direction (strafe mode)
     if (!isFreeLook || !isFreeLook.current) {
@@ -290,32 +297,28 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Server reconciliation (smooth correction of physics position)
     // We only reconcile if we have a valid server state and it's newer than our last check
     
+    // Server reconciliation (smooth correction of physics position)
+    // We only reconcile if we have a valid server state and it's newer than our last check
+    
     if (serverState && serverState.tick > lastReconciledTick.current) {
       lastReconciledTick.current = serverState.tick
       
       // 1. Calculate error between predicted position and server position
       serverPos.current.set(serverState.x, serverState.y, serverState.z)
-      
-      // Jitter Fix: EMA Filter on server position
-      // Smooths out network jitter before we compare
-      const serverEMA = 0.3
-      if (smoothedServerPos.current.lengthSq() === 0) {
-        smoothedServerPos.current.copy(serverPos.current)
-      } else {
-        smoothedServerPos.current.lerp(serverPos.current, serverEMA)
-      }
-      
-      errorVec.current.copy(smoothedServerPos.current).sub(physicsPosition.current)
+      errorVec.current.copy(serverPos.current).sub(physicsPosition.current)
       const errorMagnitude = errorVec.current.length()
       
       // 2. Decide whether to reconcile
-      // Jitter Fix: Two-tier reconciliation
-      const SOFT_THRESHOLD = 0.05 // 5cm
-      const HARD_THRESHOLD = 0.5  // 50cm
+      // Jitter Fix: Visual Offset Pattern
+      // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
+      const RECONCILE_THRESHOLD = 0.01 // 1cm - strict physics sync
 
-      if (errorMagnitude > HARD_THRESHOLD) {
-        // HARD SNAP: For large desyncs (teleports, respawns)
-        physicsPosition.current.copy(smoothedServerPos.current)
+      if (errorMagnitude > RECONCILE_THRESHOLD) {
+        // Capture position BEFORE snap
+        const beforeSnap = physicsPosition.current.clone()
+        
+        // HARD SNAP PHYSICS
+        physicsPosition.current.copy(serverPos.current)
         velocity.current.set(serverState.vx, serverState.vy, serverState.vz)
         verticalVelocity.current = serverState.vy
         jumpCount.current = serverState.jumpCount || 0
@@ -374,11 +377,15 @@ export const PlayerController = React.forwardRef((props, ref) => {
         })
         
         inputHistory.current = validHistory
-
-      } else if (errorMagnitude > SOFT_THRESHOLD) {
-        // SOFT BLEND: For small drifts
-        // Nudge physics position 20% towards server
-        physicsPosition.current.lerp(smoothedServerPos.current, 0.2)
+        
+        // VISUAL OFFSET CALCULATION
+        // Offset = OldPos - NewPos
+        // We add this to the current offset so multiple snaps accumulate correctly
+        // Example: At 0. Snap to 10. Offset becomes -10. Render at 10 + (-10) = 0. No pop.
+        const afterSnap = physicsPosition.current
+        visualOffset.current.x += beforeSnap.x - afterSnap.x
+        visualOffset.current.y += beforeSnap.y - afterSnap.y
+        visualOffset.current.z += beforeSnap.z - afterSnap.z
       }
     }
 
