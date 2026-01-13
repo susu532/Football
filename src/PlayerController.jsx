@@ -50,6 +50,15 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const jumpCount = useRef(0)
   const prevJump = useRef(false) // For edge detection
 
+  // NEW: Sub-frame prediction refs
+  const lastPhysicsTime = useRef(0)
+  const subFrameProgress = useRef(0)
+  const predictedPosition = useRef(new THREE.Vector3())
+  
+  // NEW: Movement state tracking for instant start
+  const lastMoveDir = useRef(new THREE.Vector3())
+  const isMovementStarting = useRef(false)
+
   // Pre-allocated vectors for per-frame calculations (avoids GC stutters)
   const cameraForward = useRef(new THREE.Vector3())
   const cameraRight = useRef(new THREE.Vector3())
@@ -124,7 +133,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
     if (!groupRef.current) return
 
     const now = state.clock.getElapsedTime()
-    const input = InputManager.getInput()
+    
+    // NEW: Use high-precision tick-aligned input
+    const input = InputManager.getInputForTick(now * 1000) // Convert to ms
     
     // Buffer events
     if (input.jumpRequestId > currentJumpRequestId.current) {
@@ -148,6 +159,12 @@ export const PlayerController = React.forwardRef((props, ref) => {
     if (moveDir.current.length() > 0) {
       moveDir.current.normalize()
     }
+
+    // NEW: Detect movement start for instant acceleration
+    const wasMoving = lastMoveDir.current.length() > 0.01
+    const isNowMoving = moveDir.current.length() > 0.01
+    isMovementStarting.current = !wasMoving && isNowMoving
+    lastMoveDir.current.copy(moveDir.current)
 
     // Accumulate time for fixed timestep
     accumulator.current += delta
@@ -182,11 +199,22 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Apply physics (local prediction)
       const speedMult = serverState?.speedMult || 1
       const speed = MOVE_SPEED * speedMult
-      // Smoothed velocity (matches server 0.8 factor)
       const targetVx = moveDir.current.x * speed
       const targetVz = moveDir.current.z * speed
-      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.8
-      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.8
+      
+      // NEW: Instant-start movement with predictive acceleration
+      // Choose acceleration factor based on movement state
+      const accelFactor = isMovementStarting.current ? 1.0 : 0.8
+      
+      velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * accelFactor
+      velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * accelFactor
+      
+      // NEW: Add micro-prediction for sub-frame smoothness
+      if (isMovementStarting.current) {
+        const microPrediction = 0.3 // 30% boost on first frame
+        velocity.current.x += targetVx * microPrediction
+        velocity.current.z += targetVz * microPrediction
+      }
       
       // 4. Calculate new physics position
       let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
@@ -285,21 +313,34 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Visual Interpolation (Smooth Glide)
     // Jitter Fix: Velocity-aware smoothing + Visual Offset Decay
     
+    // NEW: Sub-frame position prediction
+    subFrameProgress.current = accumulator.current / FIXED_TIMESTEP
+    
+    // Extrapolate position between physics ticks
+    const extrapolationFactor = Math.min(subFrameProgress.current, 1.0)
+    predictedPosition.current.set(
+      physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP * extrapolationFactor,
+      physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP * extrapolationFactor,
+      physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP * extrapolationFactor
+    )
+
     // 1. Decay visual offset (hide the snap)
-    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // Fast decay (10% per frame)
+    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.12) // Slightly faster decay
     
     // 2. Calculate target visual position
-    const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
+    const targetVisualPos = predictedPosition.current.clone().add(visualOffset.current)
     
     // 3. Apply smoothing
     const speed = velocity.current.length()
-    const baseLambda = 12
-    const speedFactor = Math.min(1, speed / 10)
-    const visualLambda = baseLambda + speedFactor * 8 // Range: 12 - 20
+    const baseLambda = 20 // Increased from 12 for snappier response
+    const speedFactor = Math.min(1, speed / 8)
+    const visualLambda = baseLambda + speedFactor * 15 // Range: 20-35
     
-    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetVisualPos.x, visualLambda, delta)
-    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetVisualPos.y, visualLambda, delta)
-    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetVisualPos.z, visualLambda, delta)
+    // Exponential smoothing (more responsive than linear)
+    const smoothFactor = 1 - Math.exp(-visualLambda * delta)
+    groupRef.current.position.x = THREE.MathUtils.lerp(groupRef.current.position.x, targetVisualPos.x, smoothFactor)
+    groupRef.current.position.y = THREE.MathUtils.lerp(groupRef.current.position.y, targetVisualPos.y, smoothFactor)
+    groupRef.current.position.z = THREE.MathUtils.lerp(groupRef.current.position.z, targetVisualPos.z, smoothFactor)
 
     // Rotate player to face camera direction (strafe mode)
     if (!isFreeLook || !isFreeLook.current) {
