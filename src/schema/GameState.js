@@ -23,6 +23,7 @@ export class PlayerState extends Schema {
     this.speedMult = 1
     this.jumpMult = 1
     this.kickMult = 1
+    this.tick = 0
   }
 }
 
@@ -42,7 +43,9 @@ defineTypes(PlayerState, {
   sessionId: 'string',
   speedMult: 'number',
   jumpMult: 'number',
-  kickMult: 'number'
+  kickMult: 'number',
+  jumpCount: 'number',
+  tick: 'number'
 })
 
 // Power-up state
@@ -79,6 +82,8 @@ export class BallState extends Schema {
     this.ry = 0
     this.rz = 0
     this.rw = 1
+    this.tick = 0
+    this.ownerSessionId = ''
   }
 }
 
@@ -92,7 +97,9 @@ defineTypes(BallState, {
   rx: 'number',
   ry: 'number',
   rz: 'number',
-  rw: 'number'
+  rw: 'number',
+  tick: 'number',
+  ownerSessionId: 'string'
 })
 
 // Main game state
@@ -107,6 +114,7 @@ export class GameState extends Schema {
     this.timer = 300
     this.gamePhase = 'waiting'
     this.selectedMap = 'OceanFloor'
+    this.currentTick = 0
   }
 }
 
@@ -118,5 +126,6 @@ defineTypes(GameState, {
   blueScore: 'number',
   timer: 'number',
   gamePhase: 'string',
-  selectedMap: 'string'
+  selectedMap: 'string',
+  currentTick: 'number'
 })

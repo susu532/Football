@@ -3,7 +3,7 @@
 
 import React, { useRef, useEffect, useState, Suspense, useCallback, useMemo } from 'react'
 import { Canvas, useFrame, useThree } from '@react-three/fiber'
-import { Html, Loader, Environment, Preload, ContactShadows } from '@react-three/drei'
+import { Html, Loader, Environment, Preload, ContactShadows, Stats } from '@react-three/drei'
 import { EffectComposer, SMAA, FXAA, Bloom, Vignette } from '@react-three/postprocessing'
 import * as THREE from 'three'
 
@@ -12,11 +12,15 @@ import { useColyseus } from './useColyseus.jsx'
 import useStore from './store'
 
 import TeamSelectPopup from './TeamSelectPopup'
+import SettingsMenu from './SettingsMenu'
+import StatsOverlay from './StatsOverlay'
+import PostMatchSummary from './PostMatchSummary'
 import { PowerUp, POWER_UP_TYPES } from './PowerUp'
 import MobileControls from './MobileControls'
 import InputManager from './InputManager'
 import * as MapComponents from './MapComponents'
 import Chat from './Chat'
+import AudioManager from './AudioManager'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
@@ -144,9 +148,12 @@ function CameraController({ targetRef, isFreeLook, cameraOrbit }) {
     
     // Use pre-allocated vector and frame-rate independent damp
     cameraTarget.current.set(x, y, z)
-    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, 15, delta)
-    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, 15, delta)
-    camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, 15, delta)
+    
+    // Jitter Fix: Decoupled camera smoothing (lower lambda = smoother, less oscillation)
+    const cameraLambda = 10 
+    camera.position.x = THREE.MathUtils.damp(camera.position.x, cameraTarget.current.x, cameraLambda, delta)
+    camera.position.y = THREE.MathUtils.damp(camera.position.y, cameraTarget.current.y, cameraLambda, delta)
+    camera.position.z = THREE.MathUtils.damp(camera.position.z, cameraTarget.current.z, cameraLambda, delta)
     
     camera.lookAt(p.x, p.y + 1, p.z)
   }, 1) // Priority 1: Run after player physics (Priority 0)
@@ -164,6 +171,9 @@ export default function Scene() {
   const leaveGame = useStore((s) => s.leaveGame)
   const setHasJoined = useStore((s) => s.setHasJoined)
   const setPlayerTeam = useStore((s) => s.setPlayerTeam)
+  const setShowSettings = useStore((s) => s.setShowSettings)
+  const graphicsQuality = useStore((s) => s.graphicsQuality)
+  const showFPS = useStore((s) => s.showFPS)
 
   // Colyseus state
   const {
@@ -289,11 +299,17 @@ export default function Scene() {
   // Endgame sound effect
   useEffect(() => {
     if (gameOverData) {
-      const audio = new Audio('/endgame.mp3')
-      audio.volume = 0.90
-      audio.play().catch(e => console.error("Endgame audio failed:", e))
+      AudioManager.playSFX('endgame')
     }
   }, [gameOverData])
+
+  // Start background music when joined
+  useEffect(() => {
+    if (hasJoined) {
+      console.log('User joined, triggering background music')
+      AudioManager.playMusic('bgMusic')
+    }
+  }, [hasJoined])
 
   // Auto-join room when team select completes
   useEffect(() => {
@@ -314,14 +330,7 @@ export default function Scene() {
     const unsubGoal = onMessage('goal-scored', (data) => {
       setCelebration({ team: data.team, id: Date.now() })
       
-      const audio = new Audio('/winner-game-sound-404167.mp3')
-      audio.volume = 0.03
-      audio.play().catch(e => console.error("Audio play failed:", e))
-      
-      setTimeout(() => {
-        audio.pause()
-        audio.currentTime = 0
-      }, 3000)
+      AudioManager.playSFX('winner')
       
       setTimeout(() => setCelebration(null), 3000)
 
@@ -418,6 +427,7 @@ export default function Scene() {
     setShowExitConfirm(false)
     leaveRoom()
     leaveGame()
+    AudioManager.stopMusic()
   }, [leaveRoom, leaveGame])
 
   const rooming = useMemo(() => ({
@@ -453,29 +463,32 @@ export default function Scene() {
           defaultName=""
           rooming={rooming}
         />
-      ) : (
+      ) : null}
+      <SettingsMenu />
+      <StatsOverlay players={players} />
+      {hasJoined && (
         <div className="game-content-wrapper" style={{ width: '100%', height: '100%' }}>
           {/* Connection Status */}
-      <div style={{
-        position: 'absolute',
-        top: '20px',
-        left: '20px',
-        zIndex: 9999,
-        background: 'rgba(0,0,0,0.5)',
-        padding: '10px 20px',
-        borderRadius: '12px',
-        color: 'white',
-        fontSize: '18px',
-        fontWeight: 'bold',
-        textTransform: 'uppercase',
-        letterSpacing: '1px',
-        border: '1px solid rgba(255,255,255,0.2)',
-        backdropFilter: 'blur(5px)',
-        pointerEvents: 'none',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '5px'
-      }}>
+          <div style={{
+            position: 'absolute',
+            top: '20px',
+            left: '20px',
+            zIndex: 9999,
+            background: 'rgba(0,0,0,0.5)',
+            padding: '10px 20px',
+            borderRadius: '12px',
+            color: 'white',
+            fontSize: '18px',
+            fontWeight: 'bold',
+            textTransform: 'uppercase',
+            letterSpacing: '1px',
+            border: '1px solid rgba(255,255,255,0.2)',
+            backdropFilter: 'blur(5px)',
+            pointerEvents: 'none',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: '5px'
+          }}>
         <div style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ color: isConnected ? '#00ff00' : '#ff0000' }}>
             ● {isConnected ? 'CONNECTED' : 'CONNECTING...'}
@@ -578,6 +591,22 @@ export default function Scene() {
         >
           ⛶
         </button>
+        <button
+          onClick={() => setShowSettings(true)}
+          style={{
+            background: 'rgba(0,0,0,0.5)',
+            border: '1px solid rgba(255,255,255,0.2)',
+            borderRadius: '12px',
+            color: 'white',
+            padding: '10px',
+            cursor: 'pointer',
+            backdropFilter: 'blur(5px)',
+            fontSize: '18px'
+          }}
+          title="Settings"
+        >
+          ⚙️
+        </button>
       </div>
 
       {/* Scoreboard & Timer */}
@@ -673,11 +702,11 @@ export default function Scene() {
 
       {/* 3D Canvas */}
       <Canvas 
-        shadows={!isMobile}
+        shadows={!isMobile && graphicsQuality !== 'low'}
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
-        dpr={isMobile ? 0.7 : [1, 2]}
+        dpr={graphicsQuality === 'low' ? 0.7 : (graphicsQuality === 'high' ? 2 : [1, 2])}
         gl={{ 
-           antialias: !isMobile, // Disable AA on mobile for performance
+           antialias: graphicsQuality === 'high', // Disable AA on mobile/low for performance
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
@@ -690,12 +719,16 @@ export default function Scene() {
         }}
       >
         <Suspense fallback={null}>
-          {/* Post-processing - Optimized for Mobile vs Desktop */}
-          <EffectComposer multisampling={isMobile ? 0 : 4}>
-            {isMobile ? <FXAA /> : <SMAA />}
-            <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
-            <Vignette eskil={false} offset={0.1} darkness={0.5} />
-          </EffectComposer>
+          {/* Post-processing - Optimized for Quality Presets */}
+          {graphicsQuality !== 'low' && (
+            <EffectComposer multisampling={graphicsQuality === 'high' ? 8 : 4}>
+              {graphicsQuality === 'high' ? <SMAA /> : <FXAA />}
+              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
+              <Vignette eskil={false} offset={0.1} darkness={0.5} />
+            </EffectComposer>
+          )}
+
+          {showFPS && <Stats />}
 
           {/* No client-side physics - server handles all physics */}
 
@@ -761,6 +794,7 @@ export default function Scene() {
             localPlayerRef={playerRef} 
             ping={realPing} 
             pingJitter={pingJitter} 
+            ballOwner={ballState.ownerSessionId}
           />
 
           {/* Goals (visual only) */}
@@ -788,6 +822,7 @@ export default function Scene() {
               isFreeLook={isFreeLook}
               onLocalInteraction={handleLocalInteraction}
               serverState={myServerState}
+              ping={realPing}
             />
           )}
 
@@ -952,66 +987,9 @@ export default function Scene() {
         </div>
       )}
 
-      {gameOverData && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 30000,
-          background: 'rgba(0,0,0,0.85)',
-          backdropFilter: 'blur(15px)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: 'white',
-          animation: 'fadeIn 0.5s ease-out'
-        }}>
-          <h1 style={{ 
-            fontSize: '80px', 
-            margin: '0 0 20px 0', 
-            fontWeight: '900',
-            textShadow: '0 0 30px rgba(255,255,255,0.3)'
-          }}>
-            END GAME!
-          </h1>
-          
-          <div style={{
-            fontSize: '48px',
-            fontWeight: 'bold',
-            color: gameOverData.winner === 'red' ? '#ff4757' : (gameOverData.winner === 'blue' ? '#3742fa' : '#ffffff'),
-            marginBottom: '40px',
-            textTransform: 'uppercase',
-            letterSpacing: '4px'
-          }}>
-            {gameOverData.winner === 'draw' ? "IT'S A DRAW!" : `${gameOverData.winner.toUpperCase()} TEAM WINS!`}
-          </div>
-
-          <div style={{
-            display: 'flex',
-            gap: '60px',
-            background: 'rgba(255,255,255,0.1)',
-            padding: '30px 60px',
-            borderRadius: '30px',
-            border: '1px solid rgba(255,255,255,0.2)',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
-          }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: '#ff4757', fontSize: '24px', marginBottom: '10px' }}>RED</div>
-              <div style={{ fontSize: '64px', fontWeight: '900' }}>{gameOverData.scores.red}</div>
-            </div>
-            <div style={{ fontSize: '64px', fontWeight: '900', opacity: 0.5 }}>-</div>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ color: '#3742fa', fontSize: '24px', marginBottom: '10px' }}>BLUE</div>
-              <div style={{ fontSize: '64px', fontWeight: '900' }}>{gameOverData.scores.blue}</div>
-            </div>
-          </div>
-        </div>
-      )}
-      </div>
-    )}
+      <PostMatchSummary gameOverData={gameOverData} players={players} />
+    </div>
+  )}
 
       {/* Power-up Collection Overlay */}
       {collectedEmoji && (
