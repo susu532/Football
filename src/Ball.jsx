@@ -252,26 +252,47 @@ export const ClientBallVisual = React.forwardRef(({
       const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
       const serverVel = new THREE.Vector3(ballState.vx, ballState.vy, ballState.vz)
       
-      // Calculate error
-      const dist = logicPos.current.distanceTo(serverPos)
+      // LATENCY EXTRAPOLATION
+      // Project server state forward to match client time
+      const latency = Math.max(0, ping / 1000 / 2) // One-way trip time
+      
+      // Apply physics extrapolation (Position + Velocity * t + 0.5 * Gravity * t^2)
+      // We use a simplified version matching our local physics
+      const extrapolatedPos = serverPos.clone()
+      const extrapolatedVel = serverVel.clone()
+      
+      // 1. Apply Velocity
+      extrapolatedPos.addScaledVector(serverVel, latency)
+      
+      // 2. Apply Gravity (y-axis)
+      if (extrapolatedPos.y > BALL_RADIUS) {
+        extrapolatedPos.y -= 0.5 * GRAVITY * latency * latency
+        extrapolatedVel.y -= GRAVITY * latency
+      }
+      
+      // 3. Floor clamp (simple)
+      if (extrapolatedPos.y < BALL_RADIUS) extrapolatedPos.y = BALL_RADIUS
+
+      // Calculate error against EXTRAPOLATED server position
+      const dist = logicPos.current.distanceTo(extrapolatedPos)
       
       // Decision: Snap or Smooth?
-      // 10cm threshold for snapping (Visual Offset Pattern)
+      // Threshold: 10cm (Visual Offset Pattern)
       if (dist > 0.1) {
         // Capture position BEFORE snap
         const beforeSnap = logicPos.current.clone()
         
-        // HARD SNAP PHYSICS
-        logicPos.current.copy(serverPos)
-        velocity.current.copy(serverVel)
+        // HARD SNAP PHYSICS to EXTRAPOLATED state
+        logicPos.current.copy(extrapolatedPos)
+        velocity.current.copy(extrapolatedVel)
         
         // VISUAL OFFSET: offset = old - new
         // This hides the snap by adding the difference to the visual offset
         visualOffset.current.add(beforeSnap.sub(logicPos.current))
       } else {
         // Small drift: Softly nudge velocity to converge
-        // logicPos.current.lerp(serverPos, 0.1) // Optional: micro-correction
-        velocity.current.lerp(serverVel, 0.2)
+        // We use the extrapolated velocity as the target
+        velocity.current.lerp(extrapolatedVel, 0.2)
       }
     }
 
