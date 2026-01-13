@@ -58,8 +58,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
   
   // Jitter Fix: Visual Offset for reconciliation hiding
   const visualOffset = useRef(new THREE.Vector3())
-  // Jitter Fix: Client-side tick tracking for reliable input history
-  const clientTick = useRef(0)
+  // Jitter Fix: Physics tick tracking for reliable input history
+  const physicsTick = useRef(0)
 
   // Initialize position
   const lastSpawnRef = useRef('')
@@ -148,11 +148,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Accumulate time for fixed timestep
     accumulator.current += delta
     
-    // Jitter Fix: Increment client tick
-    clientTick.current++
-    
     // Physics loop - Fixed Timestep
     while (accumulator.current >= FIXED_TIMESTEP) {
+      // Increment simulation tick
+      physicsTick.current++
+
       // 1. Apply Gravity first (matches server)
       verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
 
@@ -202,6 +202,23 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
       // Update physics position
       physicsPosition.current.set(newX, newY, newZ)
+
+      // RECORD INPUT HISTORY (1:1 with physics tick)
+      inputHistory.current.push({
+        tick: physicsTick.current,
+        input: { 
+          ...input, 
+          x: moveDir.current.x, 
+          z: moveDir.current.z,
+          jumpPressed: pendingJump.current,
+          rotY: groupRef.current.rotation.y 
+        }
+      })
+      
+      // Keep buffer size manageable (2 seconds @ 120Hz = 240 items)
+      if (inputHistory.current.length > 240) {
+        inputHistory.current.shift()
+      }
 
       // Decrement accumulator
       accumulator.current -= FIXED_TIMESTEP
@@ -301,6 +318,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // We only reconcile if we have a valid server state and it's newer than our last check
     
     if (serverState && serverState.tick > lastReconciledTick.current) {
+      // Initialize physicsTick if this is the first server state
+      if (lastReconciledTick.current === 0) {
+        physicsTick.current = serverState.tick
+      }
+
       lastReconciledTick.current = serverState.tick
       
       // 1. Calculate error between predicted position and server position
@@ -328,60 +350,67 @@ export const PlayerController = React.forwardRef((props, ref) => {
         
         validHistory.forEach(historyItem => {
           const { input } = historyItem
-          for (let i = 0; i < 2; i++) {
-            // Apply Gravity
-            verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
-            
-            // Ground Check
-            if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
-              jumpCount.current = 0
-            }
-            
-            // Jump
-            if (i === 0 && input.jumpPressed && jumpCount.current < MAX_JUMPS) {
-               const jumpMult = serverState.jumpMult || 1
-               const baseJumpForce = JUMP_FORCE * jumpMult
-               verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
-               jumpCount.current++
-               isOnGround.current = false
-            }
-            
-            // Movement
-            const speedMult = serverState.speedMult || 1
-            const speed = MOVE_SPEED * speedMult
-            const targetVx = (input.x || 0) * speed
-            const targetVz = (input.z || 0) * speed
-            
-            velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
-            velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
-            
-            // Integrate
-            let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
-            let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
-            let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
-            
-            // Ground Clamp
-            if (newY <= GROUND_Y) {
-              newY = GROUND_Y
-              verticalVelocity.current = 0
-              jumpCount.current = 0
-            }
-            
-            // Bounds
-            const wallMargin = 0.3
-            newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
-            newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
-            
-            physicsPosition.current.set(newX, newY, newZ)
+          // Jitter Fix: 1:1 Replay (1 step per history item)
+          // No loop needed because we record 1 item per physics step now
+          
+          // Apply Gravity
+          verticalVelocity.current -= GRAVITY * FIXED_TIMESTEP
+          
+          // Ground Check
+          if (physicsPosition.current.y <= GROUND_Y + 0.05 && verticalVelocity.current <= 0) {
+            jumpCount.current = 0
           }
+          
+          // Jump
+          if (input.jumpPressed && jumpCount.current < MAX_JUMPS) {
+             const jumpMult = serverState.jumpMult || 1
+             const baseJumpForce = JUMP_FORCE * jumpMult
+             verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
+             jumpCount.current++
+             isOnGround.current = false
+          }
+          
+          // Movement
+          const speedMult = serverState.speedMult || 1
+          const speed = MOVE_SPEED * speedMult
+          const targetVx = (input.x || 0) * speed
+          const targetVz = (input.z || 0) * speed
+          
+          velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * 0.3
+          velocity.current.z = velocity.current.z + (targetVz - velocity.current.z) * 0.3
+          
+          // Integrate
+          let newX = physicsPosition.current.x + velocity.current.x * FIXED_TIMESTEP
+          let newY = physicsPosition.current.y + verticalVelocity.current * FIXED_TIMESTEP
+          let newZ = physicsPosition.current.z + velocity.current.z * FIXED_TIMESTEP
+          
+          // Ground Clamp
+          if (newY <= GROUND_Y) {
+            newY = GROUND_Y
+            verticalVelocity.current = 0
+            jumpCount.current = 0
+          }
+          
+          // Bounds
+          const wallMargin = 0.3
+          newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
+          newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+          
+          physicsPosition.current.set(newX, newY, newZ)
         })
         
+        // Sync physics tick to the end of replay
+        if (validHistory.length > 0) {
+          physicsTick.current = validHistory[validHistory.length - 1].tick
+        } else {
+          physicsTick.current = serverState.tick
+        }
+
         inputHistory.current = validHistory
         
         // VISUAL OFFSET CALCULATION
         // Offset = OldPos - NewPos
         // We add this to the current offset so multiple snaps accumulate correctly
-        // Example: At 0. Snap to 10. Offset becomes -10. Render at 10 + (-10) = 0. No pop.
         const afterSnap = physicsPosition.current
         visualOffset.current.x += beforeSnap.x - afterSnap.x
         visualOffset.current.y += beforeSnap.y - afterSnap.y
@@ -400,23 +429,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       lastInputTime.current = now
       inputSequence.current++
       
-      // Store input in history buffer
-      inputHistory.current.push({
-        tick: clientTick.current, // Jitter Fix: Use client tick
-        input: { 
-          ...input, 
-          x: moveDir.current.x, // Store the exact direction sent to server
-          z: moveDir.current.z,
-          jumpPressed: pendingJump.current, // Store the event!
-          rotY: groupRef.current.rotation.y 
-        },
-        timestamp: now
-      })
-      // Keep buffer size manageable (e.g., last 2 seconds)
-      if (inputHistory.current.length > 120) {
-        inputHistory.current.shift()
-      }
-      
+      // Send input (History is now handled in physics loop)
       sendInput({
         x: moveDir.current.x,
         z: moveDir.current.z,

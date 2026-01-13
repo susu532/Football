@@ -200,56 +200,42 @@ export const ClientBallVisual = React.forwardRef(({
   ballOwner = '' // Session ID of ball owner
 }, ref) => {
   const groupRef = useRef()
-  const targetPos = useRef(new THREE.Vector3(0, 2, 0))
-  const targetRot = useRef(new THREE.Quaternion())
-  const serverVelocity = useRef(new THREE.Vector3(0, 0, 0))
-  const predictedVelocity = useRef(new THREE.Vector3(0, 0, 0))
+  
+  // LOGIC STATE (The authoritative physics simulation)
+  const logicPos = useRef(new THREE.Vector3(0, 2, 0))
+  const velocity = useRef(new THREE.Vector3(0, 0, 0))
+  
+  // VISUAL STATE (Smoothing)
+  const visualOffset = useRef(new THREE.Vector3(0, 0, 0))
+  const lastReconciledTick = useRef(0)
+  
+  // PREDICTION STATE
   const kickFeedback = useRef(null)
-  const lastCollisionTime = useRef(0)
-  const collisionThisFrame = useRef(false)
-  const lastCollisionNormal = useRef(new THREE.Vector3())
-  const serverPosSmoothed = useRef(null) // For jitter smoothing EMA
-  const collisionConfidence = useRef(0) // Confidence score for current prediction
-  const subFrameTime = useRef(0) // For sub-frame collision timing
   
   // Ownership state
   const isOwner = localPlayerRef?.current?.userData?.sessionId === ballOwner
   
   useImperativeHandle(ref, () => {
     const obj = groupRef.current || {}
-    // Expose instant kick predictor for PlayerController
     obj.userData = obj.userData || {}
     obj.userData.predictKick = (impulse) => {
-      // INSTANT local kick response - before server roundtrip
-      // Apply impulse / mass to get velocity change (F = ma -> dv = J/m)
+      // INSTANT local kick response
       const invMass = 1 / PHYSICS.BALL_MASS 
-      predictedVelocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
-      predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
-      predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
-      collisionThisFrame.current = true
+      velocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
+      velocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
+      velocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
     }
     return obj
   })
 
-  // Kick message handler - confirms/corrects local prediction
+  // Kick message handler
   useEffect(() => {
     if (onKickMessage) {
       const unsubscribe = onKickMessage('ball-kicked', (data) => {
         if (kickFeedback.current) kickFeedback.current()
-        
-        if (data.impulse) {
-          // Server confirmation - blend with existing prediction
-          // Only add difference to avoid double-impulse
-          const serverImpulse = {
-            x: data.impulse.x * IMPULSE_PREDICTION_FACTOR,
-            y: data.impulse.y * IMPULSE_PREDICTION_FACTOR,
-            z: data.impulse.z * IMPULSE_PREDICTION_FACTOR
-          }
-          // Soft correction toward server impulse
-          predictedVelocity.current.x += (serverImpulse.x - predictedVelocity.current.x) * 0.3
-          predictedVelocity.current.y += (serverImpulse.y - predictedVelocity.current.y) * 0.3
-          predictedVelocity.current.z += (serverImpulse.z - predictedVelocity.current.z) * 0.3
-        }
+        // We rely on server state updates for correction, 
+        // but we can add a small nudge here if needed.
+        // For now, let the main reconciliation loop handle it.
       })
       return unsubscribe
     }
@@ -258,249 +244,93 @@ export const ClientBallVisual = React.forwardRef(({
   useFrame((state, delta) => {
     if (!groupRef.current || !ballState) return
 
-    const now = state.clock.getElapsedTime()
-    collisionThisFrame.current = false
-
-    // === S-TIER PING-AWARE PARAMETERS ===
-    const pingSeconds = ping / 1000
-    const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
-    
-    // === JITTER-AWARE EMA SMOOTHING ===
-    // High jitter = smoother (0.1), low jitter = more responsive (0.25)
-    const adaptiveEMA = Math.max(0.1, Math.min(0.25, 0.15 + (pingJitter / 200) * 0.1))
-    const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
-    if (!serverPosSmoothed.current) {
-      serverPosSmoothed.current = serverPos.clone()
-    } else {
-      serverPosSmoothed.current.lerp(serverPos, adaptiveEMA)
+    // 1. SERVER RECONCILIATION
+    // Check if we have a new server update
+    if (ballState.tick > lastReconciledTick.current) {
+      lastReconciledTick.current = ballState.tick
+      
+      const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
+      const serverVel = new THREE.Vector3(ballState.vx, ballState.vy, ballState.vz)
+      
+      // Calculate error
+      const dist = logicPos.current.distanceTo(serverPos)
+      
+      // Decision: Snap or Smooth?
+      // 10cm threshold for snapping (Visual Offset Pattern)
+      if (dist > 0.1) {
+        // Capture position BEFORE snap
+        const beforeSnap = logicPos.current.clone()
+        
+        // HARD SNAP PHYSICS
+        logicPos.current.copy(serverPos)
+        velocity.current.copy(serverVel)
+        
+        // VISUAL OFFSET: offset = old - new
+        // This hides the snap by adding the difference to the visual offset
+        visualOffset.current.add(beforeSnap.sub(logicPos.current))
+      } else {
+        // Small drift: Softly nudge velocity to converge
+        // logicPos.current.lerp(serverPos, 0.1) // Optional: micro-correction
+        velocity.current.lerp(serverVel, 0.2)
+      }
     }
 
-    // 1. Sync server state with EMA smoothing
-    targetPos.current.copy(serverPosSmoothed.current)
-    serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
-    if (ballState.rx !== undefined) {
-      targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
+    // 2. PHYSICS SIMULATION (Client-Side Prediction)
+    // Apply Gravity
+    if (logicPos.current.y > BALL_RADIUS) {
+      velocity.current.y -= GRAVITY * delta
     }
 
-    // Extrapolate target position by latency (ping) to see ball in "present" time
-    // This removes the feeling of input lag for the owner
-    const latencyCorrection = pingSeconds / 2 + 0.016 // Half RTT + 1 frame
-    targetPos.current.addScaledVector(serverVelocity.current, latencyCorrection)
+    // Apply Velocity
+    logicPos.current.addScaledVector(velocity.current, delta)
 
-    // === VELOCITY-WEIGHTED RECONCILIATION ===
-    // If owner: Trust prediction MORE (less reconciliation)
-    // If not owner: Trust server MORE (more reconciliation)
-    const speed = serverVelocity.current.length()
-    const velocityFactor = Math.max(0.3, 1 - speed / 40) // 0.3 at high speed, 1.0 at rest
-    const pingFactor = Math.max(0.3, 1 - ping / 300)
-    
-    // Ownership influence on reconciliation
-    const ownershipFactor = isOwner ? 0.2 : 1.0 // Owner reconciles 5x slower (trusts local physics)
-    
-    const reconcileRate = 1 - Math.exp(-12 * pingFactor * velocityFactor * ownershipFactor * delta)
-    
-    predictedVelocity.current.lerp(serverVelocity.current, reconcileRate)
-
-    // 3. Advance prediction with physics
-    const vel = predictedVelocity.current
-    targetPos.current.addScaledVector(vel, delta)
-    
-    if (targetPos.current.y > BALL_RADIUS) {
-      predictedVelocity.current.y -= GRAVITY * delta
+    // Floor Collision
+    if (logicPos.current.y < BALL_RADIUS) {
+      logicPos.current.y = BALL_RADIUS
+      if (velocity.current.y < 0) {
+        velocity.current.y *= -BALL_RESTITUTION
+        // Friction
+        velocity.current.x *= 0.98
+        velocity.current.z *= 0.98
+      }
     }
 
-    // === WALL/ARENA COLLISION PREDICTION ===
+    // Wall Collisions
     const ARENA_HALF_WIDTH = PHYSICS.ARENA_HALF_WIDTH
     const ARENA_HALF_DEPTH = PHYSICS.ARENA_HALF_DEPTH
     const GOAL_HALF_WIDTH = PHYSICS.GOAL_WIDTH / 2
-    const GOAL_X = 11.2
     
-    // X walls (with goal gaps)
-    if (Math.abs(targetPos.current.x) > ARENA_HALF_WIDTH) {
-      const inGoalZone = Math.abs(targetPos.current.z) < GOAL_HALF_WIDTH && targetPos.current.y < 4
+    // X Walls
+    if (Math.abs(logicPos.current.x) > ARENA_HALF_WIDTH) {
+      const inGoalZone = Math.abs(logicPos.current.z) < GOAL_HALF_WIDTH && logicPos.current.y < 4
       if (!inGoalZone) {
-        predictedVelocity.current.x *= -BALL_RESTITUTION
-        targetPos.current.x = Math.sign(targetPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
+        velocity.current.x *= -BALL_RESTITUTION
+        logicPos.current.x = Math.sign(logicPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
       }
     }
     
-    // Z walls
-    if (Math.abs(targetPos.current.z) > ARENA_HALF_DEPTH) {
-      predictedVelocity.current.z *= -BALL_RESTITUTION
-      targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
+    // Z Walls
+    if (Math.abs(logicPos.current.z) > ARENA_HALF_DEPTH) {
+      velocity.current.z *= -BALL_RESTITUTION
+      logicPos.current.z = Math.sign(logicPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
     }
 
-    // === VELOCITY CLAMPING ===
-    const MAX_LINEAR_VEL = 50
-    const velMag = predictedVelocity.current.length()
-    if (velMag > MAX_LINEAR_VEL) {
-      predictedVelocity.current.multiplyScalar(MAX_LINEAR_VEL / velMag)
-    }
+    // Linear Damping
+    velocity.current.multiplyScalar(1 - LINEAR_DAMPING * delta)
 
-    // 4. PING-AWARE COLLISION PREDICTION with DYNAMIC RADIUS
-    const timeSinceCollision = now - lastCollisionTime.current
+    // 3. VISUAL SMOOTHING
+    // Decay the visual offset to zero
+    visualOffset.current.lerp(new THREE.Vector3(0, 0, 0), 0.1) // 10% decay per frame
     
-    if (localPlayerRef?.current?.position && timeSinceCollision > COLLISION_COOLDOWN) {
-      const playerPos = localPlayerRef.current.position
-      const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
-      const ballPos = groupRef.current.position
-      
-      // === DYNAMIC COLLISION RADIUS for giant power-up ===
-      const isGiant = localPlayerRef.current.userData?.giant || false
-      const giantScale = isGiant ? 5 : 1 // Reduced from 10 to 5 for stability
-      const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
-      const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
-      
-      // Anticipatory collision with dynamic lookahead
-      const futureBall = predictFuturePosition(ballPos, vel, dynamicLookahead, GRAVITY)
-      const futurePlayer = {
-        x: playerPos.x + (playerVel.x || 0) * dynamicLookahead,
-        y: playerPos.y + (playerVel.y || 0) * dynamicLookahead,
-        z: playerPos.z + (playerVel.z || 0) * dynamicLookahead
-      }
-      
-      // Distance checks
-      const dx = ballPos.x - playerPos.x
-      const dy = ballPos.y - playerPos.y
-      const dz = ballPos.z - playerPos.z
-      const currentDist = Math.sqrt(dx * dx + dy * dy + dz * dz)
-      
-      const fdx = futureBall.x - futurePlayer.x
-      const fdy = futureBall.y - futurePlayer.y
-      const fdz = futureBall.z - futurePlayer.z
-      const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
-      
-      // Sweep test with dynamic radius
-      const ballEnd = targetPos.current.clone()
-      const sweepT = sweepSphereToSphere(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
-      
-      // Collision conditions
-      const isCurrentCollision = currentDist < dynamicCombinedRadius
-      const isAnticipatedCollision = futureDist < dynamicCombinedRadius && 
-                                    futureDist < currentDist &&
-                                    currentDist < dynamicCombinedRadius * 1.1 // Proximity check
-      const isSweepCollision = sweepT !== null
-      
-      // === SPECULATIVE COLLISION DETECTION ===
-      // Pre-detect likely collisions for ultra-early response
-      const isSpeculative = futureDist < currentDist * 0.4 && // Tightened from 0.5
-                           futureDist < dynamicCombinedRadius * 0.9 && 
-                           currentDist < dynamicCombinedRadius * 1.1 // Tightened from 1.3
-      
-      if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
-        let nx, ny, nz, contactDist
-        
-        // === SUB-FRAME COLLISION TIMING ===
-        // Use sweep hit time for micro-precise contact moment
-        if (isSweepCollision && sweepT > 0) {
-          subFrameTime.current = sweepT
-          const contactPt = ballPos.clone().lerp(ballEnd, sweepT)
-          const cx = contactPt.x - playerPos.x
-          const cy = contactPt.y - playerPos.y
-          const cz = contactPt.z - playerPos.z
-          contactDist = Math.sqrt(cx * cx + cy * cy + cz * cz)
-          const invD = 1 / Math.max(contactDist, 0.1)
-          nx = cx * invD
-          ny = Math.max(0.1, cy * invD)
-          nz = cz * invD
-        } else {
-          subFrameTime.current = 0
-          contactDist = currentDist
-          const invD = 1 / Math.max(currentDist, 0.1)
-          nx = dx * invD
-          ny = Math.max(0.1, dy * invD)
-          nz = dz * invD
-        }
-        
-        // Relative velocity
-        const relVx = vel.x - (playerVel.x || 0)
-        const relVy = vel.y - (playerVel.y || 0)
-        const relVz = vel.z - (playerVel.z || 0)
-        const approachSpeed = relVx * nx + relVy * ny + relVz * nz
-        
-        // === COLLISION CONFIDENCE SCORING ===
-        // Higher confidence = more aggressive prediction
-        const speedFactor = Math.min(1, Math.abs(approachSpeed) / 15)
-        const distFactor = Math.min(1, dynamicCombinedRadius / Math.max(currentDist, 0.1))
-        collisionConfidence.current = speedFactor * distFactor
-        
-        if (approachSpeed < 0 || isCurrentCollision) {
-          lastCollisionTime.current = now
-          collisionThisFrame.current = true
-          lastCollisionNormal.current.set(nx, ny, nz)
-          
-          // RAPIER-matched impulse with boost (scaled for giant)
-          const impulseMag = -(1 + BALL_RESTITUTION) * approachSpeed
-          const boostFactor = isGiant ? 2.0 : 1.2 // Giant kicks harder
-          
-          // Apply impulse scaled by confidence for speculative hits
-          const impulseFactor = isSpeculative && !isCurrentCollision ? PHYSICS.SPECULATIVE_IMPULSE_FACTOR : 1.0
-          
-          predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
-          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)
-          predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
-          
-          // Player velocity transfer
-          predictedVelocity.current.x += (playerVel.x || 0) * 0.5
-          predictedVelocity.current.z += (playerVel.z || 0) * 0.5
-          
-          // INSTANT position correction with sub-frame advancement
-          // Clamp overlap to prevent teleports with giant powerup
-          const overlap = Math.min(1.0, dynamicCombinedRadius - contactDist + 0.02)
-          if (overlap > 0) {
-            // Advance remaining time after collision
-            const remainingTime = delta * (1 - subFrameTime.current)
-            targetPos.current.x += nx * overlap + vel.x * remainingTime * 0.3
-            targetPos.current.y += ny * overlap * 0.5
-            targetPos.current.z += nz * overlap + vel.z * remainingTime * 0.3
-            
-            // Immediate visual push (confidence-weighted)
-            const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)
-            groupRef.current.position.x += nx * overlap * visualPush
-            groupRef.current.position.z += nz * overlap * visualPush
-          }
-        }
-      }
-    }
-
-    // 5. ULTRA-AGGRESSIVE visual interpolation with CONFIDENCE WEIGHTING
-    const distance = groupRef.current.position.distanceTo(targetPos.current)
+    // Render Position = Logic + Offset
+    groupRef.current.position.copy(logicPos.current).add(visualOffset.current)
     
-    // NaN Protection: If target is invalid, snap to server immediately
-    if (isNaN(targetPos.current.x) || isNaN(targetPos.current.y) || isNaN(targetPos.current.z)) {
-      targetPos.current.copy(serverPosSmoothed.current)
-      predictedVelocity.current.copy(serverVelocity.current)
+    // Rotation (Visual only)
+    if (ballState.rx !== undefined) {
+       // Smoothly interpolate rotation
+       const targetRot = new THREE.Quaternion(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
+       groupRef.current.quaternion.slerp(targetRot, 10 * delta)
     }
-
-    // PANIC SNAP: If divergence is too high, force snap to server (fixes freezing)
-    if (distance > 2.0) { // Reduced threshold from 8 to 2 meters
-      groupRef.current.position.copy(targetPos.current)
-      predictedVelocity.current.copy(serverVelocity.current) // Reset velocity too
-    } else if (collisionThisFrame.current) {
-      // INSTANT snap on collision - confidence-weighted
-      const confidenceBoost = 1 + collisionConfidence.current * 0.5
-      const snapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * delta)
-      groupRef.current.position.lerp(targetPos.current, snapFactor)
-    } else {
-      const lerpFactor = 1 - Math.exp(-LERP_NORMAL * delta)
-      groupRef.current.position.lerp(targetPos.current, lerpFactor)
-    }
-    
-    groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-15 * delta))
-    
-    // 6. Floor collision with friction
-    if (groupRef.current.position.y < BALL_RADIUS) {
-      groupRef.current.position.y = BALL_RADIUS
-      if (predictedVelocity.current.y < 0) {
-        predictedVelocity.current.y = Math.abs(predictedVelocity.current.y) * BALL_RESTITUTION
-        // Floor friction
-        predictedVelocity.current.x *= 0.85
-        predictedVelocity.current.z *= 0.85
-      }
-    }
-
-    // 7. Linear damping
-    predictedVelocity.current.multiplyScalar(1 - LINEAR_DAMPING * delta)
   })
 
   return (
