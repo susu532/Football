@@ -478,9 +478,13 @@ export const ClientBallVisual = React.forwardRef(({
     }
 
     // PANIC SNAP: If divergence is too high, force snap to server (fixes freezing)
-    if (distance > 2.0) { // Reduced threshold from 8 to 2 meters
+    if (distance > 8.0) { // Increased from 2.0 to 8.0 to prevent disconnects
       groupRef.current.position.copy(targetPos.current)
       predictedVelocity.current.copy(serverVelocity.current) // Reset velocity too
+    } else if (distance > 2.0) {
+      // FAST CORRECTION: If diverging significantly but not panic-worthy, lerp fast
+      const fastLerp = 1 - Math.exp(-40 * delta)
+      groupRef.current.position.lerp(targetPos.current, fastLerp)
     } else if (collisionThisFrame.current) {
       // INSTANT snap on collision - confidence-weighted
       const confidenceBoost = 1 + collisionConfidence.current * 0.5
