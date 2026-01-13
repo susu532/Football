@@ -89,7 +89,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const lastReconciledTick = useRef(0)
   
   // Input Buffering (Captures events between frames)
-  const pendingJump = useRef(false)
+  const currentJumpRequestId = useRef(0)
+  const prevJumpRequestId = useRef(0)
   const pendingKick = useRef(false)
 
   useImperativeHandle(ref, () => ({
@@ -126,7 +127,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
     const input = InputManager.getInput()
     
     // Buffer events
-    if (input.jump) pendingJump.current = true
+    if (input.jumpRequestId > currentJumpRequestId.current) {
+      currentJumpRequestId.current = input.jumpRequestId
+    }
     if (input.kick) pendingKick.current = true
     
     // Get camera direction for relative movement (reuse pre-allocated vectors)
@@ -163,16 +166,18 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
 
       // 3. Handle Jump (overrides gravity for this frame)
-      const jumpTriggered = pendingJump.current && !prevJump.current
-      if (jumpTriggered && jumpCount.current < MAX_JUMPS) {
+      const jumpRequested = currentJumpRequestId.current > prevJumpRequestId.current
+      if (jumpRequested && jumpCount.current < MAX_JUMPS) {
         const jumpMult = serverState?.jumpMult || 1
         const baseJumpForce = JUMP_FORCE * jumpMult
         verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
         jumpCount.current++
         isOnGround.current = false
         AudioManager.playSFX('jump')
+        
+        // Mark this jump ID as processed
+        prevJumpRequestId.current = currentJumpRequestId.current
       }
-      prevJump.current = pendingJump.current
 
       // Apply physics (local prediction)
       const speedMult = serverState?.speedMult || 1
@@ -197,9 +202,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
 
       // Bounds checking
-      const wallMargin = 0.3
-      newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
-      newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+      newX = Math.max(-PHYSICS.ARENA_HALF_WIDTH, Math.min(PHYSICS.ARENA_HALF_WIDTH, newX))
+      newZ = Math.max(-PHYSICS.ARENA_HALF_DEPTH, Math.min(PHYSICS.ARENA_HALF_DEPTH, newZ))
 
       // Update physics position
       physicsPosition.current.set(newX, newY, newZ)
@@ -209,7 +213,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
         tick: physicsTick.current,
         x: moveDir.current.x,
         z: moveDir.current.z,
-        jump: pendingJump.current,
+        jumpRequestId: currentJumpRequestId.current,
         rotY: groupRef.current.rotation.y
       })
       
@@ -255,7 +259,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const kickPower = PHYSICS.KICK_POWER * kickMult
       
       const impulseX = forwardX * kickPower + velocity.current.x * 2
-      const impulseY = 0.5 * kickPower
+      const impulseY = 0.5 * kickPower // Server adds 0.8 vertical boost automatically
       const impulseZ = forwardZ * kickPower + velocity.current.z * 2
 
       // Send to server
@@ -350,6 +354,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
         // Replay inputs
         const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
         
+        // Find the input state at the start of replay (server state) to know the initial jump ID
+        const startInput = inputHistory.current.find(h => h.tick === serverState.tick)
+        let replayLastJumpId = startInput ? startInput.jumpRequestId : 0
+        
         validHistory.forEach(input => {
           // Jitter Fix: 1:1 Replay (1 step per history item)
           // No loop needed because we record 1 item per physics step now
@@ -363,12 +371,14 @@ export const PlayerController = React.forwardRef((props, ref) => {
           }
           
           // Jump
-          if (input.jump && jumpCount.current < MAX_JUMPS) {
+          // Detect change in jumpRequestId
+          if (input.jumpRequestId > replayLastJumpId && jumpCount.current < MAX_JUMPS) {
              const jumpMult = serverState.jumpMult || 1
              const baseJumpForce = JUMP_FORCE * jumpMult
              verticalVelocity.current = jumpCount.current === 0 ? baseJumpForce : baseJumpForce * DOUBLE_JUMP_MULTIPLIER
              jumpCount.current++
              isOnGround.current = false
+             replayLastJumpId = input.jumpRequestId
           }
           
           // Movement
@@ -393,9 +403,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
           }
           
           // Bounds
-          const wallMargin = 0.3
-          newX = Math.max(-15 + wallMargin, Math.min(15 - wallMargin, newX))
-          newZ = Math.max(-10 + wallMargin, Math.min(10 - wallMargin, newZ))
+          newX = Math.max(-PHYSICS.ARENA_HALF_WIDTH, Math.min(PHYSICS.ARENA_HALF_WIDTH, newX))
+          newZ = Math.max(-PHYSICS.ARENA_HALF_DEPTH, Math.min(PHYSICS.ARENA_HALF_DEPTH, newZ))
           
           physicsPosition.current.set(newX, newY, newZ)
         })
@@ -447,7 +456,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
 
       // Consume buffered jump (it's recorded in history now)
-      pendingJump.current = false
+      // No need to reset pendingJump, the ID stays until it changes
+      // pendingJump.current = false 
     }
   })
 

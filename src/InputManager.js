@@ -5,7 +5,7 @@ class InputManagerClass {
   constructor() {
     this.keys = {}
     this.mobileInput = { move: { x: 0, y: 0 }, jump: false, kick: false }
-    this.jumpPressed = false
+    this.jumpRequestId = 0 // Increments on every jump press
     this.kickPressed = false
     this.isInitialized = false
   }
@@ -40,7 +40,7 @@ class InputManagerClass {
     
     // Track one-shot actions
     if (e.code === 'Space') {
-      this.jumpPressed = true
+      this.jumpRequestId++
     }
     if (key === 'f') {
       this.kickPressed = true
@@ -61,7 +61,7 @@ class InputManagerClass {
   }
 
   setMobileJump() {
-    this.jumpPressed = true
+    this.jumpRequestId++
   }
 
   setMobileKick() {
@@ -115,7 +115,7 @@ class InputManagerClass {
 
     return {
       move: { x: moveX, z: moveZ },
-      jump,
+      jumpRequestId: this.jumpRequestId,
       kick
     }
   }
@@ -147,7 +147,7 @@ class InputManagerClass {
 
     return {
       move: { x: moveX, z: moveZ },
-      jump: this.jumpPressed,
+      jumpRequestId: this.jumpRequestId,
       kick: this.kickPressed
     }
   }

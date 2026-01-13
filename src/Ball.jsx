@@ -303,6 +303,12 @@ export const ClientBallVisual = React.forwardRef(({
 
     // 3. Advance prediction with physics
     const vel = predictedVelocity.current
+    
+    // Apply Linear Damping (matches server RAPIER)
+    const dampingFactor = 1 - PHYSICS.BALL_LINEAR_DAMPING * delta
+    vel.x *= dampingFactor
+    vel.z *= dampingFactor
+    
     targetPos.current.addScaledVector(vel, delta)
     
     if (targetPos.current.y > BALL_RADIUS) {
@@ -318,14 +324,14 @@ export const ClientBallVisual = React.forwardRef(({
     if (Math.abs(targetPos.current.x) > ARENA_HALF_WIDTH) {
       const inGoalZone = Math.abs(targetPos.current.z) < GOAL_HALF_WIDTH && targetPos.current.y < 4
       if (!inGoalZone) {
-        predictedVelocity.current.x *= -PHYSICS.BALL_RESTITUTION
+        predictedVelocity.current.x *= -0.8 // Match server side wall restitution
         targetPos.current.x = Math.sign(targetPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
       }
     }
     
     // Z walls
     if (Math.abs(targetPos.current.z) > ARENA_HALF_DEPTH) {
-      predictedVelocity.current.z *= -PHYSICS.BALL_RESTITUTION
+      predictedVelocity.current.z *= -0.8 // Match server side wall restitution
       targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
     }
 
@@ -382,9 +388,9 @@ export const ClientBallVisual = React.forwardRef(({
       
       // === SPECULATIVE COLLISION DETECTION ===
       // Pre-detect likely collisions for ultra-early response
-      const isSpeculative = futureDist < currentDist * 0.4 && // Tightened from 0.5
-                           futureDist < dynamicCombinedRadius * 0.9 && 
-                           currentDist < dynamicCombinedRadius * 1.1 // Tightened from 1.3
+      const isSpeculative = futureDist < currentDist * 0.3 && // Tightened from 0.4
+                           futureDist < dynamicCombinedRadius * 0.8 && // Tightened from 0.9
+                           currentDist < dynamicCombinedRadius * 1.05 // Tightened from 1.1
       
       if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
         let nx, ny, nz, contactDist
