@@ -14,6 +14,7 @@ class InputManagerClass {
       move: { x: 0, z: 0 },
       jumpRequestId: 0,
       kick: false,
+      kickTimestamp: 0,
       timestamp: 0
     }
     
@@ -21,6 +22,7 @@ class InputManagerClass {
     this.inputQueue = []
     this.lastInputTime = 0
     this.inputVelocity = { x: 0, z: 0 }
+    this.kickTimestamp = 0
   }
 
   init() {
@@ -61,6 +63,7 @@ class InputManagerClass {
     }
     if (key === 'f') {
       this.kickPressed = true
+      this.kickTimestamp = typeof performance !== 'undefined' ? performance.now() : Date.now()
     }
   }
 
@@ -86,6 +89,7 @@ class InputManagerClass {
 
   setMobileKick() {
     this.kickPressed = true
+    this.kickTimestamp = typeof performance !== 'undefined' ? performance.now() : Date.now()
   }
 
   // Helper to check if user is typing in an input field
@@ -107,6 +111,7 @@ class InputManagerClass {
       this._reusableInput.move.z = 0
       this._reusableInput.jumpRequestId = this.jumpRequestId
       this._reusableInput.kick = false
+      this._reusableInput.kickTimestamp = 0
       return this._reusableInput
     }
 
@@ -144,6 +149,7 @@ class InputManagerClass {
     this._reusableInput.move.z = moveZ
     this._reusableInput.jumpRequestId = this.jumpRequestId
     this._reusableInput.kick = kick
+    this._reusableInput.kickTimestamp = this.kickTimestamp
     this._reusableInput.timestamp = typeof performance !== 'undefined' ? performance.now() : Date.now()
     
     // Update input velocity (simple difference)

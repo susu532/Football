@@ -131,6 +131,19 @@ const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
   return null
 }
 
+// Multi-step sweep for sub-frame precision
+const multiStepSweep = (ballStart, ballEnd, playerPos, combinedRadius) => {
+  for (let i = 0; i < PHYSICS.SWEEP_SUBSTEPS; i++) {
+    const t0 = i / PHYSICS.SWEEP_SUBSTEPS
+    const t1 = (i + 1) / PHYSICS.SWEEP_SUBSTEPS
+    const subStart = ballStart.clone().lerp(ballEnd, t0)
+    const subEnd = ballStart.clone().lerp(ballEnd, t1)
+    const hit = sweepSphereToSphere(subStart, subEnd, playerPos, combinedRadius)
+    if (hit !== null) return t0 + hit * (t1 - t0)
+  }
+  return null
+}
+
 // Anticipatory trajectory prediction with gravity
 const predictFuturePosition = (pos, vel, time, gravity) => ({
   x: pos.x + vel.x * time,
@@ -213,6 +226,12 @@ export const ClientBallVisual = React.forwardRef(({
   const collisionConfidence = useRef(0) // Confidence score for current prediction
   const subFrameTime = useRef(0) // For sub-frame collision timing
   
+  // S-Tier State
+  const visualAccumulator = useRef(0)
+  const wasColliding = useRef(false)
+  const lastPingTier = useRef(0)
+  const kickTimestampOffset = useRef(0) // Offset between local clock and kick timestamp
+  
   // Ownership state
   const isOwner = localPlayerRef?.current?.userData?.sessionId === ballOwner
   
@@ -227,14 +246,19 @@ export const ClientBallVisual = React.forwardRef(({
       
       // Sub-frame timing compensation
       // If kick happened 8ms ago (half frame), advance physics by 8ms
+      // S-Tier: Use precise timestamp if available
       const now = typeof performance !== 'undefined' ? performance.now() : Date.now()
-      const frameOffset = timestamp ? Math.max(0, (now - timestamp) / 1000) : 0
+      const kickTime = timestamp || now
+      const frameOffset = Math.max(0, (now - kickTime) / 1000)
       
+      // Store offset for drift compensation
+      kickTimestampOffset.current = frameOffset
+
       predictedVelocity.current.x += impulse.x * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
       
-      // Apply sub-frame advancement
+      // Apply sub-frame advancement with gravity compensation
       if (frameOffset > 0) {
          predictedVelocity.current.y -= GRAVITY * frameOffset
          targetPos.current.addScaledVector(predictedVelocity.current, frameOffset)
@@ -302,18 +326,27 @@ export const ClientBallVisual = React.forwardRef(({
     targetPos.current.addScaledVector(serverVelocity.current, latencyCorrection)
 
     // === VELOCITY-WEIGHTED RECONCILIATION ===
-    // If owner: Trust prediction MORE (less reconciliation)
-    // If not owner: Trust server MORE (more reconciliation)
+    // Adaptive Reconciliation Tiers
+    let reconcileRate
+    if (ping < PHYSICS.RECONCILE_TIER_1_PING) {
+      reconcileRate = 1 - Math.exp(-6 * delta) // Tier 1: Trust local (slow reconcile)
+    } else if (ping < PHYSICS.RECONCILE_TIER_2_PING) {
+      reconcileRate = 1 - Math.exp(-12 * delta) // Tier 2: Balanced
+    } else {
+      reconcileRate = 1 - Math.exp(-25 * delta) // Tier 3: Trust server (fast reconcile)
+    }
+
+    // Velocity influence
     const speed = serverVelocity.current.length()
-    const velocityFactor = Math.max(0.3, 1 - speed / 40) // 0.3 at high speed, 1.0 at rest
-    const pingFactor = Math.max(0.3, 1 - ping / 300)
+    const velocityFactor = Math.max(0.3, 1 - speed / 40)
     
-    // Ownership influence on reconciliation
-    const ownershipFactor = isOwner ? 0.2 : 1.0 // Owner reconciles 5x slower (trusts local physics)
+    // Ownership influence
+    const ownershipFactor = isOwner ? 0.2 : 1.0 
     
-    const reconcileRate = 1 - Math.exp(-12 * pingFactor * velocityFactor * ownershipFactor * delta)
+    // Final rate
+    const finalReconcileRate = 1 - Math.exp(Math.log(1 - reconcileRate) * velocityFactor * ownershipFactor)
     
-    predictedVelocity.current.lerp(serverVelocity.current, reconcileRate)
+    predictedVelocity.current.lerp(serverVelocity.current, finalReconcileRate)
 
     // 3. Advance prediction with physics
     const vel = predictedVelocity.current
@@ -389,9 +422,9 @@ export const ClientBallVisual = React.forwardRef(({
       const fdz = futureBall.z - futurePlayer.z
       const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
       
-      // Sweep test with dynamic radius
+      // Sweep test with dynamic radius and multi-step precision
       const ballEnd = targetPos.current.clone()
-      const sweepT = sweepSphereToSphere(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
+      const sweepT = multiStepSweep(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
       
       // Collision conditions
       const isCurrentCollision = currentDist < dynamicCombinedRadius
@@ -524,30 +557,56 @@ export const ClientBallVisual = React.forwardRef(({
     }
 
     // 5. ULTRA-AGGRESSIVE visual interpolation with CONFIDENCE WEIGHTING
-    const distance = groupRef.current.position.distanceTo(targetPos.current)
+    // S-Tier: 240Hz Visual Interpolation Loop
+    visualAccumulator.current += delta
+    const VISUAL_STEP = PHYSICS.VISUAL_TIMESTEP
     
-    // NaN Protection: If target is invalid, snap to server immediately
-    if (isNaN(targetPos.current.x) || isNaN(targetPos.current.y) || isNaN(targetPos.current.z)) {
-      targetPos.current.copy(serverPosSmoothed.current)
-      predictedVelocity.current.copy(serverVelocity.current)
-    }
+    // Detect First Touch for Instant Response
+    const isFirstTouch = collisionThisFrame.current && !wasColliding.current
+    wasColliding.current = collisionThisFrame.current
 
-    // PANIC SNAP: If divergence is too high, force snap to server (fixes freezing)
-    if (distance > 8.0) { // Increased from 2.0 to 8.0 to prevent disconnects
-      groupRef.current.position.copy(targetPos.current)
-      predictedVelocity.current.copy(serverVelocity.current) // Reset velocity too
-    } else if (distance > 2.0) {
-      // FAST CORRECTION: If diverging significantly but not panic-worthy, lerp fast
-      const fastLerp = 1 - Math.exp(-40 * delta)
-      groupRef.current.position.lerp(targetPos.current, fastLerp)
-    } else if (collisionThisFrame.current) {
-      // INSTANT snap on collision - confidence-weighted
-      const confidenceBoost = 1 + collisionConfidence.current * 0.5
-      const snapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * delta)
-      groupRef.current.position.lerp(targetPos.current, snapFactor)
-    } else {
-      const lerpFactor = 1 - Math.exp(-LERP_NORMAL * delta)
-      groupRef.current.position.lerp(targetPos.current, lerpFactor)
+    while (visualAccumulator.current >= VISUAL_STEP) {
+      const dt = VISUAL_STEP
+      const distance = groupRef.current.position.distanceTo(targetPos.current)
+      
+      // NaN Protection
+      if (isNaN(targetPos.current.x) || isNaN(targetPos.current.y) || isNaN(targetPos.current.z)) {
+        targetPos.current.copy(serverPosSmoothed.current)
+        predictedVelocity.current.copy(serverVelocity.current)
+      }
+
+      // PANIC SNAP
+      if (distance > 8.0) {
+        groupRef.current.position.copy(targetPos.current)
+        predictedVelocity.current.copy(serverVelocity.current)
+      } else if (distance > 2.0) {
+        // FAST CORRECTION
+        const fastLerp = 1 - Math.exp(-40 * dt)
+        groupRef.current.position.lerp(targetPos.current, fastLerp)
+      } else if (isFirstTouch) {
+        // INSTANT FIRST TOUCH SNAP
+        // Boost visual response to feel 0-ping
+        const snapFactor = 0.8 + collisionConfidence.current * 0.2
+        groupRef.current.position.lerp(targetPos.current, snapFactor)
+      } else if (collisionThisFrame.current) {
+        // Continuous collision snap
+        const confidenceBoost = 1 + collisionConfidence.current * 0.5
+        const snapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * dt)
+        groupRef.current.position.lerp(targetPos.current, snapFactor)
+      } else {
+        // Normal smooth interpolation
+        const lerpFactor = 1 - Math.exp(-LERP_NORMAL * dt)
+        groupRef.current.position.lerp(targetPos.current, lerpFactor)
+      }
+      
+      visualAccumulator.current -= VISUAL_STEP
+    }
+    
+    // Interpolate remainder for silky smoothness
+    const remainder = visualAccumulator.current / VISUAL_STEP
+    if (remainder > 0) {
+       // Optional: slight blend for sub-step smoothness
+       // groupRef.current.position.lerp(targetPos.current, remainder * 0.1)
     }
     
     groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-15 * delta))

@@ -105,6 +105,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
   const currentJumpRequestId = useRef(0)
   const prevJumpRequestId = useRef(0)
   const pendingKick = useRef(false)
+  const pendingKickTimestamp = useRef(0)
 
   useImperativeHandle(ref, () => ({
     get position() { return groupRef.current?.position || new THREE.Vector3() },
@@ -145,7 +146,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
     if (input.jumpRequestId > currentJumpRequestId.current) {
       currentJumpRequestId.current = input.jumpRequestId
     }
-    if (input.kick) pendingKick.current = true
+    if (input.kick) {
+      pendingKick.current = true
+      pendingKickTimestamp.current = input.kickTimestamp
+    }
     
     // Get camera direction for relative movement (reuse pre-allocated vectors)
     camera.getWorldDirection(cameraForward.current)
@@ -310,7 +314,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       sendKick({
         impulseX,
         impulseY,
-        impulseZ
+        impulseZ,
+        timestamp: pendingKickTimestamp.current
       })
       
       AudioManager.playSFX('kick')
@@ -322,7 +327,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
           x: impulseX,
           y: impulseY + PHYSICS.KICK_VERTICAL_BOOST * kickMult,
           z: impulseZ
-        })
+        }, pendingKickTimestamp.current)
       }
       pendingKick.current = false
     }
