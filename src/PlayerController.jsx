@@ -383,9 +383,9 @@ export const PlayerController = React.forwardRef((props, ref) => {
       // Jitter Fix: Visual Offset Pattern
       // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
       // Latency-Adaptive Threshold: Higher ping = more lenient to reduce jitter
-      const BASE_THRESHOLD = 0.01 // 1cm - strict physics sync
+      const BASE_THRESHOLD = 0.1   // 10cm base (was 1cm)
       const PING_SCALE = 0.0002   // 0.02cm per 100ms ping
-      const MAX_THRESHOLD = 0.15  // Cap at 15cm even for very high ping
+      const MAX_THRESHOLD = 0.5    // 50cm max (was 15cm)
       const RECONCILE_THRESHOLD = Math.min(MAX_THRESHOLD, BASE_THRESHOLD + ping * PING_SCALE)
 
       if (errorMagnitude > RECONCILE_THRESHOLD) {
