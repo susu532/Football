@@ -79,6 +79,21 @@ Space - Jump (press twice for double jump)
 Left Click - Kick
 Mouse Move - Camera
 ESC - Menu
+Enter - Chat
+
+1.5 Quick Polish Items ✨
+Priority: MEDIUM | Effort: Very Low | Impact: Medium
+
+Add ball trail effect (already has Trail component in Ball.jsx)
+Show player nametags above characters
+Add "You scored!" / "Enemy scored!" text differentiation
+Kick cooldown visual indicator
+Power-up timer display when active
+Add field markings (center circle, penalty box outlines)
+
+PHASE 2: CONTENT & VARIETY 🎨 (2-3 weeks)
+Medium impact, medium effort additions
+2.1 Character Expansion 🐾🚗
 Priority: HIGH | Effort: Medium | Impact: High
 Current: 2 characters (Cat, Car)
 Target: 6-8 characters
@@ -251,6 +266,24 @@ Tournament leaderboard
 Prize distribution (cosmetics, titles)
 
 🔧 TECHNICAL RECOMMENDATIONS
+Code Quality Improvements
+
+Error Handling
+
+Add try-catch blocks around Colyseus connection
+Graceful handling of network disconnections
+Reconnection logic with state restoration
+
+Performance Monitoring
+
+Add FPS counter (optional in settings)
+Network stats overlay (ping graph, packet loss)
+Memory usage tracking (warn if > 80%)
+
+Code Organization
+
+Extract constants to constants.js
+Create utils/ folder for helper functions
 Separate audio logic into AudioManager.js
 Create components/UI/ folder for UI components
 
