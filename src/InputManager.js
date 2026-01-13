@@ -8,13 +8,6 @@ class InputManagerClass {
     this.jumpRequestId = 0 // Increments on every jump press
     this.kickPressed = false
     this.isInitialized = false
-    
-    // Reusable objects to reduce GC
-    this._reusableInput = {
-      move: { x: 0, z: 0 },
-      jumpRequestId: 0,
-      kick: false
-    }
   }
 
   init() {
@@ -89,12 +82,7 @@ class InputManagerClass {
       // Consume one-shots even if focused to prevent "stuck" actions
       this.jumpPressed = false
       this.kickPressed = false
-      
-      this._reusableInput.move.x = 0
-      this._reusableInput.move.z = 0
-      this._reusableInput.jumpRequestId = this.jumpRequestId
-      this._reusableInput.kick = false
-      return this._reusableInput
+      return { move: { x: 0, z: 0 }, jump: false, kick: false }
     }
 
     let moveX = 0
@@ -125,24 +113,17 @@ class InputManagerClass {
     this.jumpPressed = false
     this.kickPressed = false
 
-    this.kickPressed = false
-    
-    this._reusableInput.move.x = moveX
-    this._reusableInput.move.z = moveZ
-    this._reusableInput.jumpRequestId = this.jumpRequestId
-    this._reusableInput.kick = kick
-    
-    return this._reusableInput
+    return {
+      move: { x: moveX, z: moveZ },
+      jumpRequestId: this.jumpRequestId,
+      kick
+    }
   }
 
   // Peek at input without consuming one-shots (for prediction)
   peekInput() {
     if (this.isInputFocused()) {
-      this._reusableInput.move.x = 0
-      this._reusableInput.move.z = 0
-      this._reusableInput.jumpRequestId = this.jumpRequestId
-      this._reusableInput.kick = false
-      return this._reusableInput
+      return { move: { x: 0, z: 0 }, jump: false, kick: false }
     }
 
     let moveX = 0
@@ -164,12 +145,11 @@ class InputManagerClass {
       moveZ /= length
     }
 
-    this._reusableInput.move.x = moveX
-    this._reusableInput.move.z = moveZ
-    this._reusableInput.jumpRequestId = this.jumpRequestId
-    this._reusableInput.kick = this.kickPressed
-    
-    return this._reusableInput
+    return {
+      move: { x: moveX, z: moveZ },
+      jumpRequestId: this.jumpRequestId,
+      kick: this.kickPressed
+    }
   }
 
   // Check if any movement input is active
