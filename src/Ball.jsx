@@ -444,9 +444,77 @@ export const ClientBallVisual = React.forwardRef(({
     const subDt = delta / subdivisions
 
     for (let s = 0; s < subdivisions; s++) {
-      const ballPosAtSubStepStart = physicsPos.current.clone()
+      // COLLISION DETECTION FIRST (before advancing physics)
+      // This prevents interpenetration by catching the ball before it moves through the player
+      const timeSinceCollision = now - lastCollisionTime.current
       
-      // 3. Advance prediction with physics
+      if (playerPos && timeSinceCollision > COLLISION_COOLDOWN) {
+        const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
+        const ballPos = physicsPos.current // Use current position for detection
+        
+        // === DYNAMIC COLLISION RADIUS for giant power-up ===
+        const isGiant = localPlayerRef.current.userData?.giant || false
+        const giantScale = isGiant ? 5 : 1
+        const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
+        const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
+        
+        // Distance checks
+        const dx = ballPos.x - playerPos.x
+        const dy = ballPos.y - playerPos.y
+        const dz = ballPos.z - playerPos.z
+        const currentDist = Math.sqrt(dx * dx + dy * dy + dz * dz)
+        
+        // IMMEDIATE collision check
+        const isCurrentCollision = currentDist < dynamicCombinedRadius
+        
+        if (isCurrentCollision && currentDist > 0.01) {
+          // INSTANT collision response - no validation delay
+          const invD = 1 / Math.max(currentDist, 0.1)
+          const nx = dx * invD
+          const ny = Math.max(0.1, dy * invD)
+          const nz = dz * invD
+          
+          // Relative velocity
+          const relVx = predictedVelocity.current.x - (playerVel.x || 0)
+          const relVy = predictedVelocity.current.y - (playerVel.y || 0)
+          const relVz = predictedVelocity.current.z - (playerVel.z || 0)
+          const approachSpeed = relVx * nx + relVy * ny + relVz * nz
+          
+          if (approachSpeed < 0 || isCurrentCollision) {
+            lastCollisionTime.current = now
+            collisionThisFrame.current = true
+            lastCollisionNormal.current.set(nx, ny, nz)
+            
+            // FULL impulse immediately (no ramping)
+            const impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * 1.2
+            const boostFactor = isGiant ? 2.0 : 1.2
+            
+            predictedVelocity.current.x += impulseMag * nx * boostFactor
+            predictedVelocity.current.y += impulseMag * ny * boostFactor + (isGiant ? 3 : 1.5)
+            predictedVelocity.current.z += impulseMag * nz * boostFactor
+            
+            // Player velocity transfer
+            predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER
+            predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER
+            
+            // STRONG overlap correction - push ball out completely
+            const overlap = dynamicCombinedRadius - currentDist + 0.05
+            if (overlap > 0) {
+              physicsPos.current.x += nx * overlap
+              physicsPos.current.y += ny * overlap
+              physicsPos.current.z += nz * overlap
+              
+              // Immediate visual push
+              groupRef.current.position.x += nx * overlap * 0.9
+              groupRef.current.position.y += ny * overlap * 0.5
+              groupRef.current.position.z += nz * overlap * 0.9
+            }
+            break // Skip remaining substeps this frame
+          }
+        }
+      }
+      
+      // THEN advance physics (after collision check)
       const vel = predictedVelocity.current
       
       // Apply Linear Damping (matches server RAPIER)
@@ -480,141 +548,6 @@ export const ClientBallVisual = React.forwardRef(({
         physicsPos.current.z = Math.sign(physicsPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
       }
 
-      // 4. PING-AWARE COLLISION PREDICTION with DYNAMIC RADIUS
-      const timeSinceCollision = now - lastCollisionTime.current
-      
-      if (playerPos && timeSinceCollision > COLLISION_COOLDOWN) {
-        const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
-        const ballPos = ballPosAtSubStepStart
-        
-        // === DYNAMIC COLLISION RADIUS for giant power-up ===
-        const isGiant = localPlayerRef.current.userData?.giant || false
-        const giantScale = isGiant ? 5 : 1
-        const dynamicPlayerRadius = PLAYER_RADIUS * giantScale
-        const dynamicCombinedRadius = BALL_RADIUS + dynamicPlayerRadius
-        
-        // Anticipatory collision with dynamic lookahead
-        const futureBall = predictFuturePosition(ballPos, predictedVelocity.current, dynamicLookahead, GRAVITY)
-        const futurePlayer = {
-          x: playerPos.x + (playerVel.x || 0) * dynamicLookahead,
-          y: playerPos.y + (playerVel.y || 0) * dynamicLookahead,
-          z: playerPos.z + (playerVel.z || 0) * dynamicLookahead
-        }
-        
-        // Distance checks
-        const dx = ballPos.x - playerPos.x
-        const dy = ballPos.y - playerPos.y
-        const dz = ballPos.z - playerPos.z
-        const currentDist = Math.sqrt(dx * dx + dy * dy + dz * dz)
-        
-        const fdx = futureBall.x - futurePlayer.x
-        const fdy = futureBall.y - futurePlayer.y
-        const fdz = futureBall.z - futurePlayer.z
-        const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
-        
-        // Sweep test
-        const ballEnd = physicsPos.current.clone()
-        const sweepT = multiStepSweep(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
-        
-        const isCurrentCollision = currentDist < dynamicCombinedRadius
-        const isAnticipatedCollision = futureDist < dynamicCombinedRadius && futureDist < currentDist && currentDist < dynamicCombinedRadius * 1.1
-        const isSweepCollision = sweepT !== null
-        
-        const isSpeculative = futureDist < currentDist * 0.3 && futureDist < dynamicCombinedRadius * 0.8 && currentDist < dynamicCombinedRadius * 1.05
-        
-        if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
-          if (collisionConfidence.current < 0.85 && !isCurrentCollision) {
-            lastFrameCollision.current = false
-            continue
-          }
-          
-          if (isSpeculative && !lastFrameCollision.current) {
-            lastFrameCollision.current = true
-            continue
-          }
-          lastFrameCollision.current = true
-
-          let nx, ny, nz, contactDist
-          
-          // Phase 23: Hermite Contact Point Interpolation
-          if (isSweepCollision && sweepT > 0) {
-            subFrameTime.current = sweepT
-            // Hermite interpolation for smoother contact
-            const t = sweepT
-            const t2 = t * t
-            const t3 = t2 * t
-            const h1 = 2*t3 - 3*t2 + 1
-            const h2 = -2*t3 + 3*t2
-            const contactPt = ballPos.clone().multiplyScalar(h1).add(ballEnd.clone().multiplyScalar(h2))
-            
-            const cx = contactPt.x - playerPos.x
-            const cy = contactPt.y - playerPos.y
-            const cz = contactPt.z - playerPos.z
-            contactDist = Math.sqrt(cx * cx + cy * cy + cz * cz)
-            const invD = 1 / Math.max(contactDist, 0.1)
-            nx = cx * invD
-            ny = Math.max(0.1, cy * invD)
-            nz = cz * invD
-          } else {
-            subFrameTime.current = 0
-            contactDist = currentDist
-            const invD = 1 / Math.max(currentDist, 0.1)
-            nx = dx * invD
-            ny = Math.max(0.1, dy * invD)
-            nz = dz * invD
-          }
-          
-          const relVx = predictedVelocity.current.x - (playerVel.x || 0)
-          const relVy = predictedVelocity.current.y - (playerVel.y || 0)
-          const relVz = predictedVelocity.current.z - (playerVel.z || 0)
-          const approachSpeed = relVx * nx + relVy * ny + relVz * nz
-          const relativeSpeed = Math.sqrt(relVx * relVx + relVy * relVy + relVz * relVz)
-          
-          // Phase 25: Multi-Factor Collision Confidence
-          const speedFactor = Math.min(1.5, Math.abs(approachSpeed) / 15)
-          const distFactor = Math.min(1, dynamicCombinedRadius / Math.max(currentDist, 0.1))
-          const angleFactor = Math.max(0, -(relVx * nx + relVy * ny + relVz * nz) / Math.max(relativeSpeed, 0.1))
-          collisionConfidence.current = speedFactor * distFactor * angleFactor * PHYSICS.COLLISION_CONFIDENCE_BOOST
-          
-          if (approachSpeed < 0 || isCurrentCollision) {
-            lastCollisionTime.current = now
-            collisionThisFrame.current = true
-            lastCollisionNormal.current.set(nx, ny, nz)
-            
-            // Phase 24: Velocity-Matched Impulse Response Curves
-            const approachNorm = Math.min(1, Math.abs(approachSpeed) / 20)
-            const speedCurve = Math.pow(approachNorm, 1.3)
-            const approachAngle = Math.acos(Math.abs(approachSpeed) / Math.max(relativeSpeed, 0.1))
-            const angleMultiplier = Math.cos(approachAngle) * PHYSICS.COLLISION_ANGLE_FACTOR
-            
-            const impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * (0.8 + speedCurve * 0.4) * (1 + angleMultiplier)
-            const boostFactor = isGiant ? 2.0 : 1.2
-            const impulseFactor = isSpeculative && !isCurrentCollision ? PHYSICS.SPECULATIVE_IMPULSE_FACTOR : 1.0
-            
-            // Impulse Ramping
-            const impulseRamp = 1 / PHYSICS.IMPULSE_RAMP_FRAMES
-            predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor * impulseRamp
-            predictedVelocity.current.y += (impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)) * impulseRamp
-            predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor * impulseRamp
-            
-            predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp
-            predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp
-            
-            const overlap = Math.min(1.0, dynamicCombinedRadius - contactDist + 0.02)
-            if (overlap > 0) {
-              const remainingTime = subDt * (1 - subFrameTime.current)
-              physicsPos.current.x += nx * overlap + predictedVelocity.current.x * remainingTime * 0.3
-              physicsPos.current.y += ny * overlap * 0.5
-              physicsPos.current.z += nz * overlap + predictedVelocity.current.z * remainingTime * 0.3
-              
-              const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)
-              groupRef.current.position.x += nx * overlap * visualPush
-              groupRef.current.position.z += nz * overlap * visualPush
-            }
-            break // Collision handled for this sub-step
-          }
-        }
-      }
     }
 
 
