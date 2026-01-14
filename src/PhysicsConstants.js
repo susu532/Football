@@ -51,14 +51,6 @@ export const PHYSICS = {
   GOAL_DEPTH: 2.0,
   GOAL_LINE_X: 10.8,
 
-  // Head Stabilization (Bowl Zone)
-  HEAD_ZONE_RADIUS: 0.8,        // Wider bowl (was 0.6)
-  HEAD_ZONE_HEIGHT: 1.2,        // Height above player where zone starts
-  HEAD_ZONE_DEPTH: 0.3,         // How deep the "bowl" is (vertical detection range)
-  HEAD_CENTERING_FORCE: 15.0,   // Strong magnet pull (was 3.0)
-  HEAD_RIM_FORCE: 30.0,         // Unbreakable containment (was 8.0)
-  HEAD_VELOCITY_MATCH: 0.85,     // Perfect 1:1 movement sync (was 0.85)
-  HEAD_DAMPING: 8.0,            // Kill all bounce (was 2.0)
   VELOCITY_SMOOTHING: 0.95,       // Snappy velocity response (was 0.8)
   VELOCITY_SMOOTHING_SUB: 0.975,  // Adjusted for 120Hz sub-frames
   

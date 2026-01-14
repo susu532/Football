@@ -515,46 +515,6 @@ export const ClientBallVisual = React.forwardRef(({
       }
     }
 
-    // === HEAD STABILIZATION PREDICTION ===
-    if (localPlayerRef?.current?.position) {
-      const playerPos = localPlayerRef.current.position
-      const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
-      const isGiant = localPlayerRef.current.userData?.giant || false
-      
-      const dx = targetPos.current.x - playerPos.x
-      const dz = targetPos.current.z - playerPos.z
-      const horizontalDist = Math.sqrt(dx * dx + dz * dz)
-      
-      const headTopY = playerPos.y + (isGiant ? 4.0 : PHYSICS.PLAYER_HEIGHT)
-      const dy = targetPos.current.y - headTopY
-      
-      const zoneRadius = PHYSICS.HEAD_ZONE_RADIUS * (isGiant ? 5.0 : 1.0)
-      const zoneHeight = PHYSICS.HEAD_ZONE_HEIGHT
-      
-      if (horizontalDist < zoneRadius && dy > 0 && dy < zoneHeight) {
-        // Match velocity
-        const targetVx = (playerVel.x || 0) * PHYSICS.HEAD_VELOCITY_MATCH
-        const targetVz = (playerVel.z || 0) * PHYSICS.HEAD_VELOCITY_MATCH
-        
-        predictedVelocity.current.x += (targetVx - predictedVelocity.current.x) * 0.5
-        predictedVelocity.current.z += (targetVz - predictedVelocity.current.z) * 0.5
-        
-        // Centering force
-        const centeringFactor = horizontalDist < zoneRadius * 0.5 
-          ? PHYSICS.HEAD_CENTERING_FORCE 
-          : PHYSICS.HEAD_RIM_FORCE
-          
-        const invDist = 1 / Math.max(horizontalDist, 0.01)
-        const nx = -dx * invDist
-        const nz = -dz * invDist
-        
-        predictedVelocity.current.x += nx * centeringFactor * horizontalDist * delta
-        predictedVelocity.current.z += nz * centeringFactor * horizontalDist * delta
-        
-        // Vertical damping
-        predictedVelocity.current.y -= dy * PHYSICS.HEAD_DAMPING * delta
-      }
-    }
 
     // 5. ULTRA-AGGRESSIVE visual interpolation with CONFIDENCE WEIGHTING
     // S-Tier: 240Hz Visual Interpolation Loop
