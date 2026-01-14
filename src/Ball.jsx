@@ -230,9 +230,21 @@ export const ClientBallVisual = React.forwardRef(({
   const serverStateBuffer = useRef([])
   const INTERPOLATION_DELAY = 0.05 // 50ms buffer
   
+  // Phase 10: Visual-Physics Separation
+  const physicsPos = useRef(new THREE.Vector3(0, 2, 0))
+  const visualPos = useRef(new THREE.Vector3(0, 2, 0))
+  const renderDelay = useRef(0.1) // 100ms default render delay
+  const isOptimistic = useRef(false) // For Phase 14 instant kick
+  
   // Phase 5: Kick Prediction State
   const kickConfidence = useRef(0)
   const lastKickPredictTime = useRef(0)
+  
+  // Phase 12: Reconciliation Smoothing
+  const errorAccumulator = useRef(new THREE.Vector3(0, 0, 0))
+  
+  // Phase 11: Collision Prediction Refinement
+  const lastFrameCollision = useRef(false)
   
   // S-Tier State
   const visualAccumulator = useRef(0)
@@ -272,8 +284,13 @@ export const ClientBallVisual = React.forwardRef(({
       // Apply sub-frame advancement with gravity compensation
       if (frameOffset > 0) {
          predictedVelocity.current.y -= GRAVITY * frameOffset
-         targetPos.current.addScaledVector(predictedVelocity.current, frameOffset)
+         physicsPos.current.addScaledVector(predictedVelocity.current, frameOffset)
       }
+      
+      // Phase 14: Optimistic Rendering - Instant sync
+      isOptimistic.current = true
+      renderDelay.current = 0
+      visualPos.current.copy(physicsPos.current)
       
       collisionThisFrame.current = true
     }
@@ -356,7 +373,7 @@ export const ClientBallVisual = React.forwardRef(({
       }
     }
 
-    targetPos.current.copy(serverPosSmoothed.current)
+    physicsPos.current.copy(serverPosSmoothed.current)
     serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
     
     // Blend estimated velocity if server velocity is zero but ball is moving
@@ -371,7 +388,7 @@ export const ClientBallVisual = React.forwardRef(({
     // Extrapolate target position by latency (ping) to see ball in "present" time
     // This removes the feeling of input lag for the owner
     const latencyCorrection = pingSeconds / 2 + 0.016 // Half RTT + 1 frame
-    targetPos.current.addScaledVector(serverVelocity.current, latencyCorrection)
+    physicsPos.current.addScaledVector(serverVelocity.current, latencyCorrection)
 
     // === VELOCITY-WEIGHTED RECONCILIATION ===
     // Adaptive Reconciliation Tiers
@@ -407,11 +424,15 @@ export const ClientBallVisual = React.forwardRef(({
       }
     }
 
-    // Velocity Fadeout: Fade predicted velocity toward zero before blending with server
-    // This prevents jarring direction changes during reconciliation
-    if (predictedVelocity.current.dot(serverVelocity.current) < 0) {
-      predictedVelocity.current.multiplyScalar(PHYSICS.VELOCITY_FADEOUT_RATE)
+    // Phase 12: Error Spreading (Reconciliation Smoothing)
+    const posError = serverPosSmoothed.current.clone().addScaledVector(serverVelocity.current, latencyCorrection).sub(physicsPos.current)
+    if (posError.lengthSq() > 0.0001) {
+      errorAccumulator.current.addScaledVector(posError, 0.1) // Accumulate 10% of error
     }
+    
+    // Apply error spreading
+    physicsPos.current.addScaledVector(errorAccumulator.current, delta * 5)
+    errorAccumulator.current.multiplyScalar(0.9) // Decay
     
     predictedVelocity.current.lerp(serverVelocity.current, finalReconcileRate)
 
@@ -423,9 +444,9 @@ export const ClientBallVisual = React.forwardRef(({
     vel.x *= dampingFactor
     vel.z *= dampingFactor
     
-    targetPos.current.addScaledVector(vel, delta)
+    physicsPos.current.addScaledVector(vel, delta)
     
-    if (targetPos.current.y > BALL_RADIUS) {
+    if (physicsPos.current.y > BALL_RADIUS) {
       predictedVelocity.current.y -= GRAVITY * delta
     }
 
@@ -435,18 +456,18 @@ export const ClientBallVisual = React.forwardRef(({
     const GOAL_HALF_WIDTH = PHYSICS.GOAL_WIDTH / 2
     
     // X walls (with goal gaps)
-    if (Math.abs(targetPos.current.x) > ARENA_HALF_WIDTH) {
-      const inGoalZone = Math.abs(targetPos.current.z) < GOAL_HALF_WIDTH && targetPos.current.y < 4
+    if (Math.abs(physicsPos.current.x) > ARENA_HALF_WIDTH) {
+      const inGoalZone = Math.abs(physicsPos.current.z) < GOAL_HALF_WIDTH && physicsPos.current.y < 4
       if (!inGoalZone) {
         predictedVelocity.current.x *= -PHYSICS.WALL_RESTITUTION // Match server side wall restitution
-        targetPos.current.x = Math.sign(targetPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
+        physicsPos.current.x = Math.sign(physicsPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
       }
     }
     
     // Z walls
-    if (Math.abs(targetPos.current.z) > ARENA_HALF_DEPTH) {
+    if (Math.abs(physicsPos.current.z) > ARENA_HALF_DEPTH) {
       predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION // Match server side wall restitution
-      targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
+      physicsPos.current.z = Math.sign(physicsPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
     }
 
     // === ADAPTIVE ERROR THRESHOLD (Phase 8) ===
@@ -459,7 +480,7 @@ export const ClientBallVisual = React.forwardRef(({
     else if (isIdleMoment) currentThreshold = PHYSICS.RECONCILE_IDLE_THRESHOLD
     
     // DECIDE WHETHER TO RECONCILE (Modified to use adaptive threshold)
-    const errorDist = groupRef.current.position.distanceTo(targetPos.current)
+    const errorDist = groupRef.current.position.distanceTo(physicsPos.current)
     if (errorDist < currentThreshold) {
       // If error is small, slow down reconciliation to prevent jitter
       reconcileRate *= 0.5
@@ -501,7 +522,7 @@ export const ClientBallVisual = React.forwardRef(({
       const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
       
       // Sweep test with dynamic radius and multi-step precision
-      const ballEnd = targetPos.current.clone()
+      const ballEnd = physicsPos.current.clone()
       const sweepT = multiStepSweep(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
       
       // Collision conditions
@@ -518,6 +539,20 @@ export const ClientBallVisual = React.forwardRef(({
                            currentDist < dynamicCombinedRadius * 1.05 // Tightened from 1.1
       
       if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
+        // Phase 11: Confidence Threshold & Validation
+        if (collisionConfidence.current < 0.85 && !isCurrentCollision) {
+          // Not confident enough for speculative/anticipated hit
+          lastFrameCollision.current = false
+          return
+        }
+        
+        // 2-frame validation for speculative hits
+        if (isSpeculative && !lastFrameCollision.current) {
+          lastFrameCollision.current = true
+          return
+        }
+        lastFrameCollision.current = true
+
         let nx, ny, nz, contactDist
         
         // === SUB-FRAME COLLISION TIMING ===
@@ -569,13 +604,15 @@ export const ClientBallVisual = React.forwardRef(({
           // Apply impulse scaled by confidence for speculative hits
           const impulseFactor = isSpeculative && !isCurrentCollision ? PHYSICS.SPECULATIVE_IMPULSE_FACTOR : 1.0
           
-          predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
-          predictedVelocity.current.y += impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)
-          predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
+          // Phase 11: Impulse Ramping (Apply over 3 frames)
+          const impulseRamp = 0.33 
+          predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor * impulseRamp
+          predictedVelocity.current.y += (impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)) * impulseRamp
+          predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor * impulseRamp
           
           // Player velocity transfer
-          predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER
-          predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER
+          predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp
+          predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp
           
           // INSTANT position correction with sub-frame advancement
           // Clamp overlap to prevent teleports with giant powerup
@@ -583,9 +620,9 @@ export const ClientBallVisual = React.forwardRef(({
           if (overlap > 0) {
             // Advance remaining time after collision
             const remainingTime = delta * (1 - subFrameTime.current)
-            targetPos.current.x += nx * overlap + vel.x * remainingTime * 0.3
-            targetPos.current.y += ny * overlap * 0.5
-            targetPos.current.z += nz * overlap + vel.z * remainingTime * 0.3
+            physicsPos.current.x += nx * overlap + vel.x * remainingTime * 0.3
+            physicsPos.current.y += ny * overlap * 0.5
+            physicsPos.current.z += nz * overlap + vel.z * remainingTime * 0.3
             
             // Immediate visual push (confidence-weighted)
             const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)
@@ -608,46 +645,91 @@ export const ClientBallVisual = React.forwardRef(({
 
     while (visualAccumulator.current >= VISUAL_STEP) {
       const dt = VISUAL_STEP
-      const distance = groupRef.current.position.distanceTo(targetPos.current)
+      // Phase 13: Acceleration Limiting
+      const prevPos = groupRef.current.position.clone()
+      
+      // Phase 10: Snapshot Interpolation Logic
+      // Find two snapshots in the buffer that surround our target render time
+      const renderTime = performance.now() - renderDelay.current * 1000
+      let s0 = null, s1 = null
+      
+      for (let i = 0; i < serverStateBuffer.current.length - 1; i++) {
+        if (serverStateBuffer.current[i].timestamp >= renderTime && serverStateBuffer.current[i+1].timestamp <= renderTime) {
+          s0 = serverStateBuffer.current[i]
+          s1 = serverStateBuffer.current[i+1]
+          break
+        }
+      }
+      
+      if (s0 && s1) {
+        const t = (renderTime - s1.timestamp) / (s0.timestamp - s1.timestamp)
+        visualPos.current.set(
+          THREE.MathUtils.lerp(s1.x, s0.x, t),
+          THREE.MathUtils.lerp(s1.y, s0.y, t),
+          THREE.MathUtils.lerp(s1.z, s0.z, t)
+        )
+        // Apply latency extrapolation to interpolated state
+        const latencyExtrap = pingSeconds / 2
+        visualPos.current.addScaledVector(serverVelocity.current, latencyExtrap)
+      } else if (serverStateBuffer.current.length > 0) {
+        // Fallback to latest if buffer too small or time out of range
+        const latest = serverStateBuffer.current[0]
+        visualPos.current.set(latest.x, latest.y, latest.z)
+        const latencyExtrap = pingSeconds / 2
+        visualPos.current.addScaledVector(serverVelocity.current, latencyExtrap)
+      }
+
+      // Phase 14: Optimistic Rendering Fade
+      if (isOptimistic.current) {
+        renderDelay.current = THREE.MathUtils.damp(renderDelay.current, 0.1, 5, dt)
+        if (Math.abs(renderDelay.current - 0.1) < 0.001) {
+          renderDelay.current = 0.1
+          isOptimistic.current = false
+        }
+      }
+
+      const distance = groupRef.current.position.distanceTo(isOptimistic.current ? physicsPos.current : visualPos.current)
+      const target = isOptimistic.current ? physicsPos.current : visualPos.current
       
       // NaN Protection
-      if (isNaN(targetPos.current.x) || isNaN(targetPos.current.y) || isNaN(targetPos.current.z)) {
-        targetPos.current.copy(serverPosSmoothed.current)
+      if (isNaN(target.x) || isNaN(target.y) || isNaN(target.z)) {
+        target.copy(serverPosSmoothed.current)
         predictedVelocity.current.copy(serverVelocity.current)
       }
 
       // PANIC SNAP
       if (distance > 8.0) {
-        groupRef.current.position.copy(targetPos.current)
+        groupRef.current.position.copy(target)
         predictedVelocity.current.copy(serverVelocity.current)
       } else if (distance > 2.0) {
         // FAST CORRECTION
         const fastLerp = 1 - Math.exp(-40 * dt)
-        groupRef.current.position.lerp(targetPos.current, fastLerp)
+        groupRef.current.position.lerp(target, fastLerp)
       } else if (isFirstTouch) {
         // INSTANT FIRST TOUCH SNAP
-        // Boost visual response to feel 0-ping
         const snapFactor = PHYSICS.FIRST_TOUCH_SNAP_FACTOR
-        groupRef.current.position.lerp(targetPos.current, snapFactor)
+        groupRef.current.position.lerp(target, snapFactor)
       } else if (collisionThisFrame.current) {
         // Continuous collision snap
         const confidenceBoost = 1 + collisionConfidence.current * 0.5
         const snapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * dt)
-        groupRef.current.position.lerp(targetPos.current, snapFactor)
-      } else if (distance > PHYSICS.HERMITE_BLEND_RANGE_MIN && distance < PHYSICS.HERMITE_BLEND_RANGE_MAX) {
-        // HERMITE SPLINE INTERPOLATION
-        // Provides smoother acceleration/deceleration curve for corrections
-        const t = (distance - PHYSICS.HERMITE_BLEND_RANGE_MIN) / (PHYSICS.HERMITE_BLEND_RANGE_MAX - PHYSICS.HERMITE_BLEND_RANGE_MIN)
-        const smoothT = t * t * (3 - 2 * t) // Cubic Hermite curve
-        
-        // Phase 4: Snapshot Interpolation Blend
-        // We blend toward the interpolated server position for extra smoothness
-        const snapFactor = 1 - Math.exp(-LERP_NORMAL * (1 + smoothT) * dt)
-        groupRef.current.position.lerp(targetPos.current, snapFactor)
+        groupRef.current.position.lerp(target, snapFactor)
       } else {
         // Normal smooth interpolation
         const lerpFactor = 1 - Math.exp(-LERP_NORMAL * dt)
-        groupRef.current.position.lerp(targetPos.current, lerpFactor)
+        groupRef.current.position.lerp(target, lerpFactor)
+      }
+      
+      // Phase 13: Acceleration Limiting (Final pass)
+      const currentPos = groupRef.current.position
+      const visualVel = currentPos.clone().sub(prevPos).divideScalar(dt)
+      const MAX_ACCEL = 200 // 200 m/s²
+      if (visualVel.lengthSq() > 0.0001) {
+        // Simple velocity clamping to prevent snaps
+        const maxDist = 50 * dt // 50 m/s max visual speed
+        if (currentPos.distanceTo(prevPos) > maxDist) {
+          currentPos.copy(prevPos).addScaledVector(visualVel.normalize(), maxDist)
+        }
       }
       
       visualAccumulator.current -= VISUAL_STEP
@@ -657,7 +739,7 @@ export const ClientBallVisual = React.forwardRef(({
     const remainder = visualAccumulator.current / VISUAL_STEP
     if (remainder > 0) {
        // Optional: slight blend for sub-step smoothness
-       // groupRef.current.position.lerp(targetPos.current, remainder * 0.1)
+       // groupRef.current.position.lerp(physicsPos.current, remainder * 0.1)
     }
     
     groupRef.current.quaternion.slerp(targetRot.current, 1 - Math.exp(-15 * delta))
