@@ -3,16 +3,10 @@ import { useFrame, useThree } from '@react-three/fiber'
 import * as THREE from 'three'
 import { PHYSICS } from './PhysicsConstants'
 
-// Procedural Noise for Shake
-const noise = (t) => {
-  return Math.sin(t * 123.45) * Math.sin(t * 67.89) * Math.sin(t * 23.45)
-}
-
 export const SmartCamera = React.forwardRef(({ 
   targetRef, 
   isFreeLook, 
-  cameraOrbit,
-  onShake // Expose shake trigger
+  cameraOrbit
 }, ref) => {
   const { camera } = useThree()
   
@@ -28,18 +22,8 @@ export const SmartCamera = React.forwardRef(({
   // Velocity Smoothing State
   const smoothedVelocity = useRef(new THREE.Vector3())
 
-  // Shake State
-  const shakeState = useRef({
-    intensity: 0,
-    decay: 8, // Faster decay (5 -> 8)
-    time: 0
-  })
-
   // Expose controls
   useImperativeHandle(ref, () => ({
-    shake: (intensity = 0.5) => {
-      shakeState.current.intensity = Math.min(shakeState.current.intensity + intensity, 2.0)
-    },
     reset: () => {
       if (targetRef.current) {
         const { x, y, z } = targetRef.current.position
@@ -146,23 +130,8 @@ export const SmartCamera = React.forwardRef(({
     const camY = THREE.MathUtils.damp(camera.position.y, idealY, posLambda, dt)
     const camZ = THREE.MathUtils.damp(camera.position.z, idealZ, posLambda, dt)
 
-    // 4. Camera Shake
-    let shakeX = 0, shakeY = 0, shakeZ = 0
-    if (shakeState.current.intensity > 0.01) {
-      shakeState.current.time += dt
-      const t = shakeState.current.time
-      const i = shakeState.current.intensity
-      
-      shakeX = noise(t) * i * 0.7 // Scale down vibration
-      shakeY = noise(t + 100) * i * 0.7
-      shakeZ = noise(t + 200) * i * 0.7
-      
-      // Decay
-      shakeState.current.intensity = THREE.MathUtils.lerp(i, 0, dt * shakeState.current.decay)
-    }
-
-    // 5. Apply to Camera
-    camera.position.set(camX + shakeX, camY + shakeY, camZ + shakeZ)
+    // 4. Apply to Camera
+    camera.position.set(camX, camY, camZ)
     
     // Look At Target (with slight smoothing)
     const lookTarget = targetPos.clone().add(new THREE.Vector3(0, 1.5, 0))

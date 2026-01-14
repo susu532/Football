@@ -216,7 +216,6 @@ export default function Scene() {
       setCelebration({ team: data.team, id: Date.now() })
       
       AudioManager.playSFX('winner')
-      if (cameraRef.current) cameraRef.current.shake(0.5) // Reduced shake on goal (1.0 -> 0.5)
       
       setTimeout(() => setCelebration(null), 3000)
 
@@ -297,10 +296,6 @@ export default function Scene() {
 
   const handleLocalInteraction = useCallback(() => {
     lastLocalInteraction.current = Date.now()
-  }, [])
-
-  const handleShake = useCallback((intensity) => {
-    if (cameraRef.current) cameraRef.current.shake(intensity)
   }, [])
 
   const handleCollectPowerUp = useCallback((id, type) => {
