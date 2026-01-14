@@ -401,14 +401,6 @@ export const ClientBallVisual = React.forwardRef(({
       reconcileRate = 1 - Math.exp(-25 * delta) // Tier 3: Trust server (fast reconcile)
     }
 
-    // Phase 32: Server Authority Fast-Track
-    // Trust client prediction for a window after actions
-    const nowMs = performance.now()
-    const timeSinceLastAction = (nowMs - Math.max(lastCollisionTime.current * 1000, lastKickPredictTime.current)) / 1000
-    if (timeSinceLastAction < PHYSICS.SERVER_TRUST_WINDOW) {
-      reconcileRate *= 0.1 // Trust client 90% more during this window
-    }
-
     // Velocity influence
     const speed = serverVelocity.current.length()
     const velocityFactor = Math.max(0.3, 1 - speed / 40)
@@ -530,24 +522,8 @@ export const ClientBallVisual = React.forwardRef(({
         
         const isSpeculative = futureDist < currentDist * 0.3 && futureDist < dynamicCombinedRadius * 0.8 && currentDist < dynamicCombinedRadius * 1.05
         
-        // Phase 31: Contact Prediction Lookahead
-        // Check 2 frames ahead for imminent contact
-        const lookaheadFrames = PHYSICS.PREDICTION_LOOKAHEAD_FRAMES
-        const lookaheadTime = lookaheadFrames * subDt
-        const imminentBall = predictFuturePosition(ballPos, predictedVelocity.current, lookaheadTime, GRAVITY)
-        const imminentPlayer = {
-          x: playerPos.x + (playerVel.x || 0) * lookaheadTime,
-          y: playerPos.y + (playerVel.y || 0) * lookaheadTime,
-          z: playerPos.z + (playerVel.z || 0) * lookaheadTime
-        }
-        const idx = imminentBall.x - imminentPlayer.x
-        const idy = imminentBall.y - imminentPlayer.y
-        const idz = imminentBall.z - imminentPlayer.z
-        const imminentDist = Math.sqrt(idx * idx + idy * idy + idz * idz)
-        const isImminent = imminentDist < dynamicCombinedRadius && imminentDist < currentDist
-        
-        if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative || isImminent) && currentDist > 0.05) {
-          if (collisionConfidence.current < 0.85 && !isCurrentCollision && !isImminent) {
+        if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
+          if (collisionConfidence.current < 0.85 && !isCurrentCollision) {
             lastFrameCollision.current = false
             continue
           }
@@ -615,27 +591,25 @@ export const ClientBallVisual = React.forwardRef(({
             const boostFactor = isGiant ? 2.0 : 1.2
             const impulseFactor = isSpeculative && !isCurrentCollision ? PHYSICS.SPECULATIVE_IMPULSE_FACTOR : 1.0
             
-            // Phase 28: Instant Full-Impulse on Contact
-            // Removed impulseRamp (was 1 / PHYSICS.IMPULSE_RAMP_FRAMES)
-            predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor
-            predictedVelocity.current.y += (impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5))
-            predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
+            // Impulse Ramping
+            const impulseRamp = 1 / PHYSICS.IMPULSE_RAMP_FRAMES
+            predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor * impulseRamp
+            predictedVelocity.current.y += (impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)) * impulseRamp
+            predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor * impulseRamp
             
-            predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER
-            predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER
+            predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp
+            predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp
             
-            // Phase 29: Aggressive Depenetration
-            const overlap = Math.min(1.0, dynamicCombinedRadius - contactDist + PHYSICS.DEPENETRATION_MARGIN)
+            const overlap = Math.min(1.0, dynamicCombinedRadius - contactDist + 0.02)
             if (overlap > 0) {
               const remainingTime = subDt * (1 - subFrameTime.current)
-              // Apply full correction immediately to physicsPos
               physicsPos.current.x += nx * overlap + predictedVelocity.current.x * remainingTime * 0.3
-              physicsPos.current.y += ny * overlap // Full Y correction
+              physicsPos.current.y += ny * overlap * 0.5
               physicsPos.current.z += nz * overlap + predictedVelocity.current.z * remainingTime * 0.3
               
-              // Phase 30: Instant Visual Sync on Contact
-              // Snap visual ball to physics ball immediately during collision
-              groupRef.current.position.copy(physicsPos.current)
+              const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)
+              groupRef.current.position.x += nx * overlap * visualPush
+              groupRef.current.position.z += nz * overlap * visualPush
             }
             break // Collision handled for this sub-step
           }
