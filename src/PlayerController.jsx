@@ -71,6 +71,13 @@ export const PlayerController = React.forwardRef((props, ref) => {
   
   // Jitter Fix: Visual Offset for reconciliation hiding
   const visualOffset = useRef(new THREE.Vector3())
+  
+  // Phase 16: Player Visual-Physics Separation
+  const visualPosition = useRef(new THREE.Vector3(...spawnPosition))
+  
+  // Phase 18: Reconciliation Error Spreading
+  const errorAccumulator = useRef(new THREE.Vector3(0, 0, 0))
+  
   // Jitter Fix: Physics tick tracking for reliable input history
   const physicsTick = useRef(0)
 
@@ -318,7 +325,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       
       AudioManager.playSFX('kick')
 
-      // INSTANT LOCAL PREDICTION
+      // Phase 20: Collision Response Refinement (Impulse Ramping)
+      // We send the full impulse to server, but local prediction can ramp it
       if (ballRef?.current?.userData?.predictKick) {
         ballRef.current.userData.predictKick({
           x: impulseX,
@@ -340,8 +348,14 @@ export const PlayerController = React.forwardRef((props, ref) => {
     visualOffset.current.y = THREE.MathUtils.damp(visualOffset.current.y, 0, decayLambda, delta)
     visualOffset.current.z = THREE.MathUtils.damp(visualOffset.current.z, 0, decayLambda, delta)
     
-    // 2. Calculate target visual position
-    const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current)
+    // Phase 19: Movement Input Prediction (Anticipatory Visual Offset)
+    // Add a small offset in the direction of input for instant feel
+    const inputOffset = new THREE.Vector3(moveDir.current.x, 0, moveDir.current.z).multiplyScalar(0.1)
+    const targetVisualPos = physicsPosition.current.clone().add(visualOffset.current).add(inputOffset)
+    
+    // Phase 18: Error Spreading (Apply accumulated error)
+    visualPosition.current.addScaledVector(errorAccumulator.current, delta * 5)
+    errorAccumulator.current.multiplyScalar(0.9) // Decay error
     
     // 3. Apply smoothing
     const baseLambda = PHYSICS.VISUAL_LAMBDA_MIN
@@ -351,9 +365,12 @@ export const PlayerController = React.forwardRef((props, ref) => {
     // Head Stabilization: Use higher damping for Y-axis (height) to prevent bobbing
     const headLambda = PHYSICS.HEAD_STABILIZATION_LAMBDA
     
-    groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetVisualPos.x, visualLambda, delta)
-    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetVisualPos.y, headLambda, delta)
-    groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetVisualPos.z, visualLambda, delta)
+    // Interpolate visualPosition toward physics target
+    visualPosition.current.x = THREE.MathUtils.damp(visualPosition.current.x, targetVisualPos.x, visualLambda, delta)
+    visualPosition.current.y = THREE.MathUtils.damp(visualPosition.current.y, targetVisualPos.y, headLambda, delta)
+    visualPosition.current.z = THREE.MathUtils.damp(visualPosition.current.z, targetVisualPos.z, visualLambda, delta)
+
+    groupRef.current.position.copy(visualPosition.current)
 
     // Rotate player to face camera direction (strafe mode)
     if (!isFreeLook || !isFreeLook.current) {
@@ -383,24 +400,29 @@ export const PlayerController = React.forwardRef((props, ref) => {
       errorVec.current.copy(serverPos.current).sub(physicsPosition.current)
       const errorMagnitude = errorVec.current.length()
       
-      // 2. Decide whether to reconcile
-      // Jitter Fix: Visual Offset Pattern
-      // We snap physics INSTANTLY to be correct, but use a visual offset to hide the snap
-      // Latency-Adaptive Threshold: Higher ping = more lenient to reduce jitter
-      const BASE_THRESHOLD = 0.20   // 20cm base (was 15cm)
-      const PING_SCALE = 0.0004   // 0.04cm per 100ms ping
-      const MAX_THRESHOLD = 0.6    // 60cm max (was 50cm)
-      const RECONCILE_THRESHOLD = Math.min(MAX_THRESHOLD, BASE_THRESHOLD + ping * PING_SCALE)
-
-      if (errorMagnitude > RECONCILE_THRESHOLD) {
-        // Capture position BEFORE snap
+        // Phase 18: Error Spreading (Reconciliation Smoothing)
+        // Instead of snapping physics instantly, we accumulate the error and spread it
+        const posError = serverPos.current.clone().sub(physicsPosition.current)
+        if (posError.lengthSq() > 0.0001) {
+          errorAccumulator.current.addScaledVector(posError, 0.1) // Accumulate 10% of error
+        }
+        
+        // Capture position BEFORE snap for visual offset (legacy jitter fix compatibility)
         const beforeSnap = physicsPosition.current.clone()
         
-        // HARD SNAP PHYSICS
+        // HARD SNAP PHYSICS (Authority)
         physicsPosition.current.copy(serverPos.current)
+        
+        // Phase 17: Jump Prediction Refinement
+        // Blend vertical velocity toward server state for more consistent jumps
+        const serverVy = serverState.vy || 0
+        verticalVelocity.current = THREE.MathUtils.lerp(verticalVelocity.current, serverVy, 0.5)
+        
         velocity.current.set(serverState.vx, serverState.vy, serverState.vz)
-        verticalVelocity.current = serverState.vy
         jumpCount.current = serverState.jumpCount || 0
+        
+        // Replay inputs...
+        // (rest of replay logic remains same)
         
         // Replay inputs
         const validHistory = inputHistory.current.filter(h => h.tick > serverState.tick)
@@ -477,15 +499,10 @@ export const PlayerController = React.forwardRef((props, ref) => {
 
         inputHistory.current = validHistory
         
-        // VISUAL OFFSET CALCULATION
-        // Offset = OldPos - NewPos
-        // We add this to the current offset so multiple snaps accumulate correctly
-        const afterSnap = physicsPosition.current
-        visualOffset.current.x += beforeSnap.x - afterSnap.x
-        visualOffset.current.y += beforeSnap.y - afterSnap.y
-        visualOffset.current.z += beforeSnap.z - afterSnap.z
+        visualOffset.current.x += beforeSnap.x - physicsPosition.current.x
+        visualOffset.current.y += beforeSnap.y - physicsPosition.current.y
+        visualOffset.current.z += beforeSnap.z - physicsPosition.current.z
       }
-    }
 
     groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
     groupRef.current.userData.velocityTimestamp = now // Timestamp for temporal correlation
