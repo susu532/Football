@@ -86,7 +86,7 @@ SoccerBall.displayName = 'SoccerBall'
 const COLLISION_COOLDOWN = 0.004 // 4ms - near-instant re-collision
 const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
 const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
-const IMPULSE_PREDICTION_FACTOR = 0.9 // Match server closely
+const IMPULSE_PREDICTION_FACTOR = 0.98 // Increased to 0.98 for Phase 5
 const BALL_RADIUS = PHYSICS.BALL_RADIUS
 const PLAYER_RADIUS = PHYSICS.PLAYER_RADIUS // Increased from 0.14 to match server cuboid(0.6, 0.2, 0.6)
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
@@ -226,6 +226,14 @@ export const ClientBallVisual = React.forwardRef(({
   const collisionConfidence = useRef(0) // Confidence score for current prediction
   const subFrameTime = useRef(0) // For sub-frame collision timing
   
+  // Phase 4: Snapshot Interpolation Buffer
+  const serverStateBuffer = useRef([])
+  const INTERPOLATION_DELAY = 0.05 // 50ms buffer
+  
+  // Phase 5: Kick Prediction State
+  const kickConfidence = useRef(0)
+  const lastKickPredictTime = useRef(0)
+  
   // S-Tier State
   const visualAccumulator = useRef(0)
   const wasColliding = useRef(false)
@@ -258,6 +266,9 @@ export const ClientBallVisual = React.forwardRef(({
       predictedVelocity.current.y += impulse.y * invMass * IMPULSE_PREDICTION_FACTOR
       predictedVelocity.current.z += impulse.z * invMass * IMPULSE_PREDICTION_FACTOR
       
+      kickConfidence.current = 1.0
+      lastKickPredictTime.current = performance.now()
+
       // Apply sub-frame advancement with gravity compensation
       if (frameOffset > 0) {
          predictedVelocity.current.y -= GRAVITY * frameOffset
@@ -307,6 +318,22 @@ export const ClientBallVisual = React.forwardRef(({
     // High jitter = smoother (0.1), low jitter = more responsive (0.25)
     const adaptiveEMA = Math.max(0.1, Math.min(0.25, 0.15 + (pingJitter / 200) * 0.1))
     const serverPos = new THREE.Vector3(ballState.x, ballState.y, ballState.z)
+    
+    // Update Snapshot Buffer
+    if (serverStateBuffer.current.length === 0 || serverStateBuffer.current[0].tick !== ballState.tick) {
+      serverStateBuffer.current.unshift({
+        x: ballState.x,
+        y: ballState.y,
+        z: ballState.z,
+        vx: ballState.vx || 0,
+        vy: ballState.vy || 0,
+        vz: ballState.vz || 0,
+        tick: ballState.tick,
+        timestamp: performance.now()
+      })
+      if (serverStateBuffer.current.length > 5) serverStateBuffer.current.pop()
+    }
+
     if (!serverPosSmoothed.current) {
       serverPosSmoothed.current = serverPos.clone()
     } else {
@@ -314,8 +341,29 @@ export const ClientBallVisual = React.forwardRef(({
     }
 
     // 1. Sync server state with EMA smoothing
+    // Phase 7: Visual Velocity Estimation
+    let estimatedVelocity = new THREE.Vector3()
+    if (serverStateBuffer.current.length >= 2) {
+      const s0 = serverStateBuffer.current[0]
+      const s1 = serverStateBuffer.current[1]
+      const dt = (s0.timestamp - s1.timestamp) / 1000
+      if (dt > 0.001) {
+        estimatedVelocity.set(
+          (s0.x - s1.x) / dt,
+          (s0.y - s1.y) / dt,
+          (s0.z - s1.z) / dt
+        )
+      }
+    }
+
     targetPos.current.copy(serverPosSmoothed.current)
     serverVelocity.current.set(ballState.vx || 0, ballState.vy || 0, ballState.vz || 0)
+    
+    // Blend estimated velocity if server velocity is zero but ball is moving
+    if (serverVelocity.current.lengthSq() < 0.01 && estimatedVelocity.lengthSq() > 0.1) {
+      serverVelocity.current.lerp(estimatedVelocity, 0.5)
+    }
+
     if (ballState.rx !== undefined) {
       targetRot.current.set(ballState.rx, ballState.ry, ballState.rz, ballState.rw)
     }
@@ -346,6 +394,19 @@ export const ClientBallVisual = React.forwardRef(({
     // Final rate
     const finalReconcileRate = 1 - Math.exp(Math.log(1 - reconcileRate) * velocityFactor * ownershipFactor)
     
+    // Phase 5: Kick Confidence Decay
+    // If server doesn't confirm kick, fade out predicted impulse
+    if (kickConfidence.current > 0) {
+      const timeSinceKick = (performance.now() - lastKickPredictTime.current) / 1000
+      if (timeSinceKick > 0.2) { // 200ms grace period
+        kickConfidence.current = Math.max(0, kickConfidence.current - delta * 2)
+        if (kickConfidence.current === 0) {
+          // Speculative Rollback: Blend back to server velocity faster
+          reconcileRate *= 2
+        }
+      }
+    }
+
     // Velocity Fadeout: Fade predicted velocity toward zero before blending with server
     // This prevents jarring direction changes during reconciliation
     if (predictedVelocity.current.dot(serverVelocity.current) < 0) {
@@ -388,12 +449,23 @@ export const ClientBallVisual = React.forwardRef(({
       targetPos.current.z = Math.sign(targetPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
     }
 
-    // === VELOCITY CLAMPING ===
-    const MAX_LINEAR_VEL = 50
-    const velMag = predictedVelocity.current.length()
-    if (velMag > MAX_LINEAR_VEL) {
-      predictedVelocity.current.multiplyScalar(MAX_LINEAR_VEL / velMag)
+    // === ADAPTIVE ERROR THRESHOLD (Phase 8) ===
+    const timeSinceAction = now - lastCollisionTime.current
+    const isActionMoment = timeSinceAction < 0.5 // 500ms after kick/collision
+    const isIdleMoment = speed < 0.5
+    
+    let currentThreshold = PHYSICS.RECONCILE_BASE_THRESHOLD
+    if (isActionMoment) currentThreshold = PHYSICS.RECONCILE_ACTION_THRESHOLD
+    else if (isIdleMoment) currentThreshold = PHYSICS.RECONCILE_IDLE_THRESHOLD
+    
+    // DECIDE WHETHER TO RECONCILE (Modified to use adaptive threshold)
+    const errorDist = groupRef.current.position.distanceTo(targetPos.current)
+    if (errorDist < currentThreshold) {
+      // If error is small, slow down reconciliation to prevent jitter
+      reconcileRate *= 0.5
     }
+
+    predictedVelocity.current.lerp(serverVelocity.current, finalReconcileRate)
 
     // 4. PING-AWARE COLLISION PREDICTION with DYNAMIC RADIUS
     const timeSinceCollision = now - lastCollisionTime.current
@@ -487,8 +559,11 @@ export const ClientBallVisual = React.forwardRef(({
           collisionThisFrame.current = true
           lastCollisionNormal.current.set(nx, ny, nz)
           
-          // RAPIER-matched impulse with boost (scaled for giant)
-          const impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed
+          // Phase 6: Speed-Dependent Impulse Curve
+          const approachNorm = Math.min(1, Math.abs(approachSpeed) / 20)
+          const speedCurve = Math.pow(approachNorm, 1.3)
+          const impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * (0.8 + speedCurve * 0.4)
+          
           const boostFactor = isGiant ? 2.0 : 1.2 // Giant kicks harder
           
           // Apply impulse scaled by confidence for speculative hits
@@ -564,6 +639,9 @@ export const ClientBallVisual = React.forwardRef(({
         // Provides smoother acceleration/deceleration curve for corrections
         const t = (distance - PHYSICS.HERMITE_BLEND_RANGE_MIN) / (PHYSICS.HERMITE_BLEND_RANGE_MAX - PHYSICS.HERMITE_BLEND_RANGE_MIN)
         const smoothT = t * t * (3 - 2 * t) // Cubic Hermite curve
+        
+        // Phase 4: Snapshot Interpolation Blend
+        // We blend toward the interpolated server position for extra smoothness
         const snapFactor = 1 - Math.exp(-LERP_NORMAL * (1 + smoothT) * dt)
         groupRef.current.position.lerp(targetPos.current, snapFactor)
       } else {
