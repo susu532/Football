@@ -403,7 +403,8 @@ export const ClientBallVisual = React.forwardRef(({
 
     // Phase 32: Server Authority Fast-Track
     // Trust client prediction for a window after actions
-    const timeSinceLastAction = now - Math.max(lastCollisionTime.current, lastKickPredictTime.current / 1000)
+    const nowMs = performance.now()
+    const timeSinceLastAction = (nowMs - Math.max(lastCollisionTime.current * 1000, lastKickPredictTime.current)) / 1000
     if (timeSinceLastAction < PHYSICS.SERVER_TRUST_WINDOW) {
       reconcileRate *= 0.1 // Trust client 90% more during this window
     }
