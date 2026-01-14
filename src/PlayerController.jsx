@@ -348,8 +348,11 @@ export const PlayerController = React.forwardRef((props, ref) => {
     const speedFactor = Math.min(1, velocity.current.length() / 10)
     const visualLambda = baseLambda + speedFactor * (PHYSICS.VISUAL_LAMBDA_MAX - baseLambda)
     
+    // Head Stabilization: Use higher damping for Y-axis (height) to prevent bobbing
+    const headLambda = PHYSICS.HEAD_STABILIZATION_LAMBDA
+    
     groupRef.current.position.x = THREE.MathUtils.damp(groupRef.current.position.x, targetVisualPos.x, visualLambda, delta)
-    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetVisualPos.y, visualLambda, delta)
+    groupRef.current.position.y = THREE.MathUtils.damp(groupRef.current.position.y, targetVisualPos.y, headLambda, delta)
     groupRef.current.position.z = THREE.MathUtils.damp(groupRef.current.position.z, targetVisualPos.z, visualLambda, delta)
 
     // Rotate player to face camera direction (strafe mode)

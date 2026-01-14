@@ -346,6 +346,12 @@ export const ClientBallVisual = React.forwardRef(({
     // Final rate
     const finalReconcileRate = 1 - Math.exp(Math.log(1 - reconcileRate) * velocityFactor * ownershipFactor)
     
+    // Velocity Fadeout: Fade predicted velocity toward zero before blending with server
+    // This prevents jarring direction changes during reconciliation
+    if (predictedVelocity.current.dot(serverVelocity.current) < 0) {
+      predictedVelocity.current.multiplyScalar(PHYSICS.VELOCITY_FADEOUT_RATE)
+    }
+    
     predictedVelocity.current.lerp(serverVelocity.current, finalReconcileRate)
 
     // 3. Advance prediction with physics
@@ -472,9 +478,9 @@ export const ClientBallVisual = React.forwardRef(({
         
         // === COLLISION CONFIDENCE SCORING ===
         // Higher confidence = more aggressive prediction
-        const speedFactor = Math.min(1, Math.abs(approachSpeed) / 15)
+        const speedFactor = Math.min(1.5, Math.abs(approachSpeed) / 15) // Increased cap to 1.5
         const distFactor = Math.min(1, dynamicCombinedRadius / Math.max(currentDist, 0.1))
-        collisionConfidence.current = speedFactor * distFactor
+        collisionConfidence.current = speedFactor * distFactor * PHYSICS.COLLISION_CONFIDENCE_BOOST
         
         if (approachSpeed < 0 || isCurrentCollision) {
           lastCollisionTime.current = now
@@ -493,8 +499,8 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor
           
           // Player velocity transfer
-          predictedVelocity.current.x += (playerVel.x || 0) * 0.5
-          predictedVelocity.current.z += (playerVel.z || 0) * 0.5
+          predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER
+          predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER
           
           // INSTANT position correction with sub-frame advancement
           // Clamp overlap to prevent teleports with giant powerup
@@ -546,12 +552,19 @@ export const ClientBallVisual = React.forwardRef(({
       } else if (isFirstTouch) {
         // INSTANT FIRST TOUCH SNAP
         // Boost visual response to feel 0-ping
-        const snapFactor = 0.8 + collisionConfidence.current * 0.2
+        const snapFactor = PHYSICS.FIRST_TOUCH_SNAP_FACTOR
         groupRef.current.position.lerp(targetPos.current, snapFactor)
       } else if (collisionThisFrame.current) {
         // Continuous collision snap
         const confidenceBoost = 1 + collisionConfidence.current * 0.5
         const snapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * dt)
+        groupRef.current.position.lerp(targetPos.current, snapFactor)
+      } else if (distance > PHYSICS.HERMITE_BLEND_RANGE_MIN && distance < PHYSICS.HERMITE_BLEND_RANGE_MAX) {
+        // HERMITE SPLINE INTERPOLATION
+        // Provides smoother acceleration/deceleration curve for corrections
+        const t = (distance - PHYSICS.HERMITE_BLEND_RANGE_MIN) / (PHYSICS.HERMITE_BLEND_RANGE_MAX - PHYSICS.HERMITE_BLEND_RANGE_MIN)
+        const smoothT = t * t * (3 - 2 * t) // Cubic Hermite curve
+        const snapFactor = 1 - Math.exp(-LERP_NORMAL * (1 + smoothT) * dt)
         groupRef.current.position.lerp(targetPos.current, snapFactor)
       } else {
         // Normal smooth interpolation
