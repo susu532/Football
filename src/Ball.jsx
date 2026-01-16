@@ -321,7 +321,7 @@ export const ClientBallVisual = React.forwardRef(({
       const unsubscribeTouched = onKickMessage('ball-touched', (data) => {
         // Server confirmed a running collision
         if (data.velocity) {
-          const blendFactor = 0.8
+          const blendFactor = 0.4
           predictedVelocity.current.lerp(new THREE.Vector3(data.velocity.x, data.velocity.y, data.velocity.z), blendFactor)
         }
       })
@@ -620,7 +620,7 @@ export const ClientBallVisual = React.forwardRef(({
             const approachDot = ((playerVel.x || 0) * nx + (playerVel.z || 0) * nz) / (playerSpeed + 0.001)
             const approachBoost = approachDot < -0.5 ? PHYSICS.PLAYER_BALL_APPROACH_BOOST : 1.0
 
-            let impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * (0.8 + speedCurve * 0.8) * (1 + angleMultiplier) * momentumFactor * approachBoost
+            let impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * (0.8 + speedCurve * 0.4) * (1 + angleMultiplier) * momentumFactor * approachBoost
             
             // Ensure a minimum impulse for responsiveness
             impulseMag = Math.max(PHYSICS.PLAYER_BALL_IMPULSE_MIN, impulseMag)
