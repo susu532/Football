@@ -501,6 +501,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       }
 
     groupRef.current.userData.velocity = velocity.current // Expose velocity for ball prediction
+    groupRef.current.userData.velocityMagnitude = velocity.current.length()
+    groupRef.current.userData.isRunning = velocity.current.length() > PHYSICS.COLLISION_VELOCITY_THRESHOLD
     groupRef.current.userData.velocityTimestamp = now // Timestamp for temporal correlation
 
     // Check power-up collisions

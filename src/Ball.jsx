@@ -300,7 +300,7 @@ export const ClientBallVisual = React.forwardRef(({
   // Kick message handler - confirms/corrects local prediction
   useEffect(() => {
     if (onKickMessage) {
-      const unsubscribe = onKickMessage('ball-kicked', (data) => {
+      const unsubscribeKicked = onKickMessage('ball-kicked', (data) => {
         if (kickFeedback.current) kickFeedback.current()
         
         if (data.impulse) {
@@ -317,7 +317,19 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z = THREE.MathUtils.lerp(predictedVelocity.current.z, serverImpulse.z, blendFactor)
         }
       })
-      return unsubscribe
+
+      const unsubscribeTouched = onKickMessage('ball-touched', (data) => {
+        // Server confirmed a running collision
+        if (data.velocity) {
+          const blendFactor = 0.4
+          predictedVelocity.current.lerp(new THREE.Vector3(data.velocity.x, data.velocity.y, data.velocity.z), blendFactor)
+        }
+      })
+
+      return () => {
+        unsubscribeKicked()
+        unsubscribeTouched()
+      }
     }
   }, [onKickMessage])
 
@@ -597,7 +609,22 @@ export const ClientBallVisual = React.forwardRef(({
             const approachAngle = Math.acos(Math.abs(approachSpeed) / Math.max(relativeSpeed, 0.1))
             const angleMultiplier = Math.cos(approachAngle) * PHYSICS.COLLISION_ANGLE_FACTOR
             
-            const impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * (0.8 + speedCurve * 0.4) * (1 + angleMultiplier)
+            const playerSpeed = localPlayerRef.current.userData?.velocityMagnitude || 0
+            const isRunning = localPlayerRef.current.userData?.isRunning || false
+
+            // Momentum transfer calculation
+            const momentumFactor = isRunning ? 
+              (playerSpeed / 8) * PHYSICS.PLAYER_BALL_VELOCITY_TRANSFER : 0.5
+            
+            // Approach boost for head-on collisions
+            const approachDot = ((playerVel.x || 0) * nx + (playerVel.z || 0) * nz) / (playerSpeed + 0.001)
+            const approachBoost = approachDot < -0.5 ? PHYSICS.PLAYER_BALL_APPROACH_BOOST : 1.0
+
+            let impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * (0.8 + speedCurve * 0.4) * (1 + angleMultiplier) * momentumFactor * approachBoost
+            
+            // Ensure a minimum impulse for responsiveness
+            impulseMag = Math.max(PHYSICS.PLAYER_BALL_IMPULSE_MIN, impulseMag)
+
             const boostFactor = isGiant ? 2.0 : 1.2
             const impulseFactor = isSpeculative && !isCurrentCollision ? PHYSICS.SPECULATIVE_IMPULSE_FACTOR : 1.0
             
@@ -706,8 +733,9 @@ export const ClientBallVisual = React.forwardRef(({
         groupRef.current.position.lerp(target, snapFactor)
       } else if (collisionThisFrame.current) {
         // Continuous collision snap
+        const isRunning = localPlayerRef.current.userData?.isRunning || false
         const confidenceBoost = 1 + collisionConfidence.current * 0.5
-        const snapFactor = 1 - Math.exp(-LERP_COLLISION * confidenceBoost * dt)
+        const snapFactor = isRunning ? PHYSICS.RUNNING_COLLISION_SNAP : (1 - Math.exp(-LERP_COLLISION * confidenceBoost * dt))
         groupRef.current.position.lerp(target, snapFactor)
       } else {
         // Normal smooth interpolation
