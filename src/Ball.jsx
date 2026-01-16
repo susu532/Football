@@ -439,17 +439,8 @@ export const ClientBallVisual = React.forwardRef(({
     // Phase 22: Sub-Frame Physics Timestep Subdivision
     const playerPos = localPlayerRef?.current?.position
     const distToPlayer = playerPos ? groupRef.current.position.distanceTo(playerPos) : 999
-    const playerVel = localPlayerRef.current?.userData?.velocity || { x: 0, y: 0, z: 0 }
-    const relVel = new THREE.Vector3(
-      predictedVelocity.current.x - (playerVel.x || 0),
-      predictedVelocity.current.y - (playerVel.y || 0),
-      predictedVelocity.current.z - (playerVel.z || 0)
-    )
-    const relSpeed = relVel.length()
-    
-    // Adaptive subdivisions based on distance AND relative speed
-    const subdivisions = (distToPlayer < (BALL_RADIUS + PLAYER_RADIUS + PHYSICS.COLLISION_SUBDIVISION_THRESHOLD) || relSpeed > 20) ? 
-      Math.max(PHYSICS.COLLISION_SUBDIVISIONS, Math.ceil(relSpeed / 5)) : 1
+    const subdivisions = distToPlayer < (BALL_RADIUS + PLAYER_RADIUS + PHYSICS.COLLISION_SUBDIVISION_THRESHOLD) ? 
+      PHYSICS.COLLISION_SUBDIVISIONS : 1
     const subDt = delta / subdivisions
 
     for (let s = 0; s < subdivisions; s++) {
@@ -716,10 +707,10 @@ export const ClientBallVisual = React.forwardRef(({
       // Phase 13: Acceleration Limiting (Final pass)
       const currentPos = groupRef.current.position
       const visualVel = currentPos.clone().sub(prevPos).divideScalar(dt)
-      const MAX_ACCEL = 500 // Increased from 200 for high speed
+      const MAX_ACCEL = 200 // 200 m/s²
       if (visualVel.lengthSq() > 0.0001) {
         // Simple velocity clamping to prevent snaps
-        const maxDist = 100 * dt // Increased from 50 for high speed
+        const maxDist = 50 * dt // 50 m/s max visual speed
         if (currentPos.distanceTo(prevPos) > maxDist) {
           currentPos.copy(prevPos).addScaledVector(visualVel.normalize(), maxDist)
         }
