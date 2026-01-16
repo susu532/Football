@@ -46,8 +46,8 @@ export class SoccerRoom extends Room {
     await RAPIER.init()
     this.setState(new GameState())
     
-    // Set patch rate to 30Hz (33ms) to reduce bandwidth usage
-    this.setPatchRate(33)
+    // Set patch rate to 60Hz (16ms) for high-speed responsiveness
+    this.setPatchRate(16)
 
 
     this.roomCreatedAt = Date.now()
@@ -263,7 +263,7 @@ export class SoccerRoom extends Room {
     const collider = RAPIER.ColliderDesc.ball(PHYSICS.PLAYER_RADIUS)
       .setTranslation(0, PHYSICS.PLAYER_RADIUS, 0)
       .setFriction(2.0)
-      .setRestitution(0.0)
+      .setRestitution(PHYSICS.PLAYER_RESTITUTION)
 
     this.world.createCollider(collider, body)
     this.playerBodies.set(sessionId, body)

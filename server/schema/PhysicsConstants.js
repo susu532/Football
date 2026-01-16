@@ -16,6 +16,7 @@ export const PHYSICS = {
   GROUND_CHECK_EPSILON: 0.05,
   PLAYER_RADIUS: 0.4,
   PLAYER_HEIGHT: 0.8,
+  PLAYER_RESTITUTION: 0.6, // Bounciness of player (0.0 = soft, 1.0 = super bouncy)
   
   // Ball
   BALL_RADIUS: 0.8,
@@ -73,7 +74,7 @@ export const PHYSICS = {
   VISUAL_RATE: 240,                   // 240Hz visual interpolation  
   VISUAL_TIMESTEP: 1 / 240,
   KICK_TIMESTAMP_BUFFER: 0.033,       // 2 frames of kick timestamp lookahead
-  TOUCH_RESPONSE_BOOST: 1.5,          // Boost factor for first-touch
+  TOUCH_RESPONSE_BOOST: 1.8,          // Boost factor for first-touch
   
   // Adaptive Reconciliation Tiers
   RECONCILE_TIER_1_PING: 50,          // <50ms: aggressive local prediction
@@ -85,10 +86,10 @@ export const PHYSICS = {
   INSTANT_TOUCH_THRESHOLD: 0.015,     // 15ms for instant visual response
 
   // Professional Touch Response
-  FIRST_TOUCH_SNAP_FACTOR: 0.92,      // Near-instant visual snap on first contact
-  COLLISION_CONFIDENCE_BOOST: 1.8,    // Increase impulse confidence weighting
-  TOUCH_VELOCITY_TRANSFER: 0.7,       // Aggressive player velocity transfer
-  MICRO_COLLISION_THRESHOLD: 0.008,   // 8ms threshold for micro-collision timing
+  FIRST_TOUCH_SNAP_FACTOR: 0.95,      // Near-instant visual snap on first contact
+  COLLISION_CONFIDENCE_BOOST: 2.0,    // Increase impulse confidence weighting
+  TOUCH_VELOCITY_TRANSFER: 0.85,       // Aggressive player velocity transfer
+  MICRO_COLLISION_THRESHOLD: 0.005,   // 5ms threshold for micro-collision timing
 
   // Reconciliation Smoothness
   HERMITE_BLEND_RANGE_MIN: 0.5,
@@ -105,6 +106,6 @@ export const PHYSICS = {
   COLLISION_SUBDIVISIONS: 4,
   COLLISION_SUBDIVISION_THRESHOLD: 0.5,
   HERMITE_TENSION: 0.0,
-  IMPULSE_RAMP_FRAMES: 3,
+  IMPULSE_RAMP_FRAMES: 1,
   COLLISION_ANGLE_FACTOR: 0.8,
 }
