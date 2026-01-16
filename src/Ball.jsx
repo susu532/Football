@@ -83,7 +83,7 @@ SoccerBall.displayName = 'SoccerBall'
 // Designed for 0-ping visual feel at ANY latency
 
 // Collision constants - ultra-aggressive for instant feel
-const COLLISION_COOLDOWN = 0.004 // 4ms - near-instant re-collision
+const COLLISION_COOLDOWN = 0.002 // 2ms - ultra-fast re-collision for high speeds
 const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
 const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
 const IMPULSE_PREDICTION_FACTOR = 0.98 // Increased to 0.98 for Phase 5
@@ -439,8 +439,18 @@ export const ClientBallVisual = React.forwardRef(({
     // Phase 22: Sub-Frame Physics Timestep Subdivision
     const playerPos = localPlayerRef?.current?.position
     const distToPlayer = playerPos ? groupRef.current.position.distanceTo(playerPos) : 999
-    const subdivisions = distToPlayer < (BALL_RADIUS + PLAYER_RADIUS + PHYSICS.COLLISION_SUBDIVISION_THRESHOLD) ? 
-      PHYSICS.COLLISION_SUBDIVISIONS : 1
+    const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
+    const relVel = new THREE.Vector3(
+      predictedVelocity.current.x - (playerVel.x || 0),
+      predictedVelocity.current.y - (playerVel.y || 0),
+      predictedVelocity.current.z - (playerVel.z || 0)
+    )
+    const relativeSpeed = relVel.length()
+    
+    // Dynamic subdivisions scaling linearly with relative speed
+    // 1 sub at 10m/s, up to 12 subs at 120m/s
+    const subdivisions = (distToPlayer < (BALL_RADIUS + PLAYER_RADIUS + PHYSICS.COLLISION_SUBDIVISION_THRESHOLD)) ? 
+      Math.min(12, Math.max(PHYSICS.COLLISION_SUBDIVISIONS, Math.ceil(relativeSpeed / 10))) : 1
     const subDt = delta / subdivisions
 
     for (let s = 0; s < subdivisions; s++) {
@@ -593,12 +603,13 @@ export const ClientBallVisual = React.forwardRef(({
             
             // Impulse Ramping
             const impulseRamp = 1 / PHYSICS.IMPULSE_RAMP_FRAMES
-            predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor * impulseRamp
-            predictedVelocity.current.y += (impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)) * impulseRamp
-            predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor * impulseRamp
+            const highSpeedBoost = 1 + Math.min(0.3, relativeSpeed / 100)
+            predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor * impulseRamp * highSpeedBoost
+            predictedVelocity.current.y += (impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)) * impulseRamp * highSpeedBoost
+            predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor * impulseRamp * highSpeedBoost
             
-            predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp
-            predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp
+            predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp * highSpeedBoost
+            predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp * highSpeedBoost
             
             const overlap = Math.min(1.0, dynamicCombinedRadius - contactDist + 0.02)
             if (overlap > 0) {
@@ -710,7 +721,7 @@ export const ClientBallVisual = React.forwardRef(({
       const MAX_ACCEL = 200 // 200 m/s²
       if (visualVel.lengthSq() > 0.0001) {
         // Simple velocity clamping to prevent snaps
-        const maxDist = 50 * dt // 50 m/s max visual speed
+        const maxDist = 80 * dt // 80 m/s max visual speed (increased for high-speed play)
         if (currentPos.distanceTo(prevPos) > maxDist) {
           currentPos.copy(prevPos).addScaledVector(visualVel.normalize(), maxDist)
         }
