@@ -83,10 +83,10 @@ SoccerBall.displayName = 'SoccerBall'
 // Designed for 0-ping visual feel at ANY latency
 
 // Collision constants - ultra-aggressive for instant feel
-const COLLISION_COOLDOWN = 0.002 // 2ms - ultra-fast re-collision for high speeds
+const COLLISION_COOLDOWN = 0.001 // 1ms - ultimate re-collision for high speeds
 const BASE_LOOKAHEAD = 0.03 // Reduced from 0.05
 const MAX_LOOKAHEAD = 0.10 // Reduced from 0.15
-const IMPULSE_PREDICTION_FACTOR = 0.98 // Increased to 0.98 for Phase 5
+const IMPULSE_PREDICTION_FACTOR = 0.99 // Increased to 0.99 for maximum accuracy
 const BALL_RADIUS = PHYSICS.BALL_RADIUS
 const PLAYER_RADIUS = PHYSICS.PLAYER_RADIUS // Increased from 0.14 to match server cuboid(0.6, 0.2, 0.6)
 const COMBINED_RADIUS = BALL_RADIUS + PLAYER_RADIUS
@@ -97,8 +97,8 @@ const GRAVITY = PHYSICS.WORLD_GRAVITY
 const LINEAR_DAMPING = PHYSICS.BALL_LINEAR_DAMPING
 
 // Ultra-aggressive interpolation for instant response
-const LERP_NORMAL = 25 // Snappy base
-const LERP_COLLISION = 80 // Near-instant snap on collision
+const LERP_NORMAL = 35 // Snappier base
+const LERP_COLLISION = 120 // Near-instant snap on collision
 const LERP_SNAP_THRESHOLD = 8
 const SPECULATIVE_THRESHOLD = 0.5 // Tightened from 0.7
 const KICK_VISUAL_SNAP = 0.95 // Near-instant visual response
