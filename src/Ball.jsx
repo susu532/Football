@@ -596,7 +596,7 @@ export const ClientBallVisual = React.forwardRef(({
             const approachAngle = Math.acos(Math.abs(approachSpeed) / Math.max(relativeSpeed, 0.1))
             const angleMultiplier = Math.cos(approachAngle) * PHYSICS.COLLISION_ANGLE_FACTOR
             
-            const impulseMag = -(1 + (PHYSICS.PLAYER_RESTITUTION || 0.5)) * approachSpeed * (0.8 + speedCurve * 0.4) * (1 + angleMultiplier)
+            const impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * (0.8 + speedCurve * 0.4) * (1 + angleMultiplier)
             const boostFactor = isGiant ? 2.0 : 1.2
             const impulseFactor = isSpeculative && !isCurrentCollision ? PHYSICS.SPECULATIVE_IMPULSE_FACTOR : 1.0
             
