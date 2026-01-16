@@ -223,10 +223,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
       
       // Instant stop when no input, smooth otherwise (matches server)
       if (targetVx === 0 && targetVz === 0) {
-        velocity.current.x *= 0.5
-        velocity.current.z *= 0.5
-        if (Math.abs(velocity.current.x) < 0.01) velocity.current.x = 0
-        if (Math.abs(velocity.current.z) < 0.01) velocity.current.z = 0
+        velocity.current.x = 0
+        velocity.current.z = 0
       } else {
         const smoothing = PHYSICS.VELOCITY_SMOOTHING_SUB
         velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * smoothing
@@ -461,10 +459,8 @@ export const PlayerController = React.forwardRef((props, ref) => {
           const targetVz = (input.z || 0) * speed
           
           if (targetVx === 0 && targetVz === 0) {
-            velocity.current.x *= 0.5
-            velocity.current.z *= 0.5
-            if (Math.abs(velocity.current.x) < 0.01) velocity.current.x = 0
-            if (Math.abs(velocity.current.z) < 0.01) velocity.current.z = 0
+            velocity.current.x = 0
+            velocity.current.z = 0
           } else {
             const smoothing = PHYSICS.VELOCITY_SMOOTHING
             velocity.current.x = velocity.current.x + (targetVx - velocity.current.x) * smoothing

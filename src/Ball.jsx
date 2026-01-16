@@ -251,7 +251,6 @@ export const ClientBallVisual = React.forwardRef(({
   const wasColliding = useRef(false)
   const lastPingTier = useRef(0)
   const kickTimestampOffset = useRef(0) // Offset between local clock and kick timestamp
-  const consecutiveCollisions = useRef(0) // Track rapid successive collisions
   
   // Ownership state
   const isOwner = localPlayerRef?.current?.userData?.sessionId === ballOwner
@@ -471,15 +470,6 @@ export const ClientBallVisual = React.forwardRef(({
         predictedVelocity.current.y -= GRAVITY * subDt
       }
 
-      // NaN Protection & Velocity Clamping
-      if (isNaN(predictedVelocity.current.x) || isNaN(predictedVelocity.current.y) || isNaN(predictedVelocity.current.z)) {
-        predictedVelocity.current.copy(serverVelocity.current)
-      }
-      const maxVel = PHYSICS.MAX_BALL_VELOCITY || 100
-      if (predictedVelocity.current.lengthSq() > maxVel * maxVel) {
-        predictedVelocity.current.normalize().multiplyScalar(maxVel)
-      }
-
       // === WALL/ARENA COLLISION PREDICTION ===
       const ARENA_HALF_WIDTH = PHYSICS.ARENA_HALF_WIDTH
       const ARENA_HALF_DEPTH = PHYSICS.ARENA_HALF_DEPTH
@@ -621,31 +611,19 @@ export const ClientBallVisual = React.forwardRef(({
             predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp * highSpeedBoost
             predictedVelocity.current.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp * highSpeedBoost
             
-            // Multi-Collision Damping
-            consecutiveCollisions.current++
-            if (consecutiveCollisions.current > 2) {
-              const damping = Math.pow(PHYSICS.MULTI_COLLISION_DAMPING || 0.9, consecutiveCollisions.current - 2)
-              predictedVelocity.current.multiplyScalar(damping)
-            }
-            
             const overlap = Math.min(1.0, dynamicCombinedRadius - contactDist + 0.02)
             if (overlap > 0) {
               const remainingTime = subDt * (1 - subFrameTime.current)
-              // Smoother overlap resolution using exponential-style push
-              const pushFactor = 1.0 - Math.exp(-5.0 * overlap)
-              physicsPos.current.x += nx * pushFactor + predictedVelocity.current.x * remainingTime * 0.3
-              physicsPos.current.y += ny * pushFactor * 0.5
-              physicsPos.current.z += nz * pushFactor + predictedVelocity.current.z * remainingTime * 0.3
+              physicsPos.current.x += nx * overlap + predictedVelocity.current.x * remainingTime * 0.3
+              physicsPos.current.y += ny * overlap * 0.5
+              physicsPos.current.z += nz * overlap + predictedVelocity.current.z * remainingTime * 0.3
               
               const visualPush = 0.8 * Math.max(0.6, collisionConfidence.current)
-              groupRef.current.position.x += nx * pushFactor * visualPush
-              groupRef.current.position.z += nz * pushFactor * visualPush
+              groupRef.current.position.x += nx * overlap * visualPush
+              groupRef.current.position.z += nz * overlap * visualPush
             }
             break // Collision handled for this sub-step
           }
-        } else {
-          // Reset consecutive collisions if no collision detected for this player
-          consecutiveCollisions.current = Math.max(0, consecutiveCollisions.current - 1)
         }
       }
     }
