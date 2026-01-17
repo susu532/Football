@@ -660,8 +660,8 @@ export default function Scene() {
           {/* Disable heavy maps on mobile for performance */}
           {!isMobile && <MapComponents.MapRenderer mapId={selectedMap} />}
 
-          {/* Mobile-only lightweight skybox */}
-          {isMobile && <MobileSky />}
+          {/* Sky Theme */}
+          {!isMobile ? <GameSkybox mapId={selectedMap || 'OceanFloor'} /> : <MobileSky mapId={selectedMap || 'OceanFloor'} />}
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual 

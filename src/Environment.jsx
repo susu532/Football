@@ -333,19 +333,19 @@ export function GoalCelebrationEffect({ team }) {
   )
 }
 
-export function GameSkybox() {
-  useThree(({ scene }) => {
-    scene.background = new THREE.Color('#87CEEB') // Sky Blue
-    scene.fog = null
-  })
-  return null
+export function GameSkybox({ mapId }) {
+  return (
+    <>
+      {mapId !== 'DesertMap' && <color attach="background" args={['#87CEEB']} />}
+    </>
+  )
 }
 
 // Lightweight sky for mobile to replace the black void
-export function MobileSky() {
-  useThree(({ scene }) => {
-    scene.background = new THREE.Color('#87CEEB') // Sky Blue
-    scene.fog = null
-  })
-  return null
+export function MobileSky({ mapId }) {
+  return (
+    <>
+      {mapId !== 'DesertMap' && <color attach="background" args={['#87CEEB']} />}
+    </>
+  )
 }
