@@ -334,18 +334,32 @@ export function GoalCelebrationEffect({ team }) {
 }
 
 export function GameSkybox({ mapId }) {
-  return (
-    <>
-      {mapId !== 'DesertMap' && <color attach="background" args={['#87CEEB']} />}
-    </>
-  )
+  const { scene } = useThree()
+  
+  useEffect(() => {
+    if (mapId === 'DesertMap') {
+      scene.background = new THREE.Color('#000000')
+    } else {
+      scene.background = new THREE.Color('#87CEEB')
+    }
+    scene.fog = null
+  }, [mapId, scene])
+  
+  return null
 }
 
 // Lightweight sky for mobile to replace the black void
 export function MobileSky({ mapId }) {
-  return (
-    <>
-      {mapId !== 'DesertMap' && <color attach="background" args={['#87CEEB']} />}
-    </>
-  )
+  const { scene } = useThree()
+  
+  useEffect(() => {
+    if (mapId === 'DesertMap') {
+      scene.background = new THREE.Color('#000000')
+    } else {
+      scene.background = new THREE.Color('#87CEEB')
+    }
+    scene.fog = null
+  }, [mapId, scene])
+  
+  return null
 }
