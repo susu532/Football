@@ -310,7 +310,7 @@ export const PlayerController = React.forwardRef((props, ref) => {
       const kickPower = PHYSICS.KICK_POWER * kickMult
       
       const impulseX = forwardX * kickPower + velocity.current.x * 2
-      const impulseY = 0.5 * kickPower // Server adds 0.8 vertical boost automatically
+      const impulseY = 0.3 * kickPower // Server adds 0.8 vertical boost automatically
       const impulseZ = forwardZ * kickPower + velocity.current.z * 2
 
       // Send to server

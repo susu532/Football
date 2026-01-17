@@ -336,26 +336,16 @@ export function GoalCelebrationEffect({ team }) {
 export function GameSkybox() {
   useThree(({ scene }) => {
     scene.background = new THREE.Color('#87CEEB') // Sky Blue
+    scene.fog = null
   })
-  return (
-    <>
-      {/* Stars removed for daytime */}
-      <Sparkles count={100} scale={[30, 10, 20]} size={1.5} speed={0.1} opacity={0.1} />
-    </>
-  )
+  return null
 }
 
 // Lightweight sky for mobile to replace the black void
 export function MobileSky() {
   useThree(({ scene }) => {
-    // Dark space-like background for depth
-    scene.background = new THREE.Color('#05050a')
+    scene.background = new THREE.Color('#87CEEB') // Sky Blue
+    scene.fog = null
   })
-
-  return (
-    <>
-      <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
-      <Sparkles count={50} scale={[40, 20, 40]} size={2} speed={0.2} opacity={0.2} color="#ffffff" />
-    </>
-  )
+  return null
 }

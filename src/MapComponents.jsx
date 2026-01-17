@@ -13,10 +13,7 @@ export const MAP_DATA = [
     emoji: '🌊', 
     image: '/placeholders/Screenshots-20260105142140.png',
     ambientIntensity: 0.2,
-    lightIntensity: 0.4,
-    environmentPreset: 'night',
-    fogColor: '#001e0f',
-    fogDensity: 0.02
+    lightIntensity: 0.4
   },
   { 
     id: 'CityAtNight', 
@@ -27,8 +24,7 @@ export const MAP_DATA = [
     emoji: '🌃', 
     image: '/placeholders/Screenshots-20260105142231.png',
     ambientIntensity: 0.15,
-    lightIntensity: 0.4,
-    environmentPreset: 'night'
+    lightIntensity: 0.4
   },
   { 
     id: 'CloudStation', 
@@ -39,8 +35,7 @@ export const MAP_DATA = [
     emoji: '☁️', 
     image: '/placeholders/Screenshots-20260105142255.png',
     ambientIntensity: 0.6,
-    lightIntensity: 1.0,
-    environmentPreset: 'sunset'
+    lightIntensity: 1.0
   },
   { 
     id: 'CreekFalls', 
@@ -51,8 +46,7 @@ export const MAP_DATA = [
     emoji: '🌲', 
     image: '/placeholders/Screenshots-20260105142323.png',
     ambientIntensity: 0.5,
-    lightIntensity: 0.8,
-    environmentPreset: 'park'
+    lightIntensity: 0.8
   },
   { 
     id: 'SoccerStadiumMap', 
@@ -63,8 +57,7 @@ export const MAP_DATA = [
     emoji: '🏟️', 
     image: '/placeholders/Screenshots-20260105142925.png',
     ambientIntensity: 0.5,
-    lightIntensity: 0.9,
-    environmentPreset: 'park'
+    lightIntensity: 0.9
   },
   { 
     id: 'GravityFallsMap', 
@@ -75,8 +68,7 @@ export const MAP_DATA = [
     emoji: '🌲', 
     image: '/placeholders/Screenshots-20260105143032.png',
     ambientIntensity: 0.4,
-    lightIntensity: 0.7,
-    environmentPreset: 'forest'
+    lightIntensity: 0.7
   },
   { 
     id: 'MinecraftMap', 
@@ -87,8 +79,7 @@ export const MAP_DATA = [
     emoji: '⛏️', 
     image: '/placeholders/Screenshots-20260105143054.png',
     ambientIntensity: 0.5,
-    lightIntensity: 0.8,
-    environmentPreset: 'park'
+    lightIntensity: 0.8
   },
   { 
     id: 'MoonMap', 
@@ -99,10 +90,7 @@ export const MAP_DATA = [
     emoji: '🌑', 
     image: '/placeholders/Screenshots-20260105143316.png',
     ambientIntensity: 0.05,
-    lightIntensity: 0.6,
-    environmentPreset: 'night',
-    fogColor: '#000000',
-    fogDensity: 0.0
+    lightIntensity: 0.6
   },
   { 
     id: 'TropicalIslandMap', 
@@ -114,7 +102,6 @@ export const MAP_DATA = [
     image: '/placeholders/Screenshots-20260105143421.png',
     ambientIntensity: 0.3,
     lightIntensity: 0.5,
-    environmentPreset: 'sunset',
     disableAnimations: true
   },
   { 
@@ -126,8 +113,7 @@ export const MAP_DATA = [
     emoji: '🚢', 
     image: '/placeholders/Screenshots-20260105143500.png',
     ambientIntensity: 0.7,
-    lightIntensity: 1.0,
-    environmentPreset: 'sunset'
+    lightIntensity: 1.0
   },
   { 
     id: 'DesertMap', 
@@ -138,8 +124,7 @@ export const MAP_DATA = [
     emoji: '🌵', 
     image: '/placeholders/Screenshots-20260105143526.png',
     ambientIntensity: 0.02,
-    lightIntensity: 0.02,
-    environmentPreset: 'sunset'
+    lightIntensity: 0.02
   },
   { 
     id: 'MarioMap', 
@@ -150,8 +135,7 @@ export const MAP_DATA = [
     emoji: '🍄', 
     image: '/placeholders/Screenshots-20260105143551.png',
     ambientIntensity: 0.6,
-    lightIntensity: 0.9,
-    environmentPreset: 'park'
+    lightIntensity: 0.9
   },
   { 
     id: 'MysteryShack', 
@@ -162,8 +146,7 @@ export const MAP_DATA = [
     emoji: '🏚️', 
     image: '/placeholders/Screenshots-20260105143806.png',
     ambientIntensity: 0.4,
-    lightIntensity: 0.6,
-    environmentPreset: 'forest'
+    lightIntensity: 0.6
   },
   { 
     id: 'JapaneseTown', 
@@ -174,8 +157,7 @@ export const MAP_DATA = [
     emoji: '⛩️', 
     image: '/placeholders/Screenshots-20260110090829.png',
     ambientIntensity: 0.5,
-    lightIntensity: 0.8,
-    environmentPreset: 'city'
+    lightIntensity: 0.8
   },
 ]
 

@@ -625,17 +625,9 @@ export default function Scene() {
             const mapConfig = MapComponents.MAP_DATA.find(m => m.id === selectedMap) || MapComponents.MAP_DATA[0]
             const ambient = mapConfig.ambientIntensity ?? 0.2
             const direct = mapConfig.lightIntensity ?? 0.2
-            const fogColor = mapConfig.fogColor ?? '#87CEEB'
-            const fogDensity = mapConfig.fogDensity ?? 0.01
-            const envPreset = mapConfig.environmentPreset ?? 'park'
-            const ambientColor = mapConfig.ambientColor
-            const lightColor = mapConfig.lightColor
-
             return (
               <>
-               <Environment preset={envPreset} environmentIntensity={direct * 0.5} />
-                
-                <ambientLight intensity={ambient} color={ambientColor} />
+                <ambientLight intensity={ambient} />
                 <directionalLight
                   position={[10, 20, 10]}
                   intensity={direct}
