@@ -335,31 +335,45 @@ export function GoalCelebrationEffect({ team }) {
 
 export function GameSkybox({ mapId }) {
   const { scene } = useThree()
+  const isNight = mapId === 'DesertMap' || mapId === 'CityAtNight'
   
   useEffect(() => {
-    if (mapId === 'DesertMap') {
+    if (isNight) {
       scene.background = new THREE.Color('#000000')
     } else {
       scene.background = new THREE.Color('#87CEEB')
     }
     scene.fog = null
-  }, [mapId, scene])
+  }, [isNight, scene])
   
-  return null
+  return (
+    <>
+      {isNight && (
+        <Stars radius={100} depth={50} count={5000} factor={4} saturation={0} fade speed={1} />
+      )}
+    </>
+  )
 }
 
 // Lightweight sky for mobile to replace the black void
 export function MobileSky({ mapId }) {
   const { scene } = useThree()
+  const isNight = mapId === 'DesertMap' || mapId === 'CityAtNight'
   
   useEffect(() => {
-    if (mapId === 'DesertMap') {
+    if (isNight) {
       scene.background = new THREE.Color('#000000')
     } else {
       scene.background = new THREE.Color('#87CEEB')
     }
     scene.fog = null
-  }, [mapId, scene])
+  }, [isNight, scene])
   
-  return null
+  return (
+    <>
+      {isNight && (
+        <Stars radius={100} depth={50} count={2000} factor={4} saturation={0} fade speed={1} />
+      )}
+    </>
+  )
 }
