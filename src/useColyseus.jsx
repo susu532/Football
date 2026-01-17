@@ -118,6 +118,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
     joinedRoom.onMessage('game-over', (message) => {
       console.log('Game Over:', message)
+      AudioManager.playSFX('endgame')
     })
 
     joinedRoom.onMessage('game-reset', (message) => {
