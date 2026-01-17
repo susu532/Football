@@ -24,7 +24,7 @@ import AudioManager from './AudioManager'
 
 import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
-import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect, MobileSky } from './Environment'
+import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect, MobileSky, StadiumLights } from './Environment'
 import { SmartCamera } from './SmartCamera'
 
 const CSS_ANIMATIONS = `
@@ -662,6 +662,9 @@ export default function Scene() {
 
           {/* Sky Theme */}
           {!isMobile ? <GameSkybox mapId={selectedMap || 'OceanFloor'} /> : <MobileSky mapId={selectedMap || 'OceanFloor'} />}
+
+          {/* Stadium Lights */}
+          <StadiumLights />
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual 

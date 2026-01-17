@@ -377,3 +377,59 @@ export function MobileSky({ mapId }) {
     </>
   )
 }
+
+export function StadiumLight({ position, rotationY = 0 }) {
+  const groupRef = useRef()
+  const lightRef = useRef()
+
+  return (
+    <group position={position} rotation={[0, rotationY, 0]}>
+      {/* Pole */}
+      <mesh position={[0, 6, 0]}>
+        <cylinderGeometry args={[0.15, 0.25, 12, 8]} />
+        <meshStandardMaterial color="#444" metalness={0.8} roughness={0.2} />
+      </mesh>
+
+      {/* Light Head */}
+      <group position={[0, 12, 0]} rotation={[0.5, 0, 0]}>
+        <mesh position={[0, 0, 0.3]}>
+          <boxGeometry args={[1.5, 1, 0.4]} />
+          <meshStandardMaterial color="#333" />
+        </mesh>
+        
+        {/* Glowing Face */}
+        <mesh position={[0, 0, 0.51]}>
+          <planeGeometry args={[1.3, 0.8]} />
+          <meshBasicMaterial color="#ffffff" />
+        </mesh>
+
+        {/* Spot Light */}
+        <spotLight
+          ref={lightRef}
+          position={[0, 0, 0.6]}
+          angle={Math.PI / 3}
+          penumbra={0.5}
+          intensity={50}
+          distance={40}
+          castShadow
+          shadow-mapSize={[512, 512]}
+        />
+      </group>
+    </group>
+  )
+}
+
+export function StadiumLights() {
+  return (
+    <group>
+      {/* 4 Corners */}
+      <StadiumLight position={[-16, 0, -11]} rotationY={Math.PI / 4} />
+      <StadiumLight position={[16, 0, -11]} rotationY={-Math.PI / 4} />
+      <StadiumLight position={[-16, 0, 11]} rotationY={(3 * Math.PI) / 4} />
+      <StadiumLight position={[16, 0, 11]} rotationY={(-3 * Math.PI) / 4} />
+      
+      {/* Extra ambient light for stadium vibe */}
+      <ambientLight intensity={0.4} />
+    </group>
+  )
+}
