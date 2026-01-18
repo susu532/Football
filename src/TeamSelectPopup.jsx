@@ -261,8 +261,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     return (
       <div className="lobby-center immersive-view">
         <div className="immersive-header">
-          <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
-          <h2>Private Match</h2>
+          <button className="btn-back-large" onClick={() => setView('home')}>◀ BACK TO LOBBY</button>
           <div className="spacer"></div>
         </div>
         
