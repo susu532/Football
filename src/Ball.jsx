@@ -531,6 +531,23 @@ export const ClientBallVisual = React.forwardRef(({
           predictedVelocity.current.z *= -PHYSICS.POST_RESTITUTION
           physicsPos.current.z = Math.sign(physicsPos.current.z) * goalPostZ
         }
+        
+        // Goal net side walls (solid walls connecting posts to back of net)
+        // These walls are at z = ±2.5, from x = ±10.8 to x = ±17.2
+        const GOAL_NET_SIDE_Z = 2.5 + 0.3 // Wall position + half thickness
+        const GOAL_POST_X = GOAL_LINE_X // 10.8
+        const isInGoalNetZone = Math.abs(physicsPos.current.x) > GOAL_POST_X && Math.abs(physicsPos.current.x) < GOAL_BACK_X
+        
+        if (isInGoalNetZone) {
+          // Enforce side wall collision at z = ±2.5
+          if (physicsPos.current.z > GOAL_NET_SIDE_Z - ballR) {
+            predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
+            physicsPos.current.z = GOAL_NET_SIDE_Z - ballR - 0.05
+          } else if (physicsPos.current.z < -(GOAL_NET_SIDE_Z - ballR)) {
+            predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
+            physicsPos.current.z = -(GOAL_NET_SIDE_Z - ballR - 0.05)
+          }
+        }
       }
       
       // Ceiling boundary
