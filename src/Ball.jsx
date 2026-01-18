@@ -137,20 +137,13 @@ const sweepSphereToSphere = (ballStart, ballEnd, playerPos, combinedRadius) => {
 }
 
 // Multi-step sweep for sub-frame precision
-const multiStepSweep = (ballStart, ballEnd, playerPos, combinedRadius, playerRadius) => {
+const multiStepSweep = (ballStart, ballEnd, playerPos, combinedRadius) => {
   for (let i = 0; i < PHYSICS.SWEEP_SUBSTEPS; i++) {
     const t0 = i / PHYSICS.SWEEP_SUBSTEPS
     const t1 = (i + 1) / PHYSICS.SWEEP_SUBSTEPS
     const subStart = ballStart.clone().lerp(ballEnd, t0)
     const subEnd = ballStart.clone().lerp(ballEnd, t1)
-    
-    // Use closest point on Z-segment for this sub-step
-    const zMult = PHYSICS.PLAYER_Z_MULT
-    const halfHeight = playerRadius * (zMult - 1)
-    const closestZ = Math.max(playerPos.z - halfHeight, Math.min(playerPos.z + halfHeight, subStart.z))
-    const closestPoint = new THREE.Vector3(playerPos.x, playerPos.y + playerRadius, closestZ)
-    
-    const hit = sweepSphereToSphere(subStart, subEnd, closestPoint, combinedRadius)
+    const hit = sweepSphereToSphere(subStart, subEnd, playerPos, combinedRadius)
     if (hit !== null) return t0 + hit * (t1 - t0)
   }
   return null
@@ -594,30 +587,20 @@ export const ClientBallVisual = React.forwardRef(({
           z: playerPos.z + (playerVel.z || 0) * dynamicLookahead
         }
         
-        // Distance checks with Z-stretched capsule logic
-        const zMult = PHYSICS.PLAYER_Z_MULT
-        const halfHeight = dynamicPlayerRadius * (zMult - 1)
-        
-        // Closest point on player's Z-oriented capsule segment to ball
-        const closestX = playerPos.x
-        const closestY = playerPos.y + dynamicPlayerRadius
-        const closestZ = Math.max(playerPos.z - halfHeight, Math.min(playerPos.z + halfHeight, ballPos.z))
-        
-        const dx = ballPos.x - closestX
-        const dy = ballPos.y - closestY
-        const dz = ballPos.z - closestZ
+        // Distance checks
+        const dx = ballPos.x - playerPos.x
+        const dy = ballPos.y - playerPos.y
+        const dz = ballPos.z - playerPos.z
         const currentDist = Math.sqrt(dx * dx + dy * dy + dz * dz)
         
-        // Future distance check
-        const fClosestZ = Math.max(futurePlayer.z - halfHeight, Math.min(futurePlayer.z + halfHeight, futureBall.z))
         const fdx = futureBall.x - futurePlayer.x
-        const fdy = futureBall.y - (futurePlayer.y + dynamicPlayerRadius)
-        const fdz = futureBall.z - fClosestZ
+        const fdy = futureBall.y - futurePlayer.y
+        const fdz = futureBall.z - futurePlayer.z
         const futureDist = Math.sqrt(fdx * fdx + fdy * fdy + fdz * fdz)
         
         // Sweep test
         const ballEnd = physicsPos.current.clone()
-        const sweepT = multiStepSweep(ballPos, ballEnd, playerPos, dynamicCombinedRadius, dynamicPlayerRadius)
+        const sweepT = multiStepSweep(ballPos, ballEnd, playerPos, dynamicCombinedRadius)
         
         const isCurrentCollision = currentDist < dynamicCombinedRadius
         const isAnticipatedCollision = futureDist < dynamicCombinedRadius && futureDist < currentDist && currentDist < dynamicCombinedRadius * 1.1
@@ -651,8 +634,8 @@ export const ClientBallVisual = React.forwardRef(({
             const contactPt = ballPos.clone().multiplyScalar(h1).add(ballEnd.clone().multiplyScalar(h2))
             
             const cx = contactPt.x - playerPos.x
-            const cy = contactPt.y - (playerPos.y + dynamicPlayerRadius)
-            const cz = contactPt.z - Math.max(playerPos.z - halfHeight, Math.min(playerPos.z + halfHeight, contactPt.z))
+            const cy = contactPt.y - playerPos.y
+            const cz = contactPt.z - playerPos.z
             contactDist = Math.sqrt(cx * cx + cy * cy + cz * cz)
             const invD = 1 / Math.max(contactDist, 0.1)
             nx = cx * invD
