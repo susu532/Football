@@ -172,6 +172,39 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
   // --- SUB-VIEWS ---
 
+  const [showHelp, setShowHelp] = useState(false)
+
+  const renderHelpModal = () => (
+    <div className="help-modal-overlay" onClick={() => setShowHelp(false)}>
+      <div className="help-modal-content" onClick={e => e.stopPropagation()}>
+        <h2>Controls</h2>
+        <div className="keybind-list">
+          <div className="keybind-item">
+            <span className="key-icon">W</span><span className="key-icon">A</span><span className="key-icon">S</span><span className="key-icon">D</span>
+            <span className="key-desc">Move</span>
+          </div>
+          <div className="keybind-item">
+            <span className="key-icon wide">SHIFT</span>
+            <span className="key-desc">Sprint</span>
+          </div>
+          <div className="keybind-item">
+            <span className="key-icon wide">SPACE</span>
+            <span className="key-desc">Jump</span>
+          </div>
+          <div className="keybind-item">
+            <span className="mouse-icon">🖱️ Left</span>
+            <span className="key-desc">Kick</span>
+          </div>
+          <div className="keybind-item">
+            <span className="mouse-icon">🖱️ Move</span>
+            <span className="key-desc">Camera</span>
+          </div>
+        </div>
+        <button className="lobby-btn btn-blue btn-small" onClick={() => setShowHelp(false)}>Close</button>
+      </div>
+    </div>
+  )
+
   const renderHomeView = () => (
     <div className="lobby-center">
       <div className="lobby-logo">
@@ -209,6 +242,9 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           </button>
         </div>
       </div>
+
+      <button className="btn-help" onClick={() => setShowHelp(true)}>?</button>
+      {showHelp && renderHelpModal()}
     </div>
   )
 
