@@ -599,6 +599,28 @@ export const ClientBallVisual = React.forwardRef(({
         const isSpeculative = futureDist < currentDist * 0.3 && futureDist < dynamicCombinedRadius * 0.8 && currentDist < dynamicCombinedRadius * 1.05
         
         if ((isCurrentCollision || isAnticipatedCollision || isSweepCollision || isSpeculative) && currentDist > 0.05) {
+          // === BALL CARRY / STABILITY MODE (Client Prediction) ===
+          const isOnHead = dy > PHYSICS.BALL_STABILITY_HEIGHT_MIN && ny > 0.5
+          const relSpeed = relVel.length()
+          const isLowVelocity = relSpeed < PHYSICS.BALL_STABILITY_VELOCITY_THRESHOLD
+          
+          if (isOnHead && isLowVelocity) {
+            // Match server carry logic: inherit player velocity and dampen vertical
+            predictedVelocity.current.x = (playerVel.x || 0)
+            predictedVelocity.current.z = (playerVel.z || 0)
+            predictedVelocity.current.y *= PHYSICS.BALL_STABILITY_DAMPING
+            
+            // Smoothly position above head
+            const targetY = playerPos.y + dynamicPlayerRadius + BALL_RADIUS + 0.05
+            physicsPos.current.y = THREE.MathUtils.damp(physicsPos.current.y, targetY, 10, subDt)
+            physicsPos.current.x = THREE.MathUtils.damp(physicsPos.current.x, playerPos.x, 10, subDt)
+            physicsPos.current.z = THREE.MathUtils.damp(physicsPos.current.z, playerPos.z, 10, subDt)
+            
+            lastFrameCollision.current = true
+            collisionThisFrame.current = true
+            continue // Skip normal impulse logic
+          }
+
           if (collisionConfidence.current < 0.85 && !isCurrentCollision) {
             lastFrameCollision.current = false
             continue
