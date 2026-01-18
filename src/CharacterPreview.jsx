@@ -69,19 +69,13 @@ function CharacterScene({ character, team }) {
   return (
     <>
       <Stage
-        intensity={0.6}
+        intensity={0.8}
         environment="city"
-        shadows={{ type: 'accumulative', bias: -0.001, intensity: 1.0 }}
+        shadows={false}
         adjustCamera={1.1}
       >
         <CharacterModel modelPath={modelPath} character={character} team={team} />
       </Stage>
-      
-      {/* Extra Environment for reflections */}
-      <Environment preset="city" />
-      
-      {/* Ground Shadows */}
-      <ContactShadows position={[0, -0.01, 0]} opacity={0.4} scale={10} blur={2.5} far={4} />
     </>
   )
 }
@@ -96,24 +90,17 @@ export default function CharacterPreview({ character, team = 'red', isSelected, 
     >
       <div className="character-preview-canvas">
         <Canvas 
-          shadows
           dpr={[1, 2]}
           gl={{ 
             antialias: true,
             outputColorSpace: THREE.SRGBColorSpace,
             toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.1
+            toneMappingExposure: 1.2
           }}
           camera={{ position: [0, 0, 4], fov: 45 }}
         >
           <Suspense fallback={null}>
             <CharacterScene character={character} team={team} />
-            
-            <EffectComposer multisampling={4}>
-              <SMAA />
-              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.4} />
-              {/* Vignette removed as requested */}
-            </EffectComposer>
           </Suspense>
         </Canvas>
       </div>

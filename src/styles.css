@@ -247,8 +247,7 @@ html,
   width: 400px;
   height: 400px;
   position: relative;
-  /* Add a spotlight effect */
-  background: radial-gradient(circle at center, rgba(255,255,255,0.2) 0%, transparent 70%);
+  background: transparent;
 }
 
 /* Buttons */
@@ -714,7 +713,7 @@ html,
 
 .customize-preview {
   flex: 1;
-  background: radial-gradient(circle at center, rgba(255,255,255,0.1), transparent 70%);
+  background: transparent;
   border-radius: 30px;
   position: relative;
   overflow: hidden; /* Keep 3D canvas inside */
