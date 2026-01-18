@@ -187,10 +187,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             <span className="key-icon">Z</span><span className="key-icon">Q</span><span className="key-icon">S</span><span className="key-icon">D</span>
             <span className="key-desc">Move (AZERTY)</span>
           </div>
-          <div className="keybind-item">
-            <span className="key-icon wide">SHIFT</span>
-            <span className="key-desc">Sprint</span>
-          </div>
+
           <div className="keybind-item">
             <span className="key-icon wide">SPACE</span>
             <span className="key-desc">Jump</span>
