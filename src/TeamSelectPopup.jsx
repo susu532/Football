@@ -77,9 +77,52 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     return true
   }
 
-  const handleJoin = () => {
+  const handleJoin = async () => {
     if (!validateInputs()) return
-    joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
+    if (!rooming) return
+
+    setIsRoomBusy(true)
+
+    // 1. Find best available room
+    // Filter for public rooms that are not full
+    const available = (rooming.availableRooms || []).filter(r => 
+      r.clients < r.maxClients && 
+      (!r.metadata || r.metadata.isPublic !== false) &&
+      (!r.metadata || r.metadata.mode === 'standard') // Only join standard matches
+    )
+
+    // Sort by creation time (newest first) to join the "last created"
+    // Assuming metadata.createdAt exists, otherwise rely on list order
+    available.sort((a, b) => {
+      const tA = a.metadata?.createdAt || 0
+      const tB = b.metadata?.createdAt || 0
+      return tB - tA
+    })
+
+    if (available.length > 0) {
+      // Join the best room
+      const targetRoom = available[0]
+      await handleJoinPublicRoom(targetRoom.roomId)
+    } else {
+      // 2. Create new random room
+      const randomMap = MAP_DATA[Math.floor(Math.random() * MAP_DATA.length)].id
+      const options = {
+        name: playerName.trim(),
+        team: selectedTeam,
+        character: selectedCharacter,
+        map: randomMap,
+        mode: 'standard'
+      }
+      
+      const joined = await rooming.createPublicRoom(options)
+      if (joined) {
+        joinGame(playerName.trim(), selectedTeam, selectedCharacter, randomMap)
+      } else {
+        showNotification('Failed to create room', 'error')
+      }
+    }
+    
+    setIsRoomBusy(false)
   }
 
   const handleCreatePublicRoom = async (mode = 'standard') => {
