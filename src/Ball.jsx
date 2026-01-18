@@ -491,16 +491,38 @@ export const ClientBallVisual = React.forwardRef(({
       const GOAL_BACK_X = 17.0 // Back of goal net
       const ballR = BALL_RADIUS
       
-      // Check if ball is in goal area (allowed zone)
+      // ===========================================
+      // 1. THICK BOUNDARY ENFORCEMENT (Logic Walls)
+      // ===========================================
+      
+      // CRITICAL FIX: Goal Mouth Gap Protection
+      // The gap is between Z = 2.5 (goal post) and Z = 3.0 (side wall)
+      const SIDE_WALL_Z = 2.5
+      const isInGapZone = Math.abs(physicsPos.current.z) > GOAL_HALF_WIDTH - ballR && 
+                          Math.abs(physicsPos.current.z) < SIDE_WALL_Z + ballR
+      const isNearGoalLine = Math.abs(physicsPos.current.x) > GOAL_LINE_X - 2.0 && 
+                             Math.abs(physicsPos.current.x) < GOAL_LINE_X + 2.0
+      const isBelowCrossbar = physicsPos.current.y < GOAL_HEIGHT
+      
+      if (isInGapZone && isNearGoalLine && isBelowCrossbar) {
+        // Ball is in the danger zone - block it
+        if (Math.abs(physicsPos.current.z) > GOAL_HALF_WIDTH) {
+          physicsPos.current.z = Math.sign(physicsPos.current.z) * (SIDE_WALL_Z + ballR + 0.1)
+          predictedVelocity.current.z *= -PHYSICS.POST_RESTITUTION
+        }
+      }
+      
+      // Check if ball is legitimately in goal area
       const inGoalZone = Math.abs(physicsPos.current.z) < GOAL_HALF_WIDTH - ballR && 
-                         physicsPos.current.y < GOAL_HEIGHT - ballR && 
+                         physicsPos.current.y < GOAL_HEIGHT && 
                          Math.abs(physicsPos.current.x) > GOAL_LINE_X
       
       // Z walls (always enforced)
-      if (physicsPos.current.z > ARENA_HALF_DEPTH - ballR) {
+      const zBuffer = 0.5
+      if (physicsPos.current.z > ARENA_HALF_DEPTH - ballR || (physicsPos.current.z > ARENA_HALF_DEPTH - ballR - zBuffer && predictedVelocity.current.z > 5)) {
         predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION 
         physicsPos.current.z = ARENA_HALF_DEPTH - ballR - 0.05
-      } else if (physicsPos.current.z < -(ARENA_HALF_DEPTH - ballR)) {
+      } else if (physicsPos.current.z < -(ARENA_HALF_DEPTH - ballR) || (physicsPos.current.z < -(ARENA_HALF_DEPTH - ballR) + zBuffer && predictedVelocity.current.z < -5)) {
         predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION 
         physicsPos.current.z = -(ARENA_HALF_DEPTH - ballR - 0.05)
       }
@@ -508,29 +530,53 @@ export const ClientBallVisual = React.forwardRef(({
       // X walls (with goal gaps)
       if (!inGoalZone) {
         // Outside goal zone - enforce arena walls
-        if (physicsPos.current.x > ARENA_HALF_WIDTH - ballR) {
+        const xBuffer = 0.5
+        if (physicsPos.current.x > ARENA_HALF_WIDTH - ballR || (physicsPos.current.x > ARENA_HALF_WIDTH - ballR - xBuffer && predictedVelocity.current.x > 5)) {
           predictedVelocity.current.x *= -PHYSICS.WALL_RESTITUTION 
           physicsPos.current.x = ARENA_HALF_WIDTH - ballR - 0.05
-        } else if (physicsPos.current.x < -(ARENA_HALF_WIDTH - ballR)) {
+        } else if (physicsPos.current.x < -(ARENA_HALF_WIDTH - ballR) || (physicsPos.current.x < -(ARENA_HALF_WIDTH - ballR) + xBuffer && predictedVelocity.current.x < -5)) {
           predictedVelocity.current.x *= -PHYSICS.WALL_RESTITUTION 
           physicsPos.current.x = -(ARENA_HALF_WIDTH - ballR - 0.05)
         }
+        
+        // CRITICAL: Block ball that's outside goal opening but past goal line
+        if (Math.abs(physicsPos.current.z) >= GOAL_HALF_WIDTH - ballR && 
+            Math.abs(physicsPos.current.x) > GOAL_LINE_X - ballR) {
+          const signX = Math.sign(physicsPos.current.x)
+          physicsPos.current.x = signX * (GOAL_LINE_X - ballR - 0.2)
+          predictedVelocity.current.x *= -PHYSICS.POST_RESTITUTION
+        }
       } else {
         // Inside goal zone - enforce goal back wall
-        if (physicsPos.current.x > GOAL_BACK_X - ballR) {
+        const goalBuffer = 0.3
+        if (physicsPos.current.x > GOAL_BACK_X - ballR || (physicsPos.current.x > GOAL_BACK_X - ballR - goalBuffer && predictedVelocity.current.x > 5)) {
           predictedVelocity.current.x *= -PHYSICS.GOAL_RESTITUTION 
           physicsPos.current.x = GOAL_BACK_X - ballR - 0.05
-        } else if (physicsPos.current.x < -(GOAL_BACK_X - ballR)) {
+        } else if (physicsPos.current.x < -(GOAL_BACK_X - ballR) || (physicsPos.current.x < -(GOAL_BACK_X - ballR) + goalBuffer && predictedVelocity.current.x < -5)) {
           predictedVelocity.current.x *= -PHYSICS.GOAL_RESTITUTION 
           physicsPos.current.x = -(GOAL_BACK_X - ballR - 0.05)
         }
         
-        // Goal side posts (enforce Z boundaries within goal area)
-        const goalPostZ = GOAL_HALF_WIDTH - ballR + 0.3
-        if (Math.abs(physicsPos.current.z) > goalPostZ) {
-          predictedVelocity.current.z *= -PHYSICS.POST_RESTITUTION
-          physicsPos.current.z = Math.sign(physicsPos.current.z) * goalPostZ
+        // Goal side nets (inside goal, prevent exiting through sides)
+        if (physicsPos.current.z > GOAL_HALF_WIDTH - ballR || (physicsPos.current.z > GOAL_HALF_WIDTH - ballR - goalBuffer && predictedVelocity.current.z > 5)) {
+          predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
+          physicsPos.current.z = GOAL_HALF_WIDTH - ballR - 0.05
+        } else if (physicsPos.current.z < -(GOAL_HALF_WIDTH - ballR) || (physicsPos.current.z < -(GOAL_HALF_WIDTH - ballR) + goalBuffer && predictedVelocity.current.z < -5)) {
+          predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
+          physicsPos.current.z = -(GOAL_HALF_WIDTH - ballR - 0.05)
         }
+      }
+
+      // ===========================================
+      // 2. GLOBAL SAFETY NET (Absolute Containment)
+      // ===========================================
+      const ABS_MAX_X = 18.0
+      const ABS_MAX_Z = 10.5
+      const ABS_MAX_Y = 11.0
+      
+      if (Math.abs(physicsPos.current.x) > ABS_MAX_X || Math.abs(physicsPos.current.z) > ABS_MAX_Z || physicsPos.current.y > ABS_MAX_Y || physicsPos.current.y < -1.0) {
+        physicsPos.current.set(0, 2, 0)
+        predictedVelocity.current.set(0, 0, 0)
       }
       
       // Ceiling boundary
