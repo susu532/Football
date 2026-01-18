@@ -511,12 +511,21 @@ export const ClientBallVisual = React.forwardRef(({
       if (isDeepInGoal) {
         // Ball is deep in goal extension (x > 14.5) - MUST be inside net width
         const goalSideLimit = GOAL_POST_Z - ballR
-        if (physicsPos.current.z > goalSideLimit) {
-          predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
-          physicsPos.current.z = goalSideLimit
-        } else if (physicsPos.current.z < -goalSideLimit) {
-          predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
-          physicsPos.current.z = -goalSideLimit
+        if (Math.abs(physicsPos.current.z) > goalSideLimit) {
+          // Ball is deep X but outside net Z -> Push back to arena X
+          // Handle both left and right goals correctly
+          const sign = Math.sign(physicsPos.current.x)
+          physicsPos.current.x = sign * (ARENA_HALF_WIDTH - ballR)
+          predictedVelocity.current.x *= -PHYSICS.WALL_RESTITUTION
+        } else {
+          // Ball is inside net width - enforce side walls
+          if (physicsPos.current.z > goalSideLimit) {
+            predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
+            physicsPos.current.z = goalSideLimit
+          } else if (physicsPos.current.z < -goalSideLimit) {
+            predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
+            physicsPos.current.z = -goalSideLimit
+          }
         }
       } else {
         // Ball is in main arena (or corner) - enforce arena walls
