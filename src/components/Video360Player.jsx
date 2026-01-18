@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 
-const Video360Player = ({ videoUrl, glbUrl }) => {
+const Video360Player = ({ videoUrl, glbUrl, scale = 10 }) => {
   const { scene } = useGLTF(glbUrl);
   const videoRef = useRef();
   const [videoTexture, setVideoTexture] = useState(null);
@@ -41,7 +41,7 @@ const Video360Player = ({ videoUrl, glbUrl }) => {
     }
   }, [scene, videoTexture]);
 
-  return <primitive object={scene} scale={[10, 10, 10]} position={[0, 0, 0]} />;
+  return <primitive object={scene} scale={[scale, scale, scale]} position={[0, 0, 0]} />;
 };
 
 export default Video360Player;

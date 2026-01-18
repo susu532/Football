@@ -670,12 +670,16 @@ export default function Scene() {
           <StadiumLights />
 
           {/* 360 Video Player - Only for AlAqsa360 map */}
-          {selectedMap === 'AlAqsa360' && (
-            <Video360Player 
-              videoUrl="/models/al_aqsa_360.mp4" 
-              glbUrl="/360_sphere.glb" 
-            />
-          )}
+          {selectedMap === 'AlAqsa360' && (() => {
+            const mapConfig = MapComponents.MAP_DATA.find(m => m.id === 'AlAqsa360')
+            return (
+              <Video360Player 
+                videoUrl="/models/al_aqsa_360.mp4" 
+                glbUrl="/360_sphere.glb" 
+                scale={mapConfig?.scale ?? 10}
+              />
+            )
+          })()}
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual 
