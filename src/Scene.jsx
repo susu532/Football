@@ -675,7 +675,6 @@ export default function Scene() {
             return (
               <Video360Player 
                 videoUrl="/models/al_aqsa_360.mp4" 
-                glbUrl="/360_sphere.glb" 
                 scale={mapConfig?.scale ?? 10}
               />
             )
