@@ -19,7 +19,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   const hasJoined = useStore((s) => s.hasJoined)
   const setPlayerCharacter = useStore((s) => s.setPlayerCharacter)
   
-  const [view, setView] = useState('home') // 'home', 'create', 'customize'
+  const [view, setView] = useState('home') // 'home', 'create', 'customize', 'gamemodes'
   
   const [selectedTeam, setSelectedTeam] = useState('red')
   const [selectedCharacter, setSelectedCharacter] = useState(() => {
@@ -29,6 +29,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     return 'cat'
   })
   const [selectedMap, setSelectedMap] = useState('OceanFloor')
+  const [difficulty, setDifficulty] = useState('medium')
   const [playerName, setPlayerName] = useState(defaultName || '')
   const [isRoomBusy, setIsRoomBusy] = useState(false)
   const [notifications, setNotifications] = useState([])
@@ -81,21 +82,30 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
   }
 
-  const handleCreatePublicRoom = async () => {
+  const handleCreatePublicRoom = async (mode = 'standard') => {
     if (!rooming) return
     if (!validateInputs()) return
     setIsRoomBusy(true)
-    const joined = await rooming.createPublicRoom({
+    
+    const options = {
       name: playerName.trim(),
       team: selectedTeam,
       character: selectedCharacter,
-      map: selectedMap
-    })
+      map: selectedMap,
+      mode: mode
+    }
+
+    if (mode === 'training') {
+      options.difficulty = difficulty
+      options.isPublic = false // Training rooms are private by default
+    }
+
+    const joined = await rooming.createPublicRoom(options)
     setIsRoomBusy(false)
     if (joined) {
       joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
     } else {
-      showNotification('Failed to create public room', 'error')
+      showNotification('Failed to create room', 'error')
     }
   }
 
@@ -183,7 +193,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
       <button 
         className="lobby-btn btn-yellow btn-large-action"
-        onClick={handleCreatePublicRoom}
+        onClick={() => handleCreatePublicRoom('standard')}
         disabled={isRoomBusy}
       >
         Start Match
@@ -249,6 +259,49 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     </div>
   )
 
+  const renderGameModesView = () => (
+    <div className="lobby-center immersive-view">
+      <div className="immersive-header">
+        <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
+        <h2>Game Modes</h2>
+        <div className="spacer"></div>
+      </div>
+
+      <div className="gamemodes-layout">
+        <div className="gamemode-card selected">
+          <div className="mode-icon">🤖</div>
+          <div className="mode-info">
+            <h3>Training</h3>
+            <p>1v1 against an AI Bot</p>
+          </div>
+        </div>
+
+        <div className="difficulty-selector">
+          <h3>Difficulty</h3>
+          <div className="difficulty-options">
+            {['easy', 'medium', 'hard'].map(d => (
+              <button 
+                key={d}
+                className={`difficulty-btn ${difficulty === d ? 'active' : ''}`}
+                onClick={() => setDifficulty(d)}
+              >
+                {d.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button 
+          className="lobby-btn btn-yellow btn-large-action"
+          onClick={() => handleCreatePublicRoom('training')}
+          disabled={isRoomBusy}
+        >
+          Start Training
+        </button>
+      </div>
+    </div>
+  )
+
   return (
     <div className="lobby-container">
       {/* Background Grid */}
@@ -290,6 +343,15 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             Customize
           </button>
 
+          <button 
+            className="lobby-btn btn-blue btn-gamemodes"
+            onClick={() => setView('gamemodes')}
+            style={{ marginTop: '10px' }}
+          >
+            <span className="btn-icon">🎮</span>
+            Game Modes
+          </button>
+
           <div className="news-panel">
             <div className="news-header">News ℹ️</div>
             <div className="news-item">
@@ -307,6 +369,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         {view === 'home' && renderHomeView()}
         {view === 'create' && renderCreateView()}
         {view === 'customize' && renderCustomizeView()}
+        {view === 'gamemodes' && renderGameModesView()}
 
         {/* Right Sidebar - Rooms */}
         <div className="lobby-sidebar-right">
