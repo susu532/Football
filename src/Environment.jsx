@@ -22,12 +22,11 @@ export function RapierArena() {
        <CuboidCollider args={[(pitchWidth + wallThickness * 2)/2, wallHeight/2, wallThickness/2]} position={[0, wallHeight/2, -pitchDepth/2 - wallThickness/2]} />
        <CuboidCollider args={[(pitchWidth + wallThickness * 2)/2, wallHeight/2, wallThickness/2]} position={[0, wallHeight/2, pitchDepth/2 + wallThickness/2]} />
        
-       {/* Side walls with goal gaps */}
-       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7.5/2]} position={[-pitchWidth/2 - wallThickness/2, wallHeight/2, -6.25]} />
-       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7.5/2]} position={[-pitchWidth/2 - wallThickness/2, wallHeight/2, 6.25]} />
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[-pitchWidth/2 - wallThickness/2, wallHeight/2, -6.5]} />
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[-pitchWidth/2 - wallThickness/2, wallHeight/2, 6.5]} />
        
-       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7.5/2]} position={[pitchWidth/2 + wallThickness/2, wallHeight/2, -6.25]} />
-       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7.5/2]} position={[pitchWidth/2 + wallThickness/2, wallHeight/2, 6.25]} />
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[pitchWidth/2 + wallThickness/2, wallHeight/2, -6.5]} />
+       <CuboidCollider args={[wallThickness/2, wallHeight/2, 7/2]} position={[pitchWidth/2 + wallThickness/2, wallHeight/2, 6.5]} />
        
        <CuboidCollider args={[wallThickness/2, wallHeight/2, (goalWidth+2)/2]} position={[-13 - wallThickness, wallHeight/2, 0]} />
        <CuboidCollider args={[wallThickness/2, wallHeight/2, (goalWidth+2)/2]} position={[13 + wallThickness, wallHeight/2, 0]} />
