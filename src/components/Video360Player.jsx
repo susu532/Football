@@ -24,7 +24,7 @@ const Video360Player = ({ videoUrl, scale = 50 }) => {
       args={[10, 64, 64]} 
       scale={[scale, scale, scale]} 
       position={[0, 0, 0]} 
-      rotation={[0, Math.PI / 2, Math.PI / 2 ]}
+      rotation={[0, -Math.PI / 2, Math.PI / 2 ]}
     >
       <meshBasicMaterial 
         map={texture} 
