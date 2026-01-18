@@ -183,6 +183,23 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     }
   }
 
+  const handleJoinPrivateCode = async (code) => {
+    if (!rooming) return
+    if (!validateInputs()) return
+    setIsRoomBusy(true)
+    const joined = await rooming.joinPrivateRoomByCode(code, {
+      name: playerName.trim(),
+      team: selectedTeam,
+      character: selectedCharacter
+    })
+    setIsRoomBusy(false)
+    if (joined) {
+      joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
+    } else {
+      showNotification('Invalid or expired code', 'error')
+    }
+  }
+
   // --- SUB-VIEWS ---
 
   const [showHelp, setShowHelp] = useState(false)
@@ -266,8 +283,8 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     const [joinCode, setJoinCode] = useState('')
     
     const handleKeyDown = (e) => {
-      if (e.key === 'Enter' && joinCode.trim()) {
-        handleJoinPublicRoom(joinCode.trim())
+      if (e.key === 'Enter' && joinCode.trim().length === 4) {
+        handleJoinPrivateCode(joinCode.trim())
       }
     }
 
@@ -281,26 +298,26 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         
         <div className="join-private-container">
           <div className="input-valley">
-            <div className="valley-label">ENTER CODE</div>
+            <div className="valley-label">ENTER 4-CHAR CODE</div>
             <input 
               type="text" 
               className="valley-input"
-              placeholder="A1B2"
+              placeholder="----"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               onKeyDown={handleKeyDown}
               autoFocus
-              maxLength={10}
+              maxLength={4}
             />
           </div>
           
           <button 
             className="lobby-btn btn-green btn-large-action"
-            onClick={() => handleJoinPublicRoom(joinCode.trim())}
-            disabled={!joinCode.trim() || isRoomBusy}
+            onClick={() => handleJoinPrivateCode(joinCode.trim())}
+            disabled={joinCode.trim().length !== 4 || isRoomBusy}
             style={{ marginTop: '40px', minWidth: '200px' }}
           >
-            JOIN
+            JOIN MATCH
           </button>
         </div>
       </div>
