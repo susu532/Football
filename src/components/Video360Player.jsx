@@ -2,7 +2,7 @@ import React, { useLayoutEffect } from 'react';
 import { useVideoTexture, Sphere } from '@react-three/drei';
 import * as THREE from 'three';
 
-const Video360Player = ({ videoUrl, scale = 30 }) => {
+const Video360Player = ({ videoUrl, scale = 5 }) => {
   console.log("Video360Player: Rendering with", { videoUrl, scale });
   
   const texture = useVideoTexture(videoUrl, {
