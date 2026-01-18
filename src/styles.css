@@ -604,19 +604,76 @@ html,
 
 /* Map Selection Grid */
 .map-selection-grid {
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
   gap: 30px;
-  justify-content: center;
-  align-items: flex-start; /* Align to top */
-  flex-wrap: wrap;
-  flex: 1;
-  overflow-y: auto; /* Enable scrolling */
-  min-height: 0; /* Critical for flex child scrolling */
   padding: 20px;
   width: 100%;
+  overflow-y: auto;
+  min-height: 0;
 }
 
-/* ... (map card styles unchanged) ... */
+.map-card-large {
+  height: 250px;
+  background-size: cover;
+  background-position: center;
+  border-radius: 20px;
+  position: relative;
+  cursor: pointer;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 4px solid rgba(255,255,255,0.1);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  overflow: hidden;
+}
+
+.map-card-large:hover {
+  transform: translateY(-5px) scale(1.02);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.5);
+  border-color: rgba(255,255,255,0.3);
+}
+
+.map-card-large.selected {
+  border-color: #f2c94c;
+  box-shadow: 0 0 30px rgba(242, 201, 76, 0.4);
+  transform: scale(1.05);
+}
+
+.map-card-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 20px;
+  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.map-name {
+  font-size: 1.8rem;
+  font-weight: 900;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.selected-badge {
+  background: #f2c94c;
+  color: #000;
+  padding: 5px 15px;
+  border-radius: 20px;
+  font-weight: 900;
+  font-size: 0.9rem;
+  box-shadow: 0 4px 10px rgba(242, 201, 76, 0.3);
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+@keyframes popIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
 
 .btn-large-action {
   font-size: 1.5rem;

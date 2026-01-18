@@ -202,15 +202,47 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           </button>
           <button 
             className="lobby-btn btn-blue btn-small"
-            onClick={() => rooming?.refreshAvailableRooms()}
+            onClick={() => setView('join')}
             disabled={isRoomBusy}
           >
-            Refresh
+            Join
           </button>
         </div>
       </div>
     </div>
   )
+
+  const renderJoinView = () => {
+    const [joinCode, setJoinCode] = useState('')
+    
+    return (
+      <div className="lobby-center immersive-view">
+        <div className="immersive-header">
+          <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
+          <h2>Join Match</h2>
+          <div className="spacer"></div>
+        </div>
+        
+        <div className="join-input-container">
+          <input 
+            type="text" 
+            className="lobby-name-input large-input"
+            placeholder="Enter Room Code"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+          />
+          
+          <button 
+            className="lobby-btn btn-green btn-large-action"
+            onClick={() => handleJoinPublicRoom(joinCode)}
+            disabled={!joinCode || isRoomBusy}
+          >
+            Join Match
+          </button>
+        </div>
+      </div>
+    )
+  }
 
   const renderCreateView = () => (
     <div className="lobby-center immersive-view">
