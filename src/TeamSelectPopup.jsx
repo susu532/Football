@@ -451,7 +451,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
         <button 
           className="lobby-btn btn-yellow btn-large-action"
-          onClick={() => handleCreatePublicRoom('training')}
+          onClick={() => handleCreateRoom('training', false)}
           disabled={isRoomBusy}
         >
           Start Training
