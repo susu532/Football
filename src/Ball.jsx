@@ -504,12 +504,12 @@ export const ClientBallVisual = React.forwardRef(({
       const absX = Math.abs(physicsPos.current.x)
       const absZ = Math.abs(physicsPos.current.z)
       const isPastGoalLine = absX > GOAL_LINE_X
-      const isInGoalNetArea = isPastGoalLine && absX < GOAL_BACK_X
+      const isDeepInGoal = absX > ARENA_HALF_WIDTH
       const isInGoalOpening = absZ < GOAL_POST_Z && physicsPos.current.y < GOAL_HEIGHT && isPastGoalLine
       
       // === Z AXIS ENFORCEMENT ===
-      if (isInGoalNetArea) {
-        // Ball is inside goal net - enforce goal side walls at z = ±2.5
+      if (isDeepInGoal) {
+        // Ball is deep in goal extension (x > 14.5) - MUST be inside net width
         const goalSideLimit = GOAL_POST_Z - ballR
         if (physicsPos.current.z > goalSideLimit) {
           predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
@@ -519,7 +519,7 @@ export const ClientBallVisual = React.forwardRef(({
           physicsPos.current.z = -goalSideLimit
         }
       } else {
-        // Ball is in main arena - enforce arena walls
+        // Ball is in main arena (or corner) - enforce arena walls
         if (physicsPos.current.z > maxZ) {
           predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION
           physicsPos.current.z = maxZ
@@ -530,7 +530,7 @@ export const ClientBallVisual = React.forwardRef(({
       }
       
       // === X AXIS ENFORCEMENT ===
-      if (isInGoalOpening || isInGoalNetArea) {
+      if (isInGoalOpening || isDeepInGoal) {
         // Ball is in goal area - clamp to goal back wall
         const goalBackLimit = GOAL_BACK_X - ballR
         if (physicsPos.current.x > goalBackLimit) {
