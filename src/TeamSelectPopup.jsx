@@ -181,6 +181,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
       <div className="lobby-character-stage">
         <CharacterPreview 
           character={selectedCharacter} 
+          team={selectedTeam}
           isSelected={true} 
           onSelect={() => {}}
         />
@@ -266,6 +267,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         <div className="customize-preview">
           <CharacterPreview 
             character={selectedCharacter} 
+            team={selectedTeam}
             isSelected={true} 
             onSelect={() => {}}
           />
