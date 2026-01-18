@@ -19,6 +19,8 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   const hasJoined = useStore((s) => s.hasJoined)
   const setPlayerCharacter = useStore((s) => s.setPlayerCharacter)
   
+  const [view, setView] = useState('home') // 'home', 'create', 'customize'
+  
   const [selectedTeam, setSelectedTeam] = useState('red')
   const [selectedCharacter, setSelectedCharacter] = useState(() => {
     if (typeof window !== 'undefined') {
@@ -28,7 +30,6 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   })
   const [selectedMap, setSelectedMap] = useState('OceanFloor')
   const [playerName, setPlayerName] = useState(defaultName || '')
-  const [showCustomize, setShowCustomize] = useState(false)
   const [isRoomBusy, setIsRoomBusy] = useState(false)
   const [notifications, setNotifications] = useState([])
 
@@ -115,6 +116,139 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     }
   }
 
+  // --- SUB-VIEWS ---
+
+  const renderHomeView = () => (
+    <div className="lobby-center">
+      <div className="lobby-logo">
+        OMNI<span className="logo-highlight">PITCH</span>
+      </div>
+      
+      <div className="lobby-character-stage">
+        <CharacterPreview 
+          character={selectedCharacter} 
+          isSelected={true} 
+          onSelect={() => {}}
+        />
+      </div>
+
+      <div className="play-controls">
+        <button className="lobby-btn btn-yellow btn-play" onClick={handleJoin}>
+          <span className="play-icon">▶</span> PLAY
+        </button>
+        
+        <div className="sub-controls">
+          <button 
+            className="lobby-btn btn-blue btn-small"
+            onClick={() => setView('create')}
+            disabled={isRoomBusy}
+          >
+            Create
+          </button>
+          <button 
+            className="lobby-btn btn-blue btn-small"
+            onClick={() => rooming?.refreshAvailableRooms()}
+            disabled={isRoomBusy}
+          >
+            Refresh
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderCreateView = () => (
+    <div className="lobby-center immersive-view">
+      <div className="immersive-header">
+        <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
+        <h2>Select Arena</h2>
+        <div className="spacer"></div>
+      </div>
+      
+      <div className="map-selection-grid">
+        {MAP_DATA.map(map => (
+          <div 
+            key={map.id} 
+            className={`map-card-large ${selectedMap === map.id ? 'selected' : ''}`}
+            onClick={() => setSelectedMap(map.id)}
+            style={{ backgroundImage: `url(${map.image})` }}
+          >
+            <div className="map-card-content">
+              <div className="map-name">{map.name}</div>
+              {selectedMap === map.id && <div className="selected-badge">SELECTED</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button 
+        className="lobby-btn btn-yellow btn-large-action"
+        onClick={handleCreatePublicRoom}
+        disabled={isRoomBusy}
+      >
+        Start Match
+      </button>
+    </div>
+  )
+
+  const renderCustomizeView = () => (
+    <div className="lobby-center immersive-view">
+      <div className="immersive-header">
+        <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
+        <h2>Customize</h2>
+        <div className="spacer"></div>
+      </div>
+
+      <div className="customize-layout">
+        <div className="customize-preview">
+          <CharacterPreview 
+            character={selectedCharacter} 
+            isSelected={true} 
+            onSelect={() => {}}
+          />
+        </div>
+
+        <div className="customize-options">
+          <div className="option-group">
+            <h3>Team Color</h3>
+            <div className="option-row">
+              <button 
+                className={`option-btn red ${selectedTeam === 'red' ? 'active' : ''}`}
+                onClick={() => setSelectedTeam('red')}
+              >
+                Red Team
+              </button>
+              <button 
+                className={`option-btn blue ${selectedTeam === 'blue' ? 'active' : ''}`}
+                onClick={() => setSelectedTeam('blue')}
+              >
+                Blue Team
+              </button>
+            </div>
+          </div>
+
+          <div className="option-group">
+            <h3>Character Model</h3>
+            <div className="option-row">
+              <button 
+                className={`option-btn ${selectedCharacter === 'cat' ? 'active' : ''}`}
+                onClick={() => handleCharacterSelect('cat')}
+              >
+                Cat Striker
+              </button>
+              <button 
+                className={`option-btn ${selectedCharacter === 'car' ? 'active' : ''}`}
+                onClick={() => handleCharacterSelect('car')}
+              >
+                Rocket Car
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+
   return (
     <div className="lobby-container">
       {/* Background Grid */}
@@ -150,42 +284,11 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         <div className="lobby-sidebar-left">
           <button 
             className="lobby-btn btn-orange btn-customize"
-            onClick={() => setShowCustomize(!showCustomize)}
+            onClick={() => setView('customize')}
           >
             <span className="btn-icon">🛠️</span>
             Customize
           </button>
-
-          {showCustomize && (
-            <div className="customize-panel">
-              <div className="panel-section">
-                <h3>Team</h3>
-                <div className="team-toggles">
-                  <button 
-                    className={`team-toggle red ${selectedTeam === 'red' ? 'active' : ''}`}
-                    onClick={() => setSelectedTeam('red')}
-                  >Red</button>
-                  <button 
-                    className={`team-toggle blue ${selectedTeam === 'blue' ? 'active' : ''}`}
-                    onClick={() => setSelectedTeam('blue')}
-                  >Blue</button>
-                </div>
-              </div>
-              <div className="panel-section">
-                <h3>Character</h3>
-                <div className="char-toggles">
-                  <button 
-                    className={`char-toggle ${selectedCharacter === 'cat' ? 'active' : ''}`}
-                    onClick={() => handleCharacterSelect('cat')}
-                  >Cat</button>
-                  <button 
-                    className={`char-toggle ${selectedCharacter === 'car' ? 'active' : ''}`}
-                    onClick={() => handleCharacterSelect('car')}
-                  >Car</button>
-                </div>
-              </div>
-            </div>
-          )}
 
           <div className="news-panel">
             <div className="news-header">News ℹ️</div>
@@ -200,43 +303,10 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           </div>
         </div>
 
-        {/* Center Character & Play */}
-        <div className="lobby-center">
-          <div className="lobby-logo">
-            OMNI<span className="logo-highlight">PITCH</span>
-          </div>
-          
-          <div className="lobby-character-stage">
-            <CharacterPreview 
-              character={selectedCharacter} 
-              isSelected={true} 
-              onSelect={() => {}}
-            />
-          </div>
-
-          <div className="play-controls">
-            <button className="lobby-btn btn-yellow btn-play" onClick={handleJoin}>
-              <span className="play-icon">▶</span> PLAY
-            </button>
-            
-            <div className="sub-controls">
-              <button 
-                className="lobby-btn btn-blue btn-small"
-                onClick={handleCreatePublicRoom}
-                disabled={isRoomBusy}
-              >
-                Create
-              </button>
-              <button 
-                className="lobby-btn btn-blue btn-small"
-                onClick={() => rooming?.refreshAvailableRooms()}
-                disabled={isRoomBusy}
-              >
-                Refresh
-              </button>
-            </div>
-          </div>
-        </div>
+        {/* Center Content (Dynamic View) */}
+        {view === 'home' && renderHomeView()}
+        {view === 'create' && renderCreateView()}
+        {view === 'customize' && renderCustomizeView()}
 
         {/* Right Sidebar - Rooms */}
         <div className="lobby-sidebar-right">
@@ -289,4 +359,3 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     </div>
   )
 }
-

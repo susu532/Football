@@ -555,3 +555,206 @@ html,
 .character-preview-name {
   display: none; /* Hide name in the stage view */
 }
+
+/* =========================================
+   IMMERSIVE VIEWS (Create / Customize)
+   ========================================= */
+
+.immersive-view {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  animation: fadeInView 0.3s ease-out;
+}
+
+@keyframes fadeInView {
+  from { opacity: 0; transform: scale(0.98); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.immersive-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+  width: 100%;
+}
+
+.immersive-header h2 {
+  font-size: 2.5rem;
+  font-weight: 900;
+  text-transform: uppercase;
+  text-shadow: 0 4px 0 rgba(0,0,0,0.2);
+  margin: 0;
+  flex: 1;
+  text-align: center;
+}
+
+.btn-back {
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  color: #fff;
+  padding: 10px 20px;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-back:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateX(-5px);
+}
+
+.spacer {
+  width: 80px; /* Balance the back button */
+}
+
+/* Map Selection Grid */
+.map-selection-grid {
+  display: flex;
+  gap: 30px;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  flex: 1;
+  overflow-y: auto;
+  padding: 20px;
+}
+
+.map-card-large {
+  width: 300px;
+  height: 200px;
+  border-radius: 24px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  cursor: pointer;
+  border: 4px solid rgba(255,255,255,0.2);
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+.map-card-large:hover {
+  transform: scale(1.05) translateY(-10px);
+  border-color: #fff;
+  box-shadow: 0 20px 40px rgba(0,0,0,0.4);
+}
+
+.map-card-large.selected {
+  border-color: #f2c94c;
+  box-shadow: 0 0 0 4px #f2c94c, 0 20px 40px rgba(0,0,0,0.4);
+  transform: scale(1.1);
+  z-index: 10;
+}
+
+.map-card-content {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: 20px;
+  border-radius: 20px;
+}
+
+.map-name {
+  font-size: 1.5rem;
+  font-weight: 900;
+  text-transform: uppercase;
+}
+
+.selected-badge {
+  background: #f2c94c;
+  color: #000;
+  padding: 5px 10px;
+  border-radius: 8px;
+  font-weight: 900;
+  font-size: 0.8rem;
+  align-self: flex-start;
+  margin-top: 5px;
+}
+
+.btn-large-action {
+  font-size: 2rem;
+  padding: 20px 60px;
+  border-radius: 30px;
+  margin-top: 20px;
+  align-self: center;
+}
+
+/* Customize Layout */
+.customize-layout {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  gap: 40px;
+}
+
+.customize-preview {
+  flex: 1;
+  background: radial-gradient(circle at center, rgba(255,255,255,0.1), transparent 70%);
+  border-radius: 30px;
+}
+
+.customize-options {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 30px;
+  justify-content: center;
+}
+
+.option-group h3 {
+  font-size: 1.5rem;
+  color: #f2c94c;
+  margin-bottom: 15px;
+  text-transform: uppercase;
+}
+
+.option-row {
+  display: flex;
+  gap: 20px;
+}
+
+.option-btn {
+  flex: 1;
+  padding: 20px;
+  background: rgba(255,255,255,0.1);
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 20px;
+  color: #fff;
+  font-size: 1.2rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.option-btn:hover {
+  background: rgba(255,255,255,0.2);
+  transform: translateY(-5px);
+}
+
+.option-btn.active {
+  background: #fff;
+  color: #000;
+  border-color: #fff;
+  box-shadow: 0 0 20px rgba(255,255,255,0.3);
+}
+
+.option-btn.red.active {
+  background: #ff6b6b;
+  color: #fff;
+  border-color: #ff6b6b;
+  box-shadow: 0 0 20px rgba(255, 107, 107, 0.4);
+}
+
+.option-btn.blue.active {
+  background: #2d9cdb;
+  color: #fff;
+  border-color: #2d9cdb;
+  box-shadow: 0 0 20px rgba(45, 156, 219, 0.4);
+}
