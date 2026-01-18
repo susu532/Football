@@ -266,27 +266,29 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           <div className="spacer"></div>
         </div>
         
-        <div className="join-container-minimal">
-          <div className="join-label">ENTER PRIVATE CODE</div>
-          <input 
-            type="text" 
-            className="large-private-input"
-            placeholder="----"
-            value={joinCode}
-            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
-            onKeyDown={handleKeyDown}
-            autoFocus
-            maxLength={10}
-          />
+        <div className="join-private-container">
+          <div className="input-valley">
+            <div className="valley-label">ENTER CODE</div>
+            <input 
+              type="text" 
+              className="valley-input"
+              placeholder="A1B2"
+              value={joinCode}
+              onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+              onKeyDown={handleKeyDown}
+              autoFocus
+              maxLength={10}
+            />
+          </div>
+          
           <button 
             className="lobby-btn btn-green btn-large-action"
             onClick={() => handleJoinPublicRoom(joinCode.trim())}
             disabled={!joinCode.trim() || isRoomBusy}
-            style={{ marginTop: '20px' }}
+            style={{ marginTop: '40px', minWidth: '200px' }}
           >
             JOIN
           </button>
-          <div className="join-hint">Press ENTER to join</div>
         </div>
       </div>
     )
@@ -452,25 +454,29 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
       {/* Top Bar */}
       <div className="lobby-top-bar">
-        <div className="level-badge">
-          <div className="level-circle">1</div>
-          <div className="level-text">Level Up!</div>
-        </div>
-        
-        <div className="player-identity-pill">
-          <input 
-            type="text" 
-            className="lobby-name-input"
-            value={playerName}
-            onChange={(e) => setPlayerName(e.target.value)}
-            maxLength={15}
-          />
-          <button className="lobby-dice-btn" onClick={() => setPlayerName(generateRandomName())}>🎲</button>
+        <div className="profile-section">
+          <div className="level-badge">
+            <div className="level-circle">1</div>
+          </div>
+          
+          <div className="player-identity">
+            <input 
+              type="text" 
+              className="lobby-name-input"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value)}
+              maxLength={15}
+            />
+            <button className="lobby-dice-btn" onClick={() => setPlayerName(generateRandomName())}>🎲</button>
+          </div>
         </div>
 
-        <div className="currency-pill">
-          <span className="coin-icon">🪙</span>
-          <span className="coin-amount">0</span>
+        <div className="top-right-section">
+          <div className="currency-pill">
+            <span className="coin-icon">🪙</span>
+            <span className="coin-amount">0</span>
+          </div>
+          <button className="btn-settings" onClick={() => showNotification('Settings coming soon!')}>⚙️</button>
         </div>
       </div>
 
