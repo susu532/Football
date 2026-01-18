@@ -30,9 +30,11 @@ class InputManagerClass {
     
     this._onKeyDown = this.handleKeyDown.bind(this)
     this._onKeyUp = this.handleKeyUp.bind(this)
+    this._onMouseDown = this.handleMouseDown.bind(this)
     
     window.addEventListener('keydown', this._onKeyDown)
     window.addEventListener('keyup', this._onKeyUp)
+    window.addEventListener('mousedown', this._onMouseDown)
     this.isInitialized = true
   }
 
@@ -41,7 +43,21 @@ class InputManagerClass {
     
     window.removeEventListener('keydown', this._onKeyDown)
     window.removeEventListener('keyup', this._onKeyUp)
+    window.removeEventListener('mousedown', this._onMouseDown)
     this.isInitialized = false
+  }
+
+  handleMouseDown(e) {
+    // Left click only (button 0)
+    if (e.button === 0) {
+      if (this.isInputFocused()) return
+      
+      this.kickPressed = true
+      this.kickTimestamp = typeof performance !== 'undefined' ? performance.now() : Date.now()
+      
+      const timestamp = this.kickTimestamp
+      this.inputQueue.push({ type: 'down', key: 'mouse0', code: 'mouse0', timestamp })
+    }
   }
 
   handleKeyDown(e) {

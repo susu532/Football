@@ -10,8 +10,8 @@ function CharacterModel({ modelPath, character, team }) {
   
   const characterScale = character === 'cat' ? 0.05 : 0.005
   
-  // Clone scene on every team change to ensure fresh materials
-  const clonedScene = React.useMemo(() => scene.clone(), [scene, team])
+  // Clone scene once
+  const clonedScene = React.useMemo(() => scene.clone(), [scene])
 
   // Update materials based on team
   useEffect(() => {
@@ -23,21 +23,27 @@ function CharacterModel({ modelPath, character, team }) {
         child.receiveShadow = true
         
         if (child.material) {
-          // Clone material to avoid affecting other instances
-          child.material = child.material.clone()
+          // Clone material if it's the first time or if we need a fresh one
+          // We can just clone it every time for safety, but let's be efficient
+          if (!child.userData.materialCloned) {
+            child.material = child.material.clone()
+            child.userData.materialCloned = true
+          }
           
           // Apply team color to base color
-          child.material.color = teamColor
+          child.material.color.copy(teamColor)
           
           // Enhance material properties
           if (character === 'car') {
-            child.material.metalness = 0.6
-            child.material.roughness = 0.2
-            child.material.envMapIntensity = 1.5
+            child.material.metalness = 0.7
+            child.material.roughness = 0.15
+            child.material.envMapIntensity = 2.0
           } else {
-            child.material.metalness = 0.1
-            child.material.roughness = 0.8
+            child.material.metalness = 0.0
+            child.material.roughness = 0.7
           }
+          
+          child.material.needsUpdate = true
         }
       }
     })
@@ -46,7 +52,7 @@ function CharacterModel({ modelPath, character, team }) {
   useFrame((state, delta) => {
     if (groupRef.current) {
       // Slow rotation for showcase
-      groupRef.current.rotation.y += delta * 0.5
+      groupRef.current.rotation.y += delta * 0.4
     }
   })
   
@@ -63,10 +69,10 @@ function CharacterScene({ character, team }) {
   return (
     <>
       <Stage
-        intensity={0.5}
+        intensity={0.6}
         environment="city"
-        shadows={{ type: 'accumulative', bias: -0.001, intensity: Math.PI }}
-        adjustCamera={1.2}
+        shadows={{ type: 'accumulative', bias: -0.001, intensity: 1.0 }}
+        adjustCamera={1.1}
       >
         <CharacterModel modelPath={modelPath} character={character} team={team} />
       </Stage>
@@ -75,7 +81,7 @@ function CharacterScene({ character, team }) {
       <Environment preset="city" />
       
       {/* Ground Shadows */}
-      <ContactShadows position={[0, -0.01, 0]} opacity={0.5} scale={10} blur={2} far={4} />
+      <ContactShadows position={[0, -0.01, 0]} opacity={0.4} scale={10} blur={2.5} far={4} />
     </>
   )
 }
@@ -93,20 +99,20 @@ export default function CharacterPreview({ character, team = 'red', isSelected, 
           shadows
           dpr={[1, 2]}
           gl={{ 
-            antialias: false,
+            antialias: true,
             outputColorSpace: THREE.SRGBColorSpace,
             toneMapping: THREE.ACESFilmicToneMapping,
-            toneMappingExposure: 1.0
+            toneMappingExposure: 1.1
           }}
-          camera={{ position: [0, 0, 4], fov: 50 }}
+          camera={{ position: [0, 0, 4], fov: 45 }}
         >
           <Suspense fallback={null}>
             <CharacterScene character={character} team={team} />
             
             <EffectComposer multisampling={4}>
               <SMAA />
-              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.8} radius={0.4} />
-              <Vignette eskil={false} offset={0.1} darkness={0.3} />
+              <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.4} />
+              {/* Vignette removed as requested */}
             </EffectComposer>
           </Suspense>
         </Canvas>
