@@ -42,12 +42,6 @@ export function RapierArena() {
        
        <CuboidCollider args={[pitchWidth/2, 0.1, pitchDepth/2]} position={[0, wallHeight, 0]} />
 
-         <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[13, 0, -2.4]} />
-         <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[-13, 0, -2.4]} />
-         <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[13, 0, 2.4]} />
-         <CuboidCollider args={[4/2, 13/2, 0.2/2]} position={[-13, 0, 2.4]} />
-        <CuboidCollider args={[5/2, 9/2, 5.5/2]} position={[10.8, 8.7, 0]} />
-        <CuboidCollider args={[5/2, 9/2, 5.5/2]} position={[-10.8, 8.7, 0]} />
     </RigidBody>
   )
 }
