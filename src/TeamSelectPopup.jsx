@@ -254,6 +254,14 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
               </button>
             </div>
           </div>
+
+          <button 
+            className="lobby-btn btn-yellow btn-large-action"
+            onClick={() => setView('home')}
+            style={{ marginTop: 'auto' }}
+          >
+            Done
+          </button>
         </div>
       </div>
     </div>
