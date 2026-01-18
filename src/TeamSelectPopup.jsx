@@ -237,6 +237,248 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           <button 
             className="lobby-btn btn-blue btn-small"
             onClick={() => setView('join')}
+            disabled={isRoomBusy}
+          >
+            Join Private
+          </button>
+        </div>
+      </div>
+
+      <div className="lobby-bottom-controls">
+        <button className="btn-settings-small" onClick={() => alert('Settings coming soon!')} title="Settings">⚙️</button>
+        <button className="btn-help-small" onClick={() => setShowHelp(true)} title="How to Play">?</button>
+      </div>
+      {showHelp && renderHelpModal()}
+    </div>
+  )
+
+  const renderJoinView = () => {
+    const [joinCode, setJoinCode] = useState('')
+    
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && joinCode.trim()) {
+        handleJoinPublicRoom(joinCode.trim())
+      }
+    }
+
+    return (
+      <div className="lobby-center immersive-view">
+        <div className="immersive-header">
+          <button className="btn-back-large" onClick={() => setView('home')}>◀ BACK TO LOBBY</button>
+          <div className="spacer"></div>
+        </div>
+        
+        <div className="join-container-minimal">
+          <div className="join-label">ENTER PRIVATE CODE</div>
+          <input 
+            type="text" 
+            className="large-private-input"
+            placeholder="----"
+            value={joinCode}
+            onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            onKeyDown={handleKeyDown}
+            autoFocus
+            maxLength={10}
+          />
+          <button 
+            className="lobby-btn btn-green btn-large-action"
+            onClick={() => handleJoinPublicRoom(joinCode.trim())}
+            disabled={!joinCode.trim() || isRoomBusy}
+            style={{ marginTop: '20px' }}
+          >
+            JOIN
+          </button>
+          <div className="join-hint">Press ENTER to join</div>
+        </div>
+      </div>
+    )
+  }
+
+  const renderCreateView = () => (
+    <div className="lobby-center immersive-view">
+      <div className="immersive-header">
+        <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
+        <h2>Select Arena</h2>
+        <div className="spacer"></div>
+      </div>
+      
+      <div className="map-selection-grid">
+        {MAP_DATA.map(map => (
+          <div 
+            key={map.id} 
+            className={`map-card-large ${selectedMap === map.id ? 'selected' : ''}`}
+            onClick={() => setSelectedMap(map.id)}
+            style={{ backgroundImage: `url(${map.image})` }}
+          >
+            <div className="map-card-content">
+              <div className="map-name">{map.name}</div>
+              {selectedMap === map.id && <div className="selected-badge">SELECTED</div>}
+            </div>
+          </div>
+        ))}
+      </div>
+      
+      <div className="match-type-controls">
+        <button 
+          className="lobby-btn btn-green btn-large-action"
+          onClick={() => handleCreateRoom('standard', true)}
+          disabled={isRoomBusy}
+        >
+          Public Match
+        </button>
+        <button 
+          className="lobby-btn btn-purple btn-large-action"
+          onClick={() => handleCreateRoom('standard', false)}
+          disabled={isRoomBusy}
+        >
+          Private Match
+        </button>
+      </div>
+    </div>
+  )
+
+  const renderCustomizeView = () => (
+    <div className="lobby-center immersive-view">
+      <div className="immersive-header">
+        <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
+        <h2>Customize</h2>
+        <div className="spacer"></div>
+      </div>
+
+      <div className="customize-layout">
+        <div className="customize-preview">
+          <CharacterPreview 
+            character={selectedCharacter} 
+            team={selectedTeam}
+            isSelected={true} 
+            onSelect={() => {}}
+          />
+        </div>
+
+        <div className="customize-options">
+          <div className="option-group">
+            <h3>Team Color</h3>
+            <div className="option-row">
+              <button 
+                className={`option-btn red ${selectedTeam === 'red' ? 'active' : ''}`}
+                onClick={() => setSelectedTeam('red')}
+              >
+                Red Team
+              </button>
+              <button 
+                className={`option-btn blue ${selectedTeam === 'blue' ? 'active' : ''}`}
+                onClick={() => setSelectedTeam('blue')}
+              >
+                Blue Team
+              </button>
+            </div>
+          </div>
+
+          <div className="option-group">
+            <h3>Character Model</h3>
+            <div className="option-row">
+              <button 
+                className={`option-btn ${selectedCharacter === 'cat' ? 'active' : ''}`}
+                onClick={() => handleCharacterSelect('cat')}
+              >
+                Cat Striker
+              </button>
+              <button 
+                className={`option-btn ${selectedCharacter === 'car' ? 'active' : ''}`}
+                onClick={() => handleCharacterSelect('car')}
+              >
+                Rocket Car
+              </button>
+            </div>
+          </div>
+
+          <button 
+            className="lobby-btn btn-yellow btn-large-action"
+            onClick={() => setView('home')}
+            style={{ marginTop: 'auto' }}
+          >
+            Done
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+
+  const renderGameModesView = () => (
+    <div className="lobby-center immersive-view">
+      <div className="immersive-header">
+        <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
+        <h2>Game Modes</h2>
+        <div className="spacer"></div>
+      </div>
+
+      <div className="gamemodes-layout">
+        <div className="gamemode-card selected">
+          <div className="mode-icon">🤖</div>
+          <div className="mode-info">
+            <h3>Training</h3>
+            <p>1v1 against an AI Bot</p>
+          </div>
+        </div>
+
+        <div className="difficulty-selector">
+          <h3>Difficulty</h3>
+          <div className="difficulty-options">
+            {['easy', 'medium', 'hard'].map(d => (
+              <button 
+                key={d}
+                className={`difficulty-btn ${difficulty === d ? 'active' : ''}`}
+                onClick={() => setDifficulty(d)}
+              >
+                {d.toUpperCase()}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button 
+          className="lobby-btn btn-yellow btn-large-action"
+          onClick={() => handleCreateRoom('training')}
+          disabled={isRoomBusy}
+        >
+          Start Training
+        </button>
+      </div>
+    </div>
+  )
+
+  return (
+    <div className="lobby-container">
+      {/* Background Grid */}
+      <div className="lobby-background"></div>
+
+      {/* Top Bar */}
+      <div className="lobby-top-bar">
+        <div className="player-identity-pill">
+          <div className="pill-content">
+            <span className="pill-label">PLAYER</span>
+            <input 
+              type="text" 
+              className="player-name-input-minimal"
+              value={playerName}
+              onChange={(e) => setPlayerName(e.target.value.slice(0, 15))}
+              placeholder="Enter Name..."
+            />
+            <button className="dice-btn-minimal" onClick={() => setPlayerName(generateRandomName())} title="Random Name">🎲</button>
+          </div>
+        </div>
+        
+        <div className="lobby-top-right">
+          <button className="btn-gamemodes-large" onClick={() => setView('gamemodes')}>
+            <span className="btn-icon">🎮</span>
+            <span className="btn-text">GAME MODES</span>
+          </button>
+        </div>
+      </div>
+
+      {/* Main Content Area */}
+      <div className="lobby-main">
+        {/* Left Sidebar */}
         <div className="lobby-sidebar-left">
           <button 
             className="lobby-btn btn-orange btn-customize"
@@ -244,15 +486,6 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           >
             <span className="btn-icon">🛠️</span>
             Customize
-          </button>
-
-          <button 
-            className="lobby-btn btn-blue btn-gamemodes"
-            onClick={() => setView('gamemodes')}
-            style={{ marginTop: '10px' }}
-          >
-            <span className="btn-icon">🎮</span>
-            Game Modes
           </button>
 
           <div className="news-panel">
