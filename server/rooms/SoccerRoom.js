@@ -219,8 +219,8 @@ export class SoccerRoom extends Room {
       { x: (10.8 + 17.2) / 2, z: -2.6, halfX: (17.2 - 10.8) / 2, halfZ: 0.1 } // Bottom side
     ]
     goalNetSideWalls.forEach(({ x, z, halfX, halfZ }) => {
-      const desc = RAPIER.ColliderDesc.cuboid(halfX, 2, halfZ)
-        .setTranslation(x, 2, z)
+      const desc = RAPIER.ColliderDesc.cuboid(halfX, 8, halfZ)
+        .setTranslation(x, 8, z)
         .setRestitution(PHYSICS.GOAL_RESTITUTION)
       this.world.createCollider(desc)
     })
