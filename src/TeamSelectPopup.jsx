@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react'
 import useStore from './store'
 import CharacterPreview from './CharacterPreview'
-import MapSelector from './MapSelector'
 import { MAP_DATA } from './MapComponents'
 
 // Random name generator
@@ -20,7 +19,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   const hasJoined = useStore((s) => s.hasJoined)
   const setPlayerCharacter = useStore((s) => s.setPlayerCharacter)
   
-  const [selectedTeam, setSelectedTeam] = useState(null)
+  const [selectedTeam, setSelectedTeam] = useState('red')
   const [selectedCharacter, setSelectedCharacter] = useState(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('playerCharacter') || 'cat'
@@ -29,7 +28,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   })
   const [selectedMap, setSelectedMap] = useState('OceanFloor')
   const [playerName, setPlayerName] = useState(defaultName || '')
-  const [privateJoinCode, setPrivateJoinCode] = useState('')
+  const [showCustomize, setShowCustomize] = useState(false)
   const [isRoomBusy, setIsRoomBusy] = useState(false)
   const [notifications, setNotifications] = useState([])
 
@@ -44,13 +43,9 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   useEffect(() => {
     if (!rooming || typeof rooming.refreshAvailableRooms !== 'function') return
     rooming.refreshAvailableRooms()
-  }, [rooming])
-
-  useEffect(() => {
-    if (!rooming || typeof rooming.refreshAvailableRooms !== 'function') return
     const id = setInterval(() => {
       rooming.refreshAvailableRooms()
-    }, 1500)
+    }, 3000)
     return () => clearInterval(id)
   }, [rooming])
   
@@ -73,10 +68,6 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   }
 
   const validateInputs = () => {
-    if (!selectedTeam) {
-      showNotification('Please select a team!', 'warning')
-      return false
-    }
     if (!playerName.trim()) {
       showNotification('Please enter a name!', 'warning')
       return false
@@ -107,31 +98,6 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     }
   }
 
-  const handleCreatePrivateRoom = async () => {
-    if (!rooming) return
-    if (!validateInputs()) return
-    setIsRoomBusy(true)
-    const joined = await rooming.createPrivateRoom({
-      name: playerName.trim(),
-      team: selectedTeam,
-      character: selectedCharacter,
-      map: selectedMap
-    })
-    setIsRoomBusy(false)
-    if (joined) {
-      joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
-    } else {
-      showNotification('Failed to create private room', 'error')
-    }
-  }
-
-  const handleRefreshRooms = async () => {
-    if (!rooming) return
-    setIsRoomBusy(true)
-    await rooming.refreshAvailableRooms()
-    setIsRoomBusy(false)
-  }
-
   const handleJoinPublicRoom = async (roomId) => {
     if (!rooming) return
     if (!validateInputs()) return
@@ -149,218 +115,178 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     }
   }
 
-  const handleJoinPrivateByCode = async () => {
-    if (!rooming) return
-    if (!validateInputs()) return
-    const code = privateJoinCode.trim().toUpperCase()
-    if (!code) {
-      showNotification('Enter a room code', 'warning')
-      return
-    }
-    setIsRoomBusy(true)
-    const joined = await rooming.joinPrivateRoomByCode(code, {
-      name: playerName.trim(),
-      team: selectedTeam,
-      character: selectedCharacter
-    })
-    setIsRoomBusy(false)
-    if (joined) {
-      joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
-    } else {
-      showNotification('Invalid code or room not found', 'error')
-    }
-  }
-  
   return (
-    <div className="team-select-overlay">
-      <div className="team-select-popup">
-        {/* Left Sidebar - Visual Guide */}
-        <div className="magic-sidebar">
-          <img 
-            src="/logo.png" 
-            alt="Omni-Pitch Soccer Logo" 
-            className="magic-sidebar-logo"
-          />
-          <img 
-            src="/tuto.png" 
-            alt="Game Tutorial" 
-            className="magic-sidebar-tuto"
-          />
-          <div className="magic-footer">
-            <span className="magic-footer-text">Waiting for your feedback</span>
-            <a href="https://discord.gg/susuxo" target="_blank" rel="noopener noreferrer" className="discord-link">
-              <svg className="discord-icon" viewBox="0 0 127.14 96.36">
-                <path d="M107.7,8.07A105.15,105.15,0,0,0,81.47,0a72.06,72.06,0,0,0-3.36,6.83A97.68,97.68,0,0,0,49,6.83,72.06,72.06,0,0,0,45.64,0,105.89,105.89,0,0,0,19.39,8.09C2.71,32.65-1.82,56.6.4,80.21a105.73,105.73,0,0,0,32.17,16.15,77.7,77.7,0,0,0,6.89-11.11,68.42,68.42,0,0,1-10.85-5.18c.91-.66,1.8-1.34,2.66-2a75.57,75.57,0,0,0,64.32,0c.87.71,1.76,1.39,2.66,2a68.68,68.68,0,0,1-10.87,5.19,77,77,0,0,0,6.89,11.1,105.25,105.25,0,0,0,32.19-16.14c.4-23.61-4.13-47.56-20.79-72.14ZM42.45,65.69C36.18,65.69,31,60,31,53s5-12.74,11.43-12.74S54,46,53.89,53,48.84,65.69,42.45,65.69Zm42.24,0C78.41,65.69,73.25,60,73.25,53s5-12.74,11.44-12.74S96.23,46,96.12,53,91.08,65.69,84.69,65.69Z"/>
-              </svg>
-              <span>susuxo</span>
-            </a>
-          </div>
-        </div>
+    <div className="lobby-container">
+      {/* Background Grid */}
+      <div className="lobby-background"></div>
 
-        {/* Right Content - Interactive Form */}
-        <div className="magic-content">
-          <h1 className="magic-title">Omni-Pitch</h1>
-
-          <div className="magic-section">
-            <div className="magic-section-title">Select Your Team</div>
-            <div className="magic-grid-teams">
-              <button
-                className={`magic-btn-team red ${selectedTeam === 'red' ? 'selected' : ''}`}
-                onClick={() => setSelectedTeam('red')}
-              >
-                <span className="team-icon">🔴</span>
-                <span className="team-name">Red Team</span>
-              </button>
-              <button
-                className={`magic-btn-team blue ${selectedTeam === 'blue' ? 'selected' : ''}`}
-                onClick={() => setSelectedTeam('blue')}
-              >
-                <span className="team-icon">🔵</span>
-                <span className="team-name">Blue Team</span>
-              </button>
-            </div>
-          </div>
-          
-          <div className="magic-section">
-            <div className="magic-section-title">Choose Your Character</div>
-            <div className="magic-grid-characters">
-              <CharacterPreview 
-                character="cat" 
-                isSelected={selectedCharacter === 'cat'} 
-                onSelect={handleCharacterSelect}
-              />
-              <CharacterPreview 
-                character="car" 
-                isSelected={selectedCharacter === 'car'} 
-                onSelect={handleCharacterSelect}
-              />
-            </div>
-          </div>
-
-         
-          
-          <div className="magic-section">
-            <div className="magic-section-title">Player Identity</div>
-            <div className="magic-input-wrapper">
-              <input
-                type="text"
-                className="magic-input"
-                value={playerName}
-                onChange={(e) => setPlayerName(e.target.value)}
-                placeholder="Enter your name..."
-                maxLength={20}
-              />
-              <button 
-                className="randomize-btn"
-                onClick={() => setPlayerName(generateRandomName())}
-              >
-                🎲
-              </button>
-            </div>
-          </div>
-
-          {rooming && (
-            <div className="magic-section" style={{ marginTop: '20px' }}>
-              <div className="magic-section-header">
-                <div className="magic-section-title">Public Rooms</div>
-               
-              </div>
-              
-              <div className="rooms-slider">
-                {(rooming.availableRooms || []).length === 0 ? (
-                  <div className="no-rooms-message">
-                    No public rooms found.Refresh List.
-                  </div>
-                ) : (
-                  (rooming.availableRooms || []).map((r) => {
-                    const mapInfo = MAP_DATA.find(m => m.id === r.metadata?.map) || MAP_DATA[0]
-                    return (
-                      <div key={r.roomId} className="room-card-modern">
-                        <div className="room-card-image" style={{ backgroundImage: `url(${mapInfo.image})` }}>
-                          <div className="room-card-overlay">
-                            <div className="room-card-map-name">{mapInfo.name}</div>
-                            <div className="room-card-counts">
-                              <span className="count-red">{r.metadata?.redCount ?? 0} Red</span>
-                              <span className="count-divider">/</span>
-                              <span className="count-blue">{r.metadata?.blueCount ?? 0} Blue</span>
-                            </div>
-                          </div>
-                        </div>
-                        <button
-                          className="room-join-btn"
-                          onClick={() => handleJoinPublicRoom(r.roomId)}
-                          disabled={isRoomBusy || r.clients >= r.maxClients}
-                        >
-                          {r.clients >= r.maxClients ? 'FULL' : 'JOIN ARENA'}
-                        </button>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
- <MapSelector 
-            selectedMapId={selectedMap} 
-            onSelect={setSelectedMap} 
-          />
-              <div className="room-actions-bar">
-                <button
-                  className="magic-action-btn"
-                  onClick={handleCreatePublicRoom}
-                  disabled={isRoomBusy}
-                >
-                  🌐 Create Public
-                </button>
-                <button
-                  className="magic-action-btn"
-                  onClick={handleCreatePrivateRoom}
-                  disabled={isRoomBusy}
-                >
-                  🔒 Create Private
-                </button>
-              
-              </div>
-
-              <div className="private-join-section">
-                <input
-                  type="text"
-                  className="magic-input small"
-                  value={privateJoinCode}
-                  onChange={(e) => setPrivateJoinCode(e.target.value)}
-                  placeholder="Private Code (e.g. A7K3)"
-                  maxLength={8}
-                />
-                <button
-                  className="magic-action-btn"
-                  onClick={handleJoinPrivateByCode}
-                  disabled={isRoomBusy}
-                >
-                  Join Private
-                </button>
-              </div>
-
-              {rooming.roomCode && (
-                <div className="active-room-code">
-                  Your Room Code: <span>{rooming.roomCode}</span>
-                </div>
-              )}
-            </div>
-          )}
+      {/* Top Bar */}
+      <div className="lobby-top-bar">
+        <div className="level-badge">
+          <div className="level-circle">1</div>
+          <div className="level-text">Level Up!</div>
         </div>
         
+        <div className="player-identity-pill">
+          <input 
+            type="text" 
+            className="lobby-name-input"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            maxLength={15}
+          />
+          <button className="lobby-dice-btn" onClick={() => setPlayerName(generateRandomName())}>🎲</button>
+        </div>
+
+        <div className="currency-pill">
+          <span className="coin-icon">🪙</span>
+          <span className="coin-amount">0</span>
+        </div>
       </div>
-      
-      {/* Modern Notifications */}
+
+      {/* Main Content Area */}
+      <div className="lobby-main">
+        {/* Left Sidebar */}
+        <div className="lobby-sidebar-left">
+          <button 
+            className="lobby-btn btn-orange btn-customize"
+            onClick={() => setShowCustomize(!showCustomize)}
+          >
+            <span className="btn-icon">🛠️</span>
+            Customize
+          </button>
+
+          {showCustomize && (
+            <div className="customize-panel">
+              <div className="panel-section">
+                <h3>Team</h3>
+                <div className="team-toggles">
+                  <button 
+                    className={`team-toggle red ${selectedTeam === 'red' ? 'active' : ''}`}
+                    onClick={() => setSelectedTeam('red')}
+                  >Red</button>
+                  <button 
+                    className={`team-toggle blue ${selectedTeam === 'blue' ? 'active' : ''}`}
+                    onClick={() => setSelectedTeam('blue')}
+                  >Blue</button>
+                </div>
+              </div>
+              <div className="panel-section">
+                <h3>Character</h3>
+                <div className="char-toggles">
+                  <button 
+                    className={`char-toggle ${selectedCharacter === 'cat' ? 'active' : ''}`}
+                    onClick={() => handleCharacterSelect('cat')}
+                  >Cat</button>
+                  <button 
+                    className={`char-toggle ${selectedCharacter === 'car' ? 'active' : ''}`}
+                    onClick={() => handleCharacterSelect('car')}
+                  >Car</button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <div className="news-panel">
+            <div className="news-header">News ℹ️</div>
+            <div className="news-item">
+              <div className="news-icon">🏆</div>
+              <div className="news-text">Season 1: Kickoff!</div>
+            </div>
+            <div className="news-item">
+              <div className="news-icon">❄️</div>
+              <div className="news-text">Winter Update</div>
+            </div>
+          </div>
+        </div>
+
+        {/* Center Character & Play */}
+        <div className="lobby-center">
+          <div className="lobby-logo">
+            OMNI<span className="logo-highlight">PITCH</span>
+          </div>
+          
+          <div className="lobby-character-stage">
+            <CharacterPreview 
+              character={selectedCharacter} 
+              isSelected={true} 
+              onSelect={() => {}}
+            />
+          </div>
+
+          <div className="play-controls">
+            <button className="lobby-btn btn-yellow btn-play" onClick={handleJoin}>
+              <span className="play-icon">▶</span> PLAY
+            </button>
+            
+            <div className="sub-controls">
+              <button 
+                className="lobby-btn btn-blue btn-small"
+                onClick={handleCreatePublicRoom}
+                disabled={isRoomBusy}
+              >
+                Create
+              </button>
+              <button 
+                className="lobby-btn btn-blue btn-small"
+                onClick={() => rooming?.refreshAvailableRooms()}
+                disabled={isRoomBusy}
+              >
+                Refresh
+              </button>
+            </div>
+          </div>
+        </div>
+
+        {/* Right Sidebar - Rooms */}
+        <div className="lobby-sidebar-right">
+          <div className="rooms-panel">
+            <div className="rooms-header">Live Arenas</div>
+            <div className="rooms-list">
+              {(rooming?.availableRooms || []).length === 0 ? (
+                <div className="no-rooms">No active arenas...</div>
+              ) : (
+                (rooming.availableRooms || []).map((r) => (
+                  <div key={r.roomId} className="room-item">
+                    <div className="room-info">
+                      <div className="room-map">{MAP_DATA.find(m => m.id === r.metadata?.map)?.name || 'Arena'}</div>
+                      <div className="room-players">
+                        <span className="red-dot">●</span> {r.metadata?.redCount || 0}
+                        <span className="blue-dot">●</span> {r.metadata?.blueCount || 0}
+                      </div>
+                    </div>
+                    <button 
+                      className="btn-join-small"
+                      onClick={() => handleJoinPublicRoom(r.roomId)}
+                      disabled={r.clients >= r.maxClients}
+                    >
+                      {r.clients >= r.maxClients ? 'FULL' : 'JOIN'}
+                    </button>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
+          
+          <div className="ad-placeholder">
+            <span>DOWNLOAD THE APP</span>
+            <div className="app-store-badges">
+              <div className="badge">App Store</div>
+              <div className="badge">Google Play</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Notifications */}
       <div className="notification-container">
         {notifications.map(n => (
           <div key={n.id} className={`notification-card ${n.type}`}>
-            <div className="notification-icon">
-              {n.type === 'warning' ? '⚠️' : n.type === 'error' ? '❌' : 'ℹ️'}
-            </div>
-            <div className="notification-message">{n.message}</div>
-            <div className="notification-progress" />
+            {n.message}
           </div>
         ))}
       </div>
     </div>
   )
 }
+
