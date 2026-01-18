@@ -513,6 +513,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         {view === 'create' && renderCreateView()}
         {view === 'customize' && renderCustomizeView()}
         {view === 'gamemodes' && renderGameModesView()}
+        {view === 'join' && renderJoinView()}
 
         {/* Right Sidebar - Rooms */}
         <div className="lobby-sidebar-right">
