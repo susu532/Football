@@ -10,8 +10,8 @@ function CharacterModel({ modelPath, character, team }) {
   
   const characterScale = character === 'cat' ? 0.05 : 0.005
   
-  // Clone scene to allow independent material updates
-  const clonedScene = React.useMemo(() => scene.clone(), [scene])
+  // Clone scene on every team change to ensure fresh materials
+  const clonedScene = React.useMemo(() => scene.clone(), [scene, team])
 
   // Update materials based on team
   useEffect(() => {
@@ -21,12 +21,6 @@ function CharacterModel({ modelPath, character, team }) {
       if (child.isMesh) {
         child.castShadow = true
         child.receiveShadow = true
-        
-        // Logic to find the "main" body part to color
-        // This depends on the model structure. 
-        // For now, we'll try to color materials that look like "body" or just everything that isn't black/glass
-        // Or simpler: Color everything that has a map or specific name?
-        // Let's try coloring the main material.
         
         if (child.material) {
           // Clone material to avoid affecting other instances
