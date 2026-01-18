@@ -239,7 +239,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             onClick={() => setView('join')}
             disabled={isRoomBusy}
           >
-            Join
+            Join Private
           </button>
         </div>
       </div>
@@ -278,6 +278,14 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             autoFocus
             maxLength={10}
           />
+          <button 
+            className="lobby-btn btn-green btn-large-action"
+            onClick={() => handleJoinPublicRoom(joinCode.trim())}
+            disabled={!joinCode.trim() || isRoomBusy}
+            style={{ marginTop: '20px' }}
+          >
+            JOIN
+          </button>
           <div className="join-hint">Press ENTER to join</div>
         </div>
       </div>
