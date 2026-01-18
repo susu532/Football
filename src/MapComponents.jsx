@@ -163,7 +163,7 @@ export const MAP_DATA = [
     id: 'AlAqsa360', 
     name: 'Al Aqsa 360', 
     path: '', // No GLB path needed for video player
-    scale: 50, 
+    scale: 30, 
     position: [0, 0, 0], 
     emoji: '🕌', 
     image: '/placeholders/alaqsa.jfif', // Reusing placeholder for now
