@@ -6,7 +6,8 @@ import { useFrame } from '@react-three/fiber'
 
 import { useGLTF, Trail } from '@react-three/drei'
 import * as THREE from 'three'
-import { useSpring, a } from '@react-spring/three'
+
+
 import { PHYSICS } from './PhysicsConstants.js'
 
 // Soccer Ball Visual Component
@@ -15,24 +16,28 @@ export const SoccerBall = React.forwardRef(({ radius = PHYSICS.BALL_RADIUS, onKi
   useImperativeHandle(ref, () => internalRef.current)
   const { scene } = useGLTF('/models/soccer_ball.glb')
   
-  const [spring, api] = useSpring(() => ({
-    scale: 5,
-    config: { tension: 400, friction: 10 }
-  }))
+  // Manual animation state
+  const currentScale = useRef(5)
+  const targetScale = 5
 
   // Kick feedback effect
   useEffect(() => {
     if (onKickFeedback) {
       const handleKick = () => {
-        api.start({
-          from: { scale: 7 },
-          to: { scale: 5 }
-        })
+        currentScale.current = 7 // Pop up
       }
       // Store callback for external trigger
       onKickFeedback.current = handleKick
     }
-  }, [api, onKickFeedback])
+  }, [onKickFeedback])
+
+  useFrame((state, delta) => {
+    if (internalRef.current) {
+      // Smoothly decay scale back to target
+      currentScale.current = THREE.MathUtils.damp(currentScale.current, targetScale, 10, delta)
+      internalRef.current.scale.setScalar(currentScale.current)
+    }
+  })
 
   const clonedBall = useMemo(() => {
     const cloned = scene.clone()
@@ -70,10 +75,10 @@ export const SoccerBall = React.forwardRef(({ radius = PHYSICS.BALL_RADIUS, onKi
   }, [scene])
 
   return (
-    <a.primitive 
+    <primitive 
       ref={internalRef}
       object={clonedBall} 
-      scale={spring.scale} 
+      scale={5} 
     />
   )
 })
