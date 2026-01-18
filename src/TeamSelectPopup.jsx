@@ -541,6 +541,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
         {/* Center Content (Dynamic View) */}
         {view === 'home' && renderHomeView()}
+        {view === 'join' && renderJoinView()}
         {view === 'create' && renderCreateView()}
         {view === 'customize' && renderCustomizeView()}
         {view === 'gamemodes' && renderGameModesView()}
