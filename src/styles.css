@@ -506,39 +506,144 @@ html,
 }
 
 /* Mobile Responsive */
+/* Mobile Responsive */
 @media (max-width: 900px) {
   .lobby-main {
     flex-direction: column;
     padding: 10px;
+    gap: 15px;
   }
   
   .lobby-sidebar-left, .lobby-sidebar-right {
     width: 100%;
     order: 2;
+    display: none; /* Hide sidebars by default on mobile to clean up UI */
   }
+
+  /* Show sidebars when specifically toggled or in certain views - for now keep hidden to focus on play */
+  /* We might want a "Menu" button later, but for now let's prioritize the main flow */
   
   .lobby-center {
     order: 1;
+    width: 100%;
   }
   
   .lobby-logo {
     font-size: 2.5rem;
+    margin-bottom: 10px;
   }
   
   .lobby-character-stage {
-    width: 250px;
+    width: 100%;
+    max-width: 300px;
     height: 250px;
+    margin: 0 auto;
   }
   
   .btn-play {
     font-size: 2rem;
     padding: 15px 50px;
+    width: 100%;
+    max-width: 300px;
   }
   
   .customize-panel {
     position: static;
     width: 100%;
     margin: 0;
+  }
+
+  /* Top Bar Mobile */
+  .lobby-top-bar {
+    padding: 10px;
+    gap: 10px;
+    overflow-x: auto; /* Allow scrolling if needed */
+    white-space: nowrap;
+  }
+
+  .level-text {
+    display: none; /* Hide text to save space */
+  }
+
+  .lobby-name-input {
+    width: 100px;
+    font-size: 1rem;
+  }
+
+  .coin-amount {
+    font-size: 1rem;
+  }
+
+  .btn-settings {
+    width: 36px;
+    height: 36px;
+    font-size: 1.2rem;
+  }
+
+  /* Join Private Mobile */
+  .join-private-container {
+    padding: 10px;
+  }
+
+  .input-valley {
+    padding: 20px;
+  }
+
+  .valley-input {
+    font-size: 2.5rem;
+    letter-spacing: 5px;
+  }
+
+  .btn-large-action {
+    font-size: 1.2rem;
+    padding: 12px 30px;
+    width: 100%;
+  }
+
+  /* Map Select Mobile */
+  .map-selection-grid {
+    grid-template-columns: 1fr; /* Single column for mobile */
+    padding: 5px;
+  }
+
+  .map-card-large {
+    height: 150px;
+  }
+
+  .immersive-header h2 {
+    font-size: 1.2rem;
+  }
+}
+
+/* Landscape Mobile (e.g. iPhone rotated) */
+@media (max-width: 900px) and (orientation: landscape) {
+  .lobby-main {
+    flex-direction: row; /* Keep row for landscape */
+    align-items: flex-start;
+  }
+
+  .lobby-center {
+    flex: 1;
+  }
+
+  .lobby-character-stage {
+    height: 200px; /* Shorter stage for landscape */
+    width: 200px;
+  }
+
+  .lobby-logo {
+    font-size: 1.5rem; /* Smaller logo */
+    margin-bottom: 5px;
+  }
+
+  .play-controls {
+    flex-direction: row; /* Side by side controls */
+    gap: 20px;
+  }
+
+  .btn-play {
+    margin-bottom: 0;
+    width: auto;
   }
 }
 
