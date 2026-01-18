@@ -582,7 +582,7 @@ html,
   flex-direction: column;
   padding: 20px;
   animation: fadeInView 0.3s ease-out;
-  overflow: hidden; /* Prevent view from growing */
+  overflow: hidden; /* Critical: contain children */
 }
 
 @keyframes fadeInView {
@@ -596,26 +596,24 @@ html,
   justify-content: space-between;
   margin-bottom: 20px;
   width: 100%;
-  flex-shrink: 0; /* Keep header fixed size */
+  flex-shrink: 0; /* Header should not shrink */
 }
-
-/* ... (header styles unchanged) ... */
 
 /* Map Selection Grid */
 .map-selection-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 30px;
-  padding: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 20px;
+  padding: 10px;
   width: 100%;
-  overflow-y: auto;
-  flex: 1; /* Ensure it takes available space */
-  min-height: 0; /* Critical for flex child scrolling */
-  margin-bottom: 20px; /* Space for buttons below */
+  overflow-y: auto; /* Enable scrolling */
+  flex: 1; /* Take available space */
+  min-height: 0; /* Critical for flex scrolling */
+  margin-bottom: 20px;
 }
 
 .map-card-large {
-  height: 250px;
+  height: 200px;
   background-size: cover;
   background-position: center;
   border-radius: 20px;
@@ -644,15 +642,15 @@ html,
   bottom: 0;
   left: 0;
   right: 0;
-  padding: 20px;
+  padding: 15px;
   background: linear-gradient(to top, rgba(0,0,0,0.9), transparent);
   display: flex;
   justify-content: space-between;
-  align-items: flex-end;
+  align-items: center;
 }
 
 .map-name {
-  font-size: 1.8rem;
+  font-size: 1.4rem;
   font-weight: 900;
   color: #fff;
   text-shadow: 0 2px 4px rgba(0,0,0,0.5);

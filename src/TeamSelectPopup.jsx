@@ -315,7 +315,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           </div>
         ))}
       </div>
-
+      
       <div className="match-type-controls">
         <button 
           className="lobby-btn btn-green btn-large-action"
