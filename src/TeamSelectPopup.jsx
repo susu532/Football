@@ -263,9 +263,10 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           <input 
             type="text" 
             className="lobby-name-input large-input"
-            placeholder="Enter Room Code"
+            placeholder="ENTER ROOM CODE"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            autoFocus
           />
           
           <button 
@@ -273,7 +274,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             onClick={() => handleJoinPublicRoom(joinCode)}
             disabled={!joinCode || isRoomBusy}
           >
-            Join Match
+            JOIN MATCH
           </button>
         </div>
       </div>
