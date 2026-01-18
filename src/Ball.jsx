@@ -482,24 +482,61 @@ export const ClientBallVisual = React.forwardRef(({
         predictedVelocity.current.y -= GRAVITY * subDt
       }
 
-      // === WALL/ARENA COLLISION PREDICTION ===
+      // === WALL/ARENA COLLISION PREDICTION (COMPREHENSIVE) ===
       const ARENA_HALF_WIDTH = PHYSICS.ARENA_HALF_WIDTH
       const ARENA_HALF_DEPTH = PHYSICS.ARENA_HALF_DEPTH
       const GOAL_HALF_WIDTH = PHYSICS.GOAL_WIDTH / 2
+      const GOAL_LINE_X = PHYSICS.GOAL_LINE_X
+      const GOAL_HEIGHT = PHYSICS.GOAL_HEIGHT
+      const GOAL_BACK_X = 17.0 // Back of goal net
+      const ballR = BALL_RADIUS
+      
+      // Check if ball is in goal area (allowed zone)
+      const inGoalZone = Math.abs(physicsPos.current.z) < GOAL_HALF_WIDTH - ballR && 
+                         physicsPos.current.y < GOAL_HEIGHT - ballR && 
+                         Math.abs(physicsPos.current.x) > GOAL_LINE_X
+      
+      // Z walls (always enforced)
+      if (physicsPos.current.z > ARENA_HALF_DEPTH - ballR) {
+        predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION 
+        physicsPos.current.z = ARENA_HALF_DEPTH - ballR - 0.05
+      } else if (physicsPos.current.z < -(ARENA_HALF_DEPTH - ballR)) {
+        predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION 
+        physicsPos.current.z = -(ARENA_HALF_DEPTH - ballR - 0.05)
+      }
       
       // X walls (with goal gaps)
-      if (Math.abs(physicsPos.current.x) > ARENA_HALF_WIDTH) {
-        const inGoalZone = Math.abs(physicsPos.current.z) < GOAL_HALF_WIDTH && physicsPos.current.y < 4
-        if (!inGoalZone) {
+      if (!inGoalZone) {
+        // Outside goal zone - enforce arena walls
+        if (physicsPos.current.x > ARENA_HALF_WIDTH - ballR) {
           predictedVelocity.current.x *= -PHYSICS.WALL_RESTITUTION 
-          physicsPos.current.x = Math.sign(physicsPos.current.x) * (ARENA_HALF_WIDTH - 0.1)
+          physicsPos.current.x = ARENA_HALF_WIDTH - ballR - 0.05
+        } else if (physicsPos.current.x < -(ARENA_HALF_WIDTH - ballR)) {
+          predictedVelocity.current.x *= -PHYSICS.WALL_RESTITUTION 
+          physicsPos.current.x = -(ARENA_HALF_WIDTH - ballR - 0.05)
+        }
+      } else {
+        // Inside goal zone - enforce goal back wall
+        if (physicsPos.current.x > GOAL_BACK_X - ballR) {
+          predictedVelocity.current.x *= -PHYSICS.GOAL_RESTITUTION 
+          physicsPos.current.x = GOAL_BACK_X - ballR - 0.05
+        } else if (physicsPos.current.x < -(GOAL_BACK_X - ballR)) {
+          predictedVelocity.current.x *= -PHYSICS.GOAL_RESTITUTION 
+          physicsPos.current.x = -(GOAL_BACK_X - ballR - 0.05)
+        }
+        
+        // Goal side posts (enforce Z boundaries within goal area)
+        const goalPostZ = GOAL_HALF_WIDTH - ballR + 0.3
+        if (Math.abs(physicsPos.current.z) > goalPostZ) {
+          predictedVelocity.current.z *= -PHYSICS.POST_RESTITUTION
+          physicsPos.current.z = Math.sign(physicsPos.current.z) * goalPostZ
         }
       }
       
-      // Z walls
-      if (Math.abs(physicsPos.current.z) > ARENA_HALF_DEPTH) {
-        predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION 
-        physicsPos.current.z = Math.sign(physicsPos.current.z) * (ARENA_HALF_DEPTH - 0.1)
+      // Ceiling boundary
+      if (physicsPos.current.y > PHYSICS.WALL_HEIGHT - ballR) {
+        predictedVelocity.current.y *= -0.1
+        physicsPos.current.y = PHYSICS.WALL_HEIGHT - ballR
       }
 
       // 4. PING-AWARE COLLISION PREDICTION with DYNAMIC RADIUS

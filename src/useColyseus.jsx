@@ -108,7 +108,6 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
     joinedRoom.onMessage('goal-scored', (message) => {
       console.log('Goal scored:', message)
-      AudioManager.playSFX('goal')
     })
 
     joinedRoom.onMessage('powerup-collected', (message) => {

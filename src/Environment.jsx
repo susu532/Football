@@ -335,7 +335,7 @@ export function GoalCelebrationEffect({ team }) {
 
 export function GameSkybox({ mapId }) {
   const { scene } = useThree()
-  const isNight = mapId === 'DesertMap' || mapId === 'CityAtNight'
+  const isNight = mapId === 'DesertMap' || mapId === 'CityAtNight' || mapId === 'MinecraftMap' || mapId === 'MoonMap' || mapId === 'MysteryShack' || mapId === 'JapaneseTown'
   
   useEffect(() => {
     if (isNight) {
@@ -358,7 +358,7 @@ export function GameSkybox({ mapId }) {
 // Lightweight sky for mobile to replace the black void
 export function MobileSky({ mapId }) {
   const { scene } = useThree()
-  const isNight = mapId === 'DesertMap' || mapId === 'CityAtNight'
+  const isNight = mapId === 'DesertMap' || mapId === 'CityAtNight' || mapId === 'MinecraftMap' || mapId === 'MoonMap' || mapId === 'MysteryShack' || mapId === 'JapaneseTown'
   
   useEffect(() => {
     if (isNight) {

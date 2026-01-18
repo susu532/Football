@@ -19,7 +19,6 @@ class AudioManager {
     const soundFiles = {
       kick: '/sounds/kick.wav',
       jump: '/sounds/jump.mp3',
-      goal: '/sounds/goal.mp3',
       powerup: '/sounds/powerup.mp3',
       endgame: '/sounds/endgame.mp3',
       winner: '/winner-game-sound-404167.mp3',
