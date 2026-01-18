@@ -619,12 +619,28 @@ html,
 /* ... (map card styles unchanged) ... */
 
 .btn-large-action {
-  font-size: 2rem;
-  padding: 20px 60px;
-  border-radius: 30px;
-  margin-top: 20px;
-  align-self: center;
+  font-size: 1.5rem;
+  padding: 15px 40px;
+  border-radius: 25px;
   flex-shrink: 0; /* Prevent button from shrinking */
+}
+
+.match-type-controls {
+  display: flex;
+  gap: 20px;
+  justify-content: center;
+  margin-top: 20px;
+  flex-shrink: 0;
+}
+
+.btn-green {
+  background: #27ae60;
+  box-shadow: 0 6px 0 #219150;
+}
+
+.btn-purple {
+  background: #9b59b6;
+  box-shadow: 0 6px 0 #8e44ad;
 }
 
 /* Customize Layout */

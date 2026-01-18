@@ -125,7 +125,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     setIsRoomBusy(false)
   }
 
-  const handleCreatePublicRoom = async (mode = 'standard') => {
+  const handleCreateRoom = async (mode = 'standard', isPublic = true) => {
     if (!rooming) return
     if (!validateInputs()) return
     setIsRoomBusy(true)
@@ -135,7 +135,8 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
       team: selectedTeam,
       character: selectedCharacter,
       map: selectedMap,
-      mode: mode
+      mode: mode,
+      isPublic: isPublic
     }
 
     if (mode === 'training') {
@@ -234,13 +235,22 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         ))}
       </div>
 
-      <button 
-        className="lobby-btn btn-yellow btn-large-action"
-        onClick={() => handleCreatePublicRoom('standard')}
-        disabled={isRoomBusy}
-      >
-        Start Match
-      </button>
+      <div className="match-type-controls">
+        <button 
+          className="lobby-btn btn-green btn-large-action"
+          onClick={() => handleCreateRoom('standard', true)}
+          disabled={isRoomBusy}
+        >
+          Public Match
+        </button>
+        <button 
+          className="lobby-btn btn-purple btn-large-action"
+          onClick={() => handleCreateRoom('standard', false)}
+          disabled={isRoomBusy}
+        >
+          Private Match
+        </button>
+      </div>
     </div>
   )
 
