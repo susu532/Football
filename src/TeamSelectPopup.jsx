@@ -255,31 +255,33 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   const renderJoinView = () => {
     const [joinCode, setJoinCode] = useState('')
     
+    const handleKeyDown = (e) => {
+      if (e.key === 'Enter' && joinCode.trim()) {
+        handleJoinPublicRoom(joinCode.trim())
+      }
+    }
+
     return (
       <div className="lobby-center immersive-view">
         <div className="immersive-header">
           <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
-          <h2>Join Match</h2>
+          <h2>Private Match</h2>
           <div className="spacer"></div>
         </div>
         
-        <div className="join-input-container">
+        <div className="join-container-minimal">
+          <div className="join-label">ENTER PRIVATE CODE</div>
           <input 
             type="text" 
-            className="lobby-name-input large-input"
-            placeholder="ENTER ROOM CODE"
+            className="large-private-input"
+            placeholder="----"
             value={joinCode}
             onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
+            onKeyDown={handleKeyDown}
             autoFocus
+            maxLength={10}
           />
-          
-          <button 
-            className="lobby-btn btn-green btn-large-action"
-            onClick={() => handleJoinPublicRoom(joinCode)}
-            disabled={!joinCode || isRoomBusy}
-          >
-            JOIN MATCH
-          </button>
+          <div className="join-hint">Press ENTER to join</div>
         </div>
       </div>
     )
