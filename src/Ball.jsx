@@ -669,7 +669,7 @@ export const ClientBallVisual = React.forwardRef(({
             const impulseRamp = 1 / PHYSICS.IMPULSE_RAMP_FRAMES
             const highSpeedBoost = 1 + Math.min(0.3, relativeSpeed / 100)
             predictedVelocity.current.x += impulseMag * nx * boostFactor * impulseFactor * impulseRamp * highSpeedBoost
-            predictedVelocity.current.y += (impulseMag * ny * boostFactor * impulseFactor + (isGiant ? 3 : 1.5)) * impulseRamp * highSpeedBoost
+            predictedVelocity.current.y += (impulseMag * ny * boostFactor * impulseFactor + (isGiant ? PHYSICS.COLLISION_LIFT_GIANT : PHYSICS.COLLISION_LIFT)) * impulseRamp * highSpeedBoost
             predictedVelocity.current.z += impulseMag * nz * boostFactor * impulseFactor * impulseRamp * highSpeedBoost
             
             predictedVelocity.current.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * impulseRamp * highSpeedBoost
