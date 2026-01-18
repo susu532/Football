@@ -159,6 +159,18 @@ export const MAP_DATA = [
     ambientIntensity: 0.5,
     lightIntensity: 0.8
   },
+  { 
+    id: 'AlAqsa360', 
+    name: 'Al Aqsa 360', 
+    path: '', // No GLB path needed for video player
+    scale: 1, 
+    position: [0, 0, 0], 
+    emoji: '🕌', 
+    image: '/placeholders/Screenshots-20260110090829.png', // Reusing placeholder for now
+    ambientIntensity: 1.0,
+    lightIntensity: 0.0,
+    isVideo: true
+  },
 ]
 
 export function MapRenderer({ mapId }) {

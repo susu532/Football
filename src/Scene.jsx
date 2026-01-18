@@ -26,6 +26,7 @@ import { ClientBallVisual } from './Ball'
 import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
 import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect, MobileSky, StadiumLights } from './Environment'
 import { SmartCamera } from './SmartCamera'
+import Video360Player from './components/Video360Player'
 
 const CSS_ANIMATIONS = `
   @keyframes popIn {
@@ -658,13 +659,23 @@ export default function Scene() {
           <SoccerPitch isMobile={false} />
           
           {/* Disable heavy maps on mobile for performance */}
-          {!isMobile && <MapComponents.MapRenderer mapId={selectedMap} />}
+          {!isMobile && selectedMap !== 'AlAqsa360' && <MapComponents.MapRenderer mapId={selectedMap} />}
 
-          {/* Sky Theme */}
-          {!isMobile ? <GameSkybox mapId={selectedMap || 'OceanFloor'} /> : <MobileSky mapId={selectedMap || 'OceanFloor'} />}
+          {/* Sky Theme - Hide for 360 video */}
+          {selectedMap !== 'AlAqsa360' && (
+            !isMobile ? <GameSkybox mapId={selectedMap || 'OceanFloor'} /> : <MobileSky mapId={selectedMap || 'OceanFloor'} />
+          )}
 
           {/* Stadium Lights */}
           <StadiumLights />
+
+          {/* 360 Video Player - Only for AlAqsa360 map */}
+          {selectedMap === 'AlAqsa360' && (
+            <Video360Player 
+              videoUrl="/models/al_aqsa_360.mp4" 
+              glbUrl="/360_sphere.glb" 
+            />
+          )}
 
           {/* Ball - interpolated from server state */}
           <ClientBallVisual 
