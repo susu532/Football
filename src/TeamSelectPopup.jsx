@@ -467,28 +467,40 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
       {/* Top Bar */}
       <div className="lobby-top-bar">
-        <div className="profile-section">
-          <div className="level-badge">
-            <div className="level-circle">1</div>
-          </div>
-          
-          <div className="player-identity">
-            <input 
-              type="text" 
-              className="lobby-name-input"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value)}
-              maxLength={15}
-            />
-            <button className="lobby-dice-btn" onClick={() => setPlayerName(generateRandomName())}>🎲</button>
-          </div>
+        <div className="top-bar-left">
+          {/* Logo or other info could go here */}
         </div>
 
-        <div className="top-right-section">
-          <div className="currency-pill">
-            <span className="coin-icon">🪙</span>
-            <span className="coin-amount">0</span>
+        <div className="top-bar-right">
+          <div className="player-profile-card">
+            <div className="avatar-wrapper">
+              <div className="avatar-placeholder">
+                <span className="avatar-icon">👤</span>
+              </div>
+              <div className="level-badge-mini">1</div>
+            </div>
+            
+            <div className="profile-details">
+              <div className="profile-name-row">
+                <input 
+                  type="text" 
+                  className="profile-name-input"
+                  value={playerName}
+                  onChange={(e) => setPlayerName(e.target.value)}
+                  maxLength={15}
+                />
+                <button className="profile-dice-btn" onClick={() => setPlayerName(generateRandomName())}>🎲</button>
+              </div>
+              
+              <div className="profile-stats-row">
+                <div className="stat-item">
+                  <span className="stat-icon">🪙</span>
+                  <span className="stat-value">0</span>
+                </div>
+              </div>
+            </div>
           </div>
+
           <button className="btn-settings" onClick={() => showNotification('Settings coming soon!')}>⚙️</button>
         </div>
       </div>
