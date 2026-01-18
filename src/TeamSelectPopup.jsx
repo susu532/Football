@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react'
 import useStore from './store'
 import CharacterPreview from './CharacterPreview'
 import { MAP_DATA } from './MapComponents'
+import audioManager from './AudioManager'
 
 // Random name generator
 const adjectives = ['Swift', 'Thunder', 'Shadow', 'Blaze', 'Storm', 'Frost', 'Iron', 'Steel', 'Phantom', 'Cyber', 'Nova', 'Turbo', 'Mega', 'Ultra', 'Epic']
@@ -58,6 +59,18 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
       setPlayerName(defaultName)
     }
   }, [defaultName])
+
+  useEffect(() => {
+    const handleGlobalClick = (e) => {
+      // Check if clicked element is a button or inside a button
+      if (e.target.closest('button') || e.target.closest('.option-btn') || e.target.closest('.map-card-large')) {
+        audioManager.playSFX('pop')
+      }
+    }
+
+    window.addEventListener('click', handleGlobalClick)
+    return () => window.removeEventListener('click', handleGlobalClick)
+  }, [])
   
   if (hasJoined) return null
   

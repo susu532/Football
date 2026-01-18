@@ -22,6 +22,7 @@ class AudioManager {
       powerup: '/sounds/powerup.mp3',
       endgame: '/sounds/endgame.mp3',
       winner: '/winner-game-sound-404167.mp3',
+      pop: '/sounds/pop.mp3',
     }
 
     // Define music
