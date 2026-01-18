@@ -42,7 +42,9 @@ html,
 }
 
 /* Firefox support */
+/* Global Reset */
 * {
+  box-sizing: border-box;
   scrollbar-width: thin;
   scrollbar-color: var(--magic-accent) rgba(255, 255, 255, 0.02);
 }
@@ -50,6 +52,20 @@ html,
 .app {
   display: flex;
   height: 100vh;
+  overflow: hidden; /* Ensure no body scroll */
+}
+
+/* ... existing styles ... */
+
+/* Customize Layout */
+.customize-layout {
+  display: flex;
+  width: 100%;
+  flex: 1; /* Use flex to fill remaining space */
+  gap: 40px;
+  overflow: hidden; /* Contain children */
+  min-height: 0;
+  padding-bottom: 20px; /* Add some bottom padding */
 }
 
 .viewer {
