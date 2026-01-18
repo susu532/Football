@@ -315,20 +315,30 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         <div className="spacer"></div>
       </div>
       
-      <div className="map-selection-grid">
-        {MAP_DATA.map(map => (
-          <div 
-            key={map.id} 
-            className={`map-card-large ${selectedMap === map.id ? 'selected' : ''}`}
-            onClick={() => setSelectedMap(map.id)}
-            style={{ backgroundImage: `url(${map.image})` }}
-          >
-            <div className="map-card-content">
-              <div className="map-name">{map.name}</div>
-              {selectedMap === map.id && <div className="selected-badge">SELECTED</div>}
+      <div className="map-scroll-container">
+        <div className="map-grid-new">
+          {MAP_DATA.map(map => (
+            <div 
+              key={map.id} 
+              className={`map-card-new ${selectedMap === map.id ? 'selected' : ''}`}
+              onClick={() => setSelectedMap(map.id)}
+              style={{ backgroundImage: `url(${map.image})` }}
+            >
+              <div className="map-card-overlay">
+                <div className="map-card-info">
+                  <div className="map-name-large">{map.name}</div>
+                  <div className="map-description">Professional Turf Arena</div>
+                </div>
+                {selectedMap === map.id && (
+                  <div className="map-selected-indicator">
+                    <span className="check-icon">✓</span>
+                    SELECTED
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
       
       <div className="match-type-controls">
