@@ -244,10 +244,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         </div>
       </div>
 
-      <div className="lobby-bottom-controls">
-        <button className="btn-settings-small" onClick={() => alert('Settings coming soon!')} title="Settings">⚙️</button>
-        <button className="btn-help-small" onClick={() => setShowHelp(true)} title="How to Play">?</button>
-      </div>
+      <button className="btn-help" onClick={() => setShowHelp(true)}>?</button>
       {showHelp && renderHelpModal()}
     </div>
   )
@@ -264,7 +261,8 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
     return (
       <div className="lobby-center immersive-view">
         <div className="immersive-header">
-          <button className="btn-back-large" onClick={() => setView('home')}>◀ BACK TO LOBBY</button>
+          <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
+          <h2>Private Match</h2>
           <div className="spacer"></div>
         </div>
         
@@ -438,7 +436,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
         <button 
           className="lobby-btn btn-yellow btn-large-action"
-          onClick={() => handleCreateRoom('training')}
+          onClick={() => handleCreatePublicRoom('training')}
           disabled={isRoomBusy}
         >
           Start Training
@@ -454,25 +452,25 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
 
       {/* Top Bar */}
       <div className="lobby-top-bar">
-        <div className="player-identity-pill">
-          <div className="pill-content">
-            <span className="pill-label">PLAYER</span>
-            <input 
-              type="text" 
-              className="player-name-input-minimal"
-              value={playerName}
-              onChange={(e) => setPlayerName(e.target.value.slice(0, 15))}
-              placeholder="Enter Name..."
-            />
-            <button className="dice-btn-minimal" onClick={() => setPlayerName(generateRandomName())} title="Random Name">🎲</button>
-          </div>
+        <div className="level-badge">
+          <div className="level-circle">1</div>
+          <div className="level-text">Level Up!</div>
         </div>
         
-        <div className="lobby-top-right">
-          <button className="btn-gamemodes-large" onClick={() => setView('gamemodes')}>
-            <span className="btn-icon">🎮</span>
-            <span className="btn-text">GAME MODES</span>
-          </button>
+        <div className="player-identity-pill">
+          <input 
+            type="text" 
+            className="lobby-name-input"
+            value={playerName}
+            onChange={(e) => setPlayerName(e.target.value)}
+            maxLength={15}
+          />
+          <button className="lobby-dice-btn" onClick={() => setPlayerName(generateRandomName())}>🎲</button>
+        </div>
+
+        <div className="currency-pill">
+          <span className="coin-icon">🪙</span>
+          <span className="coin-amount">0</span>
         </div>
       </div>
 
@@ -486,6 +484,15 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           >
             <span className="btn-icon">🛠️</span>
             Customize
+          </button>
+
+          <button 
+            className="lobby-btn btn-blue btn-gamemodes"
+            onClick={() => setView('gamemodes')}
+            style={{ marginTop: '10px' }}
+          >
+            <span className="btn-icon">🎮</span>
+            Game Modes
           </button>
 
           <div className="news-panel">
@@ -506,7 +513,6 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
         {view === 'create' && renderCreateView()}
         {view === 'customize' && renderCustomizeView()}
         {view === 'gamemodes' && renderGameModesView()}
-        {view === 'join' && renderJoinView()}
 
         {/* Right Sidebar - Rooms */}
         <div className="lobby-sidebar-right">
