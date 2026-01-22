@@ -22,6 +22,34 @@ export default function SettingsMenu() {
     return found ? found.url : 'custom'
   })
   const [customUrl, setCustomUrl] = useState(serverUrl)
+  const [serverPings, setServerPings] = useState({})
+
+  React.useEffect(() => {
+    if (!showSettings) return
+
+    const measurePing = async (url) => {
+      const start = Date.now()
+      try {
+        const socket = new WebSocket(url)
+        
+        socket.onopen = () => {
+          const ping = Date.now() - start
+          setServerPings(prev => ({ ...prev, [url]: ping }))
+          socket.close()
+        }
+
+        socket.onerror = () => {
+          setServerPings(prev => ({ ...prev, [url]: -1 })) // -1 indicates error
+        }
+      } catch (e) {
+        setServerPings(prev => ({ ...prev, [url]: -1 }))
+      }
+    }
+
+    OFFICIAL_SERVERS.forEach(server => {
+      measurePing(server.url)
+    })
+  }, [showSettings])
 
   const handleSaveServer = () => {
     const urlToSave = selectedServer === 'custom' ? customUrl : selectedServer
@@ -100,11 +128,18 @@ export default function SettingsMenu() {
                   cursor: 'pointer'
                 }}
               >
-                {OFFICIAL_SERVERS.map(server => (
-                  <option key={server.url} value={server.url} style={{ background: '#222' }}>
-                    {server.name}
-                  </option>
-                ))}
+                {OFFICIAL_SERVERS.map(server => {
+                  const ping = serverPings[server.url]
+                  let pingText = '...'
+                  if (ping === -1) pingText = 'OFFLINE'
+                  else if (ping) pingText = `${ping}ms`
+                  
+                  return (
+                    <option key={server.url} value={server.url} style={{ background: '#222' }}>
+                      {server.name} ({pingText})
+                    </option>
+                  )
+                })}
                 
               </select>
 
