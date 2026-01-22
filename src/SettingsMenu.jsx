@@ -105,7 +105,7 @@ export default function SettingsMenu() {
                     {server.name}
                   </option>
                 ))}
-                <option value="custom" style={{ background: '#222' }}>Custom URL...</option>
+                
               </select>
 
               {selectedServer === 'custom' && (
@@ -127,9 +127,7 @@ export default function SettingsMenu() {
                 />
               )}
               
-              <div style={{ fontSize: '12px', color: '#666', marginTop: '5px' }}>
-                Current: {serverUrl}
-              </div>
+            
               
               <button
                 onClick={handleSaveServer}
