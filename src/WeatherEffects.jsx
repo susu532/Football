@@ -51,10 +51,14 @@ export function RainEffect({ count = 300, area = [50, 35, 35] }) {
     pointsRef.current.geometry.attributes.position.needsUpdate = true
   })
 
-  // Play rain sound
+  // Play rain sound and mute music
   React.useEffect(() => {
     AudioManager.playAmbient('rain')
-    return () => AudioManager.stopAmbient('rain')
+    AudioManager.setWeatherMuteMusic(true)
+    return () => {
+      AudioManager.stopAmbient('rain')
+      AudioManager.setWeatherMuteMusic(false)
+    }
   }, [])
   
   return (

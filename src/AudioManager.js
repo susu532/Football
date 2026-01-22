@@ -6,6 +6,7 @@ class AudioManager {
     this.music = {}
     this.currentMusic = null
     this.initialized = false
+    this.weatherMuteMusic = false
 
     if (typeof window !== 'undefined') {
       this.init()
@@ -85,9 +86,9 @@ class AudioManager {
 
     // Update Music volumes
     for (const [name, music] of Object.entries(this.music)) {
-      const vol = muted ? 0 : masterVolume * musicVolume
+      const vol = (muted || this.weatherMuteMusic) ? 0 : masterVolume * musicVolume
       music.volume = vol
-      console.log(`Music ${name} volume set to: ${vol}`)
+      console.log(`Music ${name} volume set to: ${vol} (Weather Mute: ${this.weatherMuteMusic})`)
     }
 
     // Update Ambient volumes (use music volume for now)
@@ -124,6 +125,11 @@ class AudioManager {
       audio.pause()
       audio.currentTime = 0
     }
+  }
+
+  setWeatherMuteMusic(muted) {
+    this.weatherMuteMusic = muted
+    this.updateVolumes(useStore.getState().audioSettings)
   }
 
   playMusic(name) {
