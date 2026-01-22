@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState } from 'react'
 import useStore from './store'
 import { OFFICIAL_SERVERS } from './serverConfig'
 
@@ -17,11 +17,11 @@ export default function SettingsMenu() {
   const serverUrl = useStore((s) => s.serverUrl)
   const setServerUrl = useStore((s) => s.setServerUrl)
 
-  const [selectedServer, setSelectedServer] = React.useState(() => {
+  const [selectedServer, setSelectedServer] = useState(() => {
     const found = OFFICIAL_SERVERS.find(s => s.url === serverUrl)
     return found ? found.url : 'custom'
   })
-  const [customUrl, setCustomUrl] = React.useState(serverUrl)
+  const [customUrl, setCustomUrl] = useState(serverUrl)
 
   const handleSaveServer = () => {
     const urlToSave = selectedServer === 'custom' ? customUrl : selectedServer
