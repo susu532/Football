@@ -587,7 +587,7 @@ export default function Scene() {
         {/* Host Controls */}
         {isHost && (
           <div style={{ display: 'flex', gap: '10px' }}>
-            {gameState !== 'playing' ? (
+            {gameState !== 'playing' && gameState !== 'countdown' ? (
               <button
                 onClick={startGame}
                 style={{
@@ -608,66 +608,56 @@ export default function Scene() {
             
           </div>
         )}
-      </div>
 
-      {/* Countdown Overlay */}
-      {(gameState === 'countdown' || showGo) && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          zIndex: 9998,
-          pointerEvents: 'none',
-          background: 'rgba(0, 0, 0, 0.4)'
-        }}>
-          {gameState === 'countdown' && !showGo && (
-            <>
-              <div style={{
-                fontSize: isMobile ? '24px' : '36px',
-                fontWeight: 'bold',
-                color: '#ffd700',
-                textTransform: 'uppercase',
-                letterSpacing: '4px',
-                textShadow: '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4)',
-                marginBottom: '20px',
-                animation: 'fadeIn 0.3s ease-out'
-              }}>
-                ⚡ GET READY! ⚡
-              </div>
-              <div style={{
-                fontSize: isMobile ? '120px' : '180px',
-                fontWeight: 'bold',
-                color: '#fff',
-                textShadow: '0 0 30px rgba(255, 255, 255, 0.8), 0 0 60px rgba(0, 200, 255, 0.6)',
-                fontFamily: 'monospace',
-                animation: 'popIn 0.3s ease-out',
-                key: countdownTimer
-              }}>
-                {countdownTimer}
-              </div>
-            </>
-          )}
-          {showGo && (
+        {/* Countdown Timer Below Scoreboard */}
+        {gameState === 'countdown' && (
+          <div style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            marginTop: isMobile ? '10px' : '20px',
+            animation: 'popIn 0.3s ease-out'
+          }}>
             <div style={{
-              fontSize: isMobile ? '80px' : '140px',
+              fontSize: isMobile ? '18px' : '24px',
               fontWeight: 'bold',
-              color: '#00ff00',
+              color: '#ffd700',
               textTransform: 'uppercase',
-              letterSpacing: '8px',
-              textShadow: '0 0 40px rgba(0, 255, 0, 0.9), 0 0 80px rgba(0, 255, 0, 0.5)',
-              animation: 'popIn 0.2s ease-out'
+              letterSpacing: '3px',
+              textShadow: '0 0 15px rgba(255, 215, 0, 0.8)',
+              marginBottom: isMobile ? '8px' : '12px'
             }}>
-              🚀 GO! 🚀
+              ⚡ GET READY! ⚡
             </div>
-          )}
-        </div>
-      )}
+            <div style={{
+              fontSize: isMobile ? '80px' : '120px',
+              fontWeight: 'bold',
+              color: '#fff',
+              textShadow: '0 0 30px rgba(255, 255, 255, 0.8), 0 0 60px rgba(0, 200, 255, 0.6)',
+              fontFamily: 'monospace',
+              lineHeight: 1
+            }}>
+              {countdownTimer}
+            </div>
+          </div>
+        )}
+
+        {/* GO! Message Below Scoreboard */}
+        {showGo && (
+          <div style={{
+            fontSize: isMobile ? '60px' : '100px',
+            fontWeight: 'bold',
+            color: '#00ff00',
+            textTransform: 'uppercase',
+            letterSpacing: '6px',
+            textShadow: '0 0 40px rgba(0, 255, 0, 0.9), 0 0 80px rgba(0, 255, 0, 0.5)',
+            marginTop: isMobile ? '10px' : '20px',
+            animation: 'popIn 0.2s ease-out'
+          }}>
+            🚀 GO! 🚀
+          </div>
+        )}
+      </div>
 
       {/* 3D Canvas */}
       <Canvas 
