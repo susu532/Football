@@ -39,13 +39,11 @@ const CSS_ANIMATIONS = `
   }
 `
 
-// Server URL - change for production
-  const serverUrl = useStore((s) => s.serverUrl)
-
 // CameraController removed - replaced by SmartCamera
 
 export default function Scene() {
   // Store state
+  const serverUrl = useStore((s) => s.serverUrl)
   const hasJoined = useStore((s) => s.hasJoined)
   const playerName = useStore((s) => s.playerName)
   const playerTeam = useStore((s) => s.playerTeam)
