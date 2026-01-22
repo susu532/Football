@@ -549,12 +549,12 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             background: 'rgba(25, 25, 40, 0.7)',
             backdropFilter: 'blur(12px)',
             border: '1px solid rgba(255, 255, 255, 0.15)',
-            padding: '10px 18px',
+            padding: '12px 24px', // Increased horizontal padding
             borderRadius: '20px',
             boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4)',
             display: 'flex',
             alignItems: 'center',
-            gap: '15px'
+            gap: '20px' // Increased gap
           }}>
             <div className="avatar-wrapper" style={{ 
               width: '54px', 
@@ -594,7 +594,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             </div>
             
             <div className="profile-details" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-              <div className="profile-name-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="profile-name-row" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <input 
                   type="text" 
                   className="profile-name-input"
@@ -608,7 +608,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
                     border: 'none',
                     color: 'white',
                     padding: '0',
-                    width: '120px',
+                    width: '160px', // Increased width from 120px
                     outline: 'none',
                     letterSpacing: '0.5px'
                   }}
@@ -636,7 +636,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
               <div className="profile-stats-row">
                 <div className="stat-item" style={{
                   background: 'rgba(255, 215, 0, 0.1)',
-                  padding: '2px 10px',
+                  padding: '2px 12px', // Slightly more padding
                   borderRadius: '20px',
                   display: 'inline-flex',
                   alignItems: 'center',
