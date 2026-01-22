@@ -546,37 +546,109 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           <div className="player-profile-card" style={{
             transform: 'scale(1.2)',
             transformOrigin: 'right top',
-            background: 'rgba(20, 20, 30, 0.8)',
-            backdropFilter: 'blur(10px)',
-            border: '1px solid rgba(255, 255, 255, 0.1)',
-            padding: '8px 16px',
-            borderRadius: '16px',
-            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+            background: 'rgba(25, 25, 40, 0.7)',
+            backdropFilter: 'blur(12px)',
+            border: '1px solid rgba(255, 255, 255, 0.15)',
+            padding: '10px 18px',
+            borderRadius: '20px',
+            boxShadow: '0 12px 40px rgba(0, 0, 0, 0.4)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '15px'
           }}>
-            <div className="avatar-wrapper" style={{ width: '50px', height: '50px' }}>
-              <div className="avatar-placeholder" style={{ fontSize: '28px' }}>
+            <div className="avatar-wrapper" style={{ 
+              width: '54px', 
+              height: '54px',
+              position: 'relative'
+            }}>
+              <div className="avatar-placeholder" style={{ 
+                fontSize: '32px',
+                background: 'linear-gradient(135deg, #4488ff, #3742fa)',
+                borderRadius: '16px',
+                width: '100%',
+                height: '100%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                boxShadow: '0 4px 15px rgba(55, 66, 250, 0.3)'
+              }}>
                 <span className="avatar-icon">👤</span>
               </div>
-              <div className="level-badge-mini">1</div>
+              <div className="level-badge-mini" style={{
+                position: 'absolute',
+                bottom: '-5px',
+                right: '-5px',
+                background: 'linear-gradient(135deg, #ffd700, #ffa500)',
+                color: '#000',
+                width: '22px',
+                height: '22px',
+                borderRadius: '50%',
+                fontSize: '12px',
+                fontWeight: '900',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                border: '2px solid #1a1a2e',
+                boxShadow: '0 0 10px rgba(255, 215, 0, 0.5)'
+              }}>1</div>
             </div>
             
-            <div className="profile-details">
-              <div className="profile-name-row">
+            <div className="profile-details" style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+              <div className="profile-name-row" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <input 
                   type="text" 
                   className="profile-name-input"
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
                   maxLength={15}
-                  style={{ fontSize: '18px', fontWeight: 'bold' }}
+                  style={{ 
+                    fontSize: '18px', 
+                    fontWeight: '800',
+                    background: 'none',
+                    border: 'none',
+                    color: 'white',
+                    padding: '0',
+                    width: '120px',
+                    outline: 'none',
+                    letterSpacing: '0.5px'
+                  }}
                 />
-                <button className="profile-dice-btn" onClick={() => setPlayerName(generateRandomName())}>🎲</button>
+                <button 
+                  className="profile-dice-btn" 
+                  onClick={() => setPlayerName(generateRandomName())}
+                  style={{
+                    background: 'rgba(255, 255, 255, 0.1)',
+                    border: 'none',
+                    borderRadius: '8px',
+                    padding: '4px',
+                    cursor: 'pointer',
+                    fontSize: '16px',
+                    transition: 'all 0.2s',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.2)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255, 255, 255, 0.1)'}
+                >🎲</button>
               </div>
               
               <div className="profile-stats-row">
-                <div className="stat-item">
-                  <span className="stat-icon">🪙</span>
-                  <span className="stat-value" style={{ fontSize: '14px' }}>0</span>
+                <div className="stat-item" style={{
+                  background: 'rgba(255, 215, 0, 0.1)',
+                  padding: '2px 10px',
+                  borderRadius: '20px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  border: '1px solid rgba(255, 215, 0, 0.2)'
+                }}>
+                  <span className="stat-icon" style={{ fontSize: '14px' }}>🪙</span>
+                  <span className="stat-value" style={{ 
+                    fontSize: '13px', 
+                    fontWeight: 'bold',
+                    color: '#ffd700'
+                  }}>0</span>
                 </div>
               </div>
             </div>
