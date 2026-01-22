@@ -1532,8 +1532,13 @@ html,
 .immersive-view {
   position: absolute;
   inset: 0;
-  background: rgba(10, 10, 18, 0.6); /* Semi-transparent to show the grid */
-  backdrop-filter: blur(8px); /* Reduced blur */
+  /* Same blue grid background as main lobby */
+  background-color: #4a90e2;
+  background-image: 
+    repeating-linear-gradient(0deg, transparent, transparent 49px, rgba(255,255,255,0.1) 50px),
+    repeating-linear-gradient(90deg, transparent, transparent 49px, rgba(255,255,255,0.1) 50px);
+  background-size: 100px 100px;
+  animation: gridScroll 20s linear infinite;
   z-index: 200;
   display: flex;
   flex-direction: column;
