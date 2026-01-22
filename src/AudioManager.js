@@ -34,6 +34,11 @@ class AudioManager {
       bgMusic: '/sounds/bg-music.mp3',
     }
 
+    // Define ambient sounds
+    const ambientFiles = {
+      rain: '/sounds/rainloop.mp3',
+    }
+
     // Preload sounds
     for (const [name, path] of Object.entries(soundFiles)) {
       this.sounds[name] = new Audio(path)
@@ -45,6 +50,15 @@ class AudioManager {
       audio.loop = true
       audio.onerror = () => console.error(`Failed to load music file: ${path}`)
       this.music[name] = audio
+    }
+
+    // Preload ambient sounds
+    this.ambient = {}
+    for (const [name, path] of Object.entries(ambientFiles)) {
+      const audio = new Audio(path)
+      audio.loop = true
+      audio.onerror = () => console.error(`Failed to load ambient file: ${path}`)
+      this.ambient[name] = audio
     }
 
     // Subscribe to store changes
@@ -75,6 +89,14 @@ class AudioManager {
       music.volume = vol
       console.log(`Music ${name} volume set to: ${vol}`)
     }
+
+    // Update Ambient volumes (use music volume for now)
+    if (this.ambient) {
+      for (const [name, ambient] of Object.entries(this.ambient)) {
+        const vol = muted ? 0 : masterVolume * musicVolume * 0.7 // Slightly quieter
+        ambient.volume = vol
+      }
+    }
   }
 
   playSFX(name) {
@@ -84,6 +106,23 @@ class AudioManager {
       // Reset and play
       sound.currentTime = 0
       sound.play().catch(e => console.warn(`Failed to play SFX ${name}:`, e))
+    }
+  }
+
+  playAmbient(name) {
+    if (!this.initialized) this.init()
+    const audio = this.ambient[name]
+    if (audio) {
+      audio.play().catch(e => console.warn(`Failed to play ambient ${name}:`, e))
+    }
+  }
+
+  stopAmbient(name) {
+    if (!this.initialized) this.init()
+    const audio = this.ambient[name]
+    if (audio) {
+      audio.pause()
+      audio.currentTime = 0
     }
   }
 

@@ -2,6 +2,7 @@
 import React, { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
+import AudioManager from './AudioManager'
 
 // Rain Effect - Gentle falling raindrops with slight wind drift
 export function RainEffect({ count = 300, area = [50, 35, 35] }) {
@@ -49,6 +50,12 @@ export function RainEffect({ count = 300, area = [50, 35, 35] }) {
     
     pointsRef.current.geometry.attributes.position.needsUpdate = true
   })
+
+  // Play rain sound
+  React.useEffect(() => {
+    AudioManager.playAmbient('rain')
+    return () => AudioManager.stopAmbient('rain')
+  }, [])
   
   return (
     <points ref={pointsRef}>
