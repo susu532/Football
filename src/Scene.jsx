@@ -588,9 +588,9 @@ export default function Scene() {
       <Canvas 
         shadows={!isMobile && graphicsQuality !== 'low'}
         camera={{ position: [0, 8, 12], fov: 45, near: 0.1, far: 1000 }} 
-        dpr={graphicsQuality === 'low' ? 0.7 : (graphicsQuality === 'high' ? 2 : [1, 2])}
+        dpr={graphicsQuality === 'low' ? 0.7 : (graphicsQuality === 'high' ? [1, 1.5] : [1, 1.25])} // Cap DPR at 1.5 for high to prevent 4K lag
         gl={{ 
-           antialias: graphicsQuality === 'high', // Disable AA on mobile/low for performance
+           antialias: false, // Disable default AA, we use post-processing AA
           stencil: false, 
           depth: true, 
           powerPreference: 'high-performance',
@@ -605,7 +605,7 @@ export default function Scene() {
         <Suspense fallback={null}>
           {/* Post-processing - Optimized for Quality Presets */}
           {graphicsQuality !== 'low' && (
-            <EffectComposer multisampling={graphicsQuality === 'high' ? 8 : 4}>
+            <EffectComposer multisampling={0}> {/* Disable MSAA in composer, rely on SMAA/FXAA */}
               {graphicsQuality === 'high' ? <SMAA /> : <FXAA />}
               <Bloom luminanceThreshold={1} mipmapBlur intensity={0.5} radius={0.6} />
               <Vignette eskil={false} offset={0.1} darkness={0.5} />
