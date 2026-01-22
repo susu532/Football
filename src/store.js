@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { OFFICIAL_SERVERS } from './serverConfig'
 
 const useStore = create((set) => ({
   // Player customization
@@ -8,7 +9,9 @@ const useStore = create((set) => ({
   playerMap: 'OceanFloor',
   hasJoined: false,
   showSettings: false,
-  serverUrl: typeof window !== 'undefined' ? localStorage.getItem('colyseus_server_url') || import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567' : 'ws://localhost:2567',
+  serverUrl: typeof window !== 'undefined' 
+    ? localStorage.getItem('colyseus_server_url') || import.meta.env.VITE_COLYSEUS_SERVER || OFFICIAL_SERVERS[0].url 
+    : OFFICIAL_SERVERS[0].url,
   graphicsQuality: 'medium', // 'low', 'medium', 'high'
   showFPS: false,
   // Audio settings
