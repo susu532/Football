@@ -1889,3 +1889,504 @@ html,
     flex: 1 !important;
   }
 }
+
+/* =========================================
+   ENHANCED MOBILE RESPONSIVE STYLES
+   ========================================= */
+
+/* In-Game HUD Mobile Styles */
+@media (max-width: 900px) {
+  .game-hud-connection {
+    padding: 6px 12px !important;
+    font-size: 14px !important;
+    border-radius: 10px !important;
+    top: 10px !important;
+    left: 10px !important;
+  }
+
+  .game-hud-connection .hud-inner {
+    font-size: 10px !important;
+    gap: 5px !important;
+  }
+
+  /* In-game control buttons */
+  .game-btn-exit,
+  .game-btn-fullscreen,
+  .game-btn-settings {
+    width: 40px !important;
+    height: 40px !important;
+    padding: 8px !important;
+    font-size: 16px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Scoreboard mobile */
+  .game-scoreboard {
+    padding: 8px 20px !important;
+    border-radius: 16px !important;
+    gap: 12px !important;
+  }
+
+  .game-scoreboard .score-value {
+    font-size: 24px !important;
+  }
+
+  .game-scoreboard .timer-value {
+    font-size: 18px !important;
+    min-width: 60px !important;
+  }
+
+  /* Room code badge mobile */
+  .room-code-badge {
+    padding: 4px 10px !important;
+    font-size: 10px !important;
+    letter-spacing: 1px !important;
+  }
+
+  /* Host controls mobile */
+  .host-controls button {
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+    border-radius: 6px !important;
+  }
+}
+
+/* Very Small Screens (≤400px) */
+@media (max-width: 400px) {
+  /* Top bar even smaller */
+  .lobby-top-bar {
+    padding: 8px 10px !important;
+  }
+
+  .player-profile-card {
+    padding: 6px 10px !important;
+    gap: 8px !important;
+    border-radius: 12px !important;
+  }
+
+  .avatar-wrapper {
+    width: 28px !important;
+    height: 28px !important;
+  }
+
+  .level-badge-mini {
+    width: 14px !important;
+    height: 14px !important;
+    font-size: 8px !important;
+  }
+
+  .profile-details .profile-name-row input {
+    width: 70px !important;
+    font-size: 12px !important;
+  }
+
+  .profile-dice-btn {
+    width: 20px !important;
+    height: 20px !important;
+    font-size: 10px !important;
+  }
+
+  .profile-stats-row .stat-item {
+    padding: 1px 6px !important;
+  }
+
+  .profile-stats-row .stat-value,
+  .profile-stats-row .stat-icon {
+    font-size: 10px !important;
+  }
+
+  /* Lobby center adjustments */
+  .lobby-logo {
+    font-size: 1.6rem !important;
+  }
+
+  .lobby-character-stage {
+    height: 140px !important;
+    max-width: 180px !important;
+  }
+
+  .btn-play {
+    font-size: 1.4rem !important;
+    padding: 12px 30px !important;
+    min-height: 48px !important;
+  }
+
+  .sub-controls {
+    gap: 8px !important;
+  }
+
+  .sub-controls .btn-small {
+    padding: 10px 16px !important;
+    font-size: 0.85rem !important;
+    min-height: 44px !important;
+  }
+
+  /* Mobile nav grid smaller */
+  .mobile-nav-grid {
+    gap: 8px !important;
+    max-width: 240px !important;
+  }
+
+  .btn-mobile-nav {
+    padding: 10px 8px !important;
+    font-size: 0.8rem !important;
+    min-height: 44px !important;
+  }
+
+  .btn-mobile-nav .btn-icon {
+    font-size: 0.95rem !important;
+  }
+
+  /* Immersive view headers */
+  .immersive-header {
+    padding: 10px 12px !important;
+  }
+
+  .immersive-header h2 {
+    font-size: 1.1rem !important;
+  }
+
+  .btn-back {
+    padding: 6px 10px !important;
+    font-size: 0.9rem !important;
+    min-height: 36px !important;
+  }
+
+  .spacer {
+    width: 40px !important;
+  }
+
+  /* Join Private input */
+  .valley-input {
+    font-size: 1.8rem !important;
+    letter-spacing: 3px !important;
+    padding: 8px 0 !important;
+  }
+
+  .input-valley {
+    padding: 12px !important;
+    border-radius: 20px !important;
+  }
+
+  .valley-label {
+    font-size: 12px !important;
+    margin-bottom: 12px !important;
+  }
+
+  .btn-large-action {
+    font-size: 1rem !important;
+    padding: 12px 24px !important;
+    min-height: 48px !important;
+  }
+
+  /* Map cards smaller */
+  .map-card-new {
+    height: 140px !important;
+  }
+
+  .map-name-large {
+    font-size: 1.1rem !important;
+  }
+
+  .map-description {
+    font-size: 0.75rem !important;
+  }
+
+  .map-selected-indicator {
+    top: 10px !important;
+    right: 10px !important;
+    padding: 4px 8px !important;
+    font-size: 0.65rem !important;
+  }
+
+  /* Match type controls */
+  .match-type-controls {
+    padding: 12px !important;
+    gap: 8px !important;
+  }
+
+  .match-type-controls .btn-large-action {
+    font-size: 0.9rem !important;
+    padding: 12px 20px !important;
+  }
+
+  /* Customize layout very small */
+  .customize-preview {
+    height: 160px !important;
+    min-height: 160px !important;
+  }
+
+  .option-group h3 {
+    font-size: 1rem !important;
+  }
+
+  .option-btn {
+    padding: 12px !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Game modes very small */
+  .gamemode-card {
+    padding: 12px !important;
+    gap: 12px !important;
+  }
+
+  .mode-icon {
+    font-size: 1.6rem !important;
+  }
+
+  .mode-info h3 {
+    font-size: 1rem !important;
+  }
+
+  .mode-info p {
+    font-size: 0.8rem !important;
+  }
+
+  .difficulty-btn {
+    padding: 10px 14px !important;
+    font-size: 0.8rem !important;
+  }
+
+  /* Help modal very small */
+  .help-modal-content {
+    padding: 16px !important;
+    width: 95% !important;
+  }
+
+  .help-modal-content h2 {
+    font-size: 1.2rem !important;
+  }
+
+  .keybind-item {
+    padding: 8px 10px !important;
+  }
+}
+
+/* =========================================
+   IN-GAME OVERLAYS MOBILE
+   ========================================= */
+
+/* Stats Overlay Mobile */
+.stats-overlay-mobile-btn {
+  position: fixed;
+  bottom: 100px;
+  right: 10px;
+  width: 50px;
+  height: 50px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.6);
+  border: 2px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 24px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 9998;
+  backdrop-filter: blur(5px);
+}
+
+@media (max-width: 900px) {
+  .stats-overlay-mobile-btn {
+    display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .stats-overlay-mobile-btn {
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    bottom: 90px;
+    right: 8px;
+  }
+}
+
+/* Settings Menu Mobile */
+.settings-menu-overlay {
+  padding: 10px;
+}
+
+@media (max-width: 900px) {
+  .settings-menu-container {
+    width: 95vw !important;
+    max-width: 420px !important;
+    padding: 20px !important;
+    border-radius: 20px !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+  }
+
+  .settings-menu-container h2 {
+    font-size: 20px !important;
+  }
+
+  .settings-menu-container label {
+    font-size: 13px !important;
+  }
+
+  .settings-menu-container input[type="range"] {
+    height: 8px !important;
+  }
+
+  .settings-menu-container button {
+    min-height: 44px !important;
+    font-size: 14px !important;
+  }
+
+  .settings-menu-container select {
+    min-height: 44px !important;
+    font-size: 14px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .settings-menu-container {
+    padding: 16px !important;
+    gap: 16px !important;
+  }
+
+  .settings-menu-container h2 {
+    font-size: 18px !important;
+  }
+
+  .settings-graphics-btn {
+    padding: 6px 4px !important;
+    font-size: 11px !important;
+  }
+}
+
+/* Exit Confirmation Modal Mobile */
+@media (max-width: 900px) {
+  .exit-confirm-modal {
+    padding: 30px !important;
+    max-width: 350px !important;
+    border-radius: 20px !important;
+  }
+
+  .exit-confirm-modal .modal-icon {
+    font-size: 48px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .exit-confirm-modal h2 {
+    font-size: 22px !important;
+    margin-bottom: 10px !important;
+  }
+
+  .exit-confirm-modal p {
+    font-size: 14px !important;
+    margin-bottom: 24px !important;
+  }
+
+  .exit-confirm-modal button {
+    min-height: 48px !important;
+    font-size: 14px !important;
+    border-radius: 10px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .exit-confirm-modal {
+    padding: 24px !important;
+    width: 95% !important;
+  }
+
+  .exit-confirm-modal h2 {
+    font-size: 18px !important;
+  }
+
+  .exit-confirm-modal p {
+    font-size: 13px !important;
+  }
+
+  .exit-confirm-modal .modal-buttons {
+    flex-direction: column !important;
+    gap: 10px !important;
+  }
+}
+
+/* Goal Celebration Overlay Mobile */
+@media (max-width: 900px) {
+  .goal-celebration-text {
+    font-size: 60px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .goal-celebration-text {
+    font-size: 48px !important;
+  }
+}
+
+/* Power-up Collection Overlay Mobile */
+@media (max-width: 900px) {
+  .powerup-collected-overlay {
+    font-size: 60px !important;
+    padding: 4px !important;
+    border-radius: 18px !important;
+    top: 70px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .powerup-collected-overlay {
+    font-size: 48px !important;
+    top: 60px !important;
+  }
+}
+
+/* Stats Overlay Panel Mobile */
+@media (max-width: 900px) {
+  .stats-overlay-panel {
+    width: 95vw !important;
+    max-width: 500px !important;
+    padding: 20px !important;
+    border-radius: 16px !important;
+  }
+
+  .stats-overlay-panel h2 {
+    font-size: 18px !important;
+    margin-bottom: 16px !important;
+  }
+
+  .stats-overlay-panel table th,
+  .stats-overlay-panel table td {
+    padding: 10px 6px !important;
+    font-size: 12px !important;
+  }
+
+  .stats-overlay-panel table td:first-child {
+    max-width: 80px !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+    white-space: nowrap !important;
+  }
+
+  .stats-overlay-panel .stats-footer {
+    font-size: 10px !important;
+    margin-top: 14px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .stats-overlay-panel {
+    padding: 16px !important;
+  }
+
+  .stats-overlay-panel h2 {
+    font-size: 16px !important;
+  }
+
+  .stats-overlay-panel table th,
+  .stats-overlay-panel table td {
+    padding: 8px 4px !important;
+    font-size: 11px !important;
+  }
+
+  .stats-overlay-panel .team-badge {
+    padding: 2px 6px !important;
+    font-size: 8px !important;
+  }
+}

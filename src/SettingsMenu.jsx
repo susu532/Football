@@ -64,32 +64,42 @@ export default function SettingsMenu() {
   if (!showSettings) return null
 
   return (
-    <div style={{
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      width: '100vw',
-      height: '100vh',
-      zIndex: 10000,
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      background: 'rgba(0, 0, 0, 0.7)',
-      backdropFilter: 'blur(10px)',
-      animation: 'fadeIn 0.3s ease-out'
-    }}>
-      <div style={{
-        width: '450px',
-        background: 'rgba(20, 20, 30, 0.95)',
-        border: '1px solid rgba(255, 255, 255, 0.1)',
-        borderRadius: '24px',
-        padding: '30px',
-        color: 'white',
-        boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+    <div 
+      className="settings-menu-overlay"
+      style={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '100vw',
+        height: '100vh',
+        zIndex: 10000,
         display: 'flex',
-        flexDirection: 'column',
-        gap: '20px'
-      }}>
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: 'rgba(0, 0, 0, 0.7)',
+        backdropFilter: 'blur(10px)',
+        animation: 'fadeIn 0.3s ease-out',
+        padding: '10px'
+      }}
+    >
+      <div 
+        className="settings-menu-container"
+        style={{
+          width: '100%',
+          maxWidth: '450px',
+          background: 'rgba(20, 20, 30, 0.95)',
+          border: '1px solid rgba(255, 255, 255, 0.1)',
+          borderRadius: '24px',
+          padding: '30px',
+          color: 'white',
+          boxShadow: '0 20px 50px rgba(0, 0, 0, 0.5)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: '20px',
+          maxHeight: '90vh',
+          overflowY: 'auto'
+        }}
+      >
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <h2 style={{ margin: 0, fontSize: '24px', fontWeight: 'bold', letterSpacing: '1px' }}>SETTINGS</h2>
           <button

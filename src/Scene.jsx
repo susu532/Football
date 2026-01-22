@@ -353,34 +353,37 @@ export default function Scene() {
       {hasJoined && (
         <div className="game-content-wrapper" style={{ width: '100%', height: '100%' }}>
           {/* Connection Status */}
-          <div style={{
-            position: 'absolute',
-            top: '20px',
-            left: '20px',
-            zIndex: 9999,
-            background: 'rgba(0,0,0,0.5)',
-            padding: '10px 20px',
-            borderRadius: '12px',
-            color: 'white',
-            fontSize: '18px',
-            fontWeight: 'bold',
-            textTransform: 'uppercase',
-            letterSpacing: '1px',
-            border: '1px solid rgba(255,255,255,0.2)',
-            backdropFilter: 'blur(5px)',
-            pointerEvents: 'none',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: '5px'
-          }}>
-        <div style={{ fontSize: '12px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <span style={{ color: isConnected ? '#00ff00' : '#ff0000' }}>
-            ● {isConnected ? 'CONNECTED' : 'CONNECTING...'}
-          </span>
-          <span style={{ color: getConnectionQualityColor(connectionQuality) }}>{realPing}ms</span>
-          {isHost && <span style={{ color: '#ffd700' }}>★ HOST</span>}
-        </div>
-      </div>
+          <div 
+            className="game-hud-connection"
+            style={{
+              position: 'absolute',
+              top: isMobile ? '10px' : '20px',
+              left: isMobile ? '10px' : '20px',
+              zIndex: 9999,
+              background: 'rgba(0,0,0,0.5)',
+              padding: isMobile ? '6px 12px' : '10px 20px',
+              borderRadius: isMobile ? '10px' : '12px',
+              color: 'white',
+              fontSize: isMobile ? '14px' : '18px',
+              fontWeight: 'bold',
+              textTransform: 'uppercase',
+              letterSpacing: '1px',
+              border: '1px solid rgba(255,255,255,0.2)',
+              backdropFilter: 'blur(5px)',
+              pointerEvents: 'none',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '5px'
+            }}
+          >
+            <div className="hud-inner" style={{ fontSize: isMobile ? '10px' : '12px', display: 'flex', alignItems: 'center', gap: isMobile ? '5px' : '8px' }}>
+              <span style={{ color: isConnected ? '#00ff00' : '#ff0000' }}>
+                ● {isConnected ? (isMobile ? 'ON' : 'CONNECTED') : (isMobile ? '...' : 'CONNECTING...')}
+              </span>
+              <span style={{ color: getConnectionQualityColor(connectionQuality) }}>{realPing}ms</span>
+              {isHost && <span style={{ color: '#ffd700' }}>★</span>}
+            </div>
+          </div>
 
       {/* Connection Warning */}
       {showConnectionWarning && (
@@ -419,23 +422,28 @@ export default function Scene() {
 
       {/* Exit Button */}
       <button
+        className="game-btn-exit"
         onClick={() => setShowExitConfirm(true)}
         style={{
           position: 'absolute',
-          top: '20px',
-          left: '180px',
+          top: isMobile ? '10px' : '20px',
+          left: isMobile ? '110px' : '180px',
           zIndex: 9999,
           background: 'rgba(255,71,87,0.5)',
           border: '1px solid rgba(255,255,255,0.2)',
-          borderRadius: '12px',
+          borderRadius: isMobile ? '10px' : '12px',
           color: 'white',
-          padding: '10px',
+          padding: isMobile ? '8px' : '10px',
+          width: isMobile ? '40px' : 'auto',
+          height: isMobile ? '40px' : 'auto',
+          minWidth: '40px',
+          minHeight: '40px',
           cursor: 'pointer',
           backdropFilter: 'blur(5px)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          fontSize: '18px',
+          fontSize: isMobile ? '16px' : '18px',
           transition: 'all 0.2s'
         }}
         title="Exit to Menu"
@@ -448,13 +456,14 @@ export default function Scene() {
       {/* Fullscreen Button */}
       <div style={{
         position: 'absolute',
-        top: '20px',
-        right: '20px',
+        top: isMobile ? '10px' : '20px',
+        right: isMobile ? '10px' : '20px',
         zIndex: 9999,
         display: 'flex',
-        gap: '10px'
+        gap: isMobile ? '8px' : '10px'
       }}>
         <button
+          className="game-btn-fullscreen"
           onClick={() => {
             const elem = document.documentElement
             if (!document.fullscreenElement) {
@@ -466,26 +475,42 @@ export default function Scene() {
           style={{
             background: 'rgba(0,0,0,0.5)',
             border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '12px',
+            borderRadius: isMobile ? '10px' : '12px',
             color: 'white',
-            padding: '10px',
+            padding: isMobile ? '8px' : '10px',
+            width: isMobile ? '40px' : 'auto',
+            height: isMobile ? '40px' : 'auto',
+            minWidth: '40px',
+            minHeight: '40px',
             cursor: 'pointer',
-            backdropFilter: 'blur(5px)'
+            backdropFilter: 'blur(5px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '16px' : '18px'
           }}
         >
           ⛶
         </button>
         <button
+          className="game-btn-settings"
           onClick={() => setShowSettings(true)}
           style={{
             background: 'rgba(0,0,0,0.5)',
             border: '1px solid rgba(255,255,255,0.2)',
-            borderRadius: '12px',
+            borderRadius: isMobile ? '10px' : '12px',
             color: 'white',
-            padding: '10px',
+            padding: isMobile ? '8px' : '10px',
+            width: isMobile ? '40px' : 'auto',
+            height: isMobile ? '40px' : 'auto',
+            minWidth: '40px',
+            minHeight: '40px',
             cursor: 'pointer',
             backdropFilter: 'blur(5px)',
-            fontSize: '18px'
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: isMobile ? '16px' : '18px'
           }}
           title="Settings"
         >
@@ -496,50 +521,56 @@ export default function Scene() {
       {/* Scoreboard & Timer */}
       <div style={{
         position: 'absolute',
-        top: '20px',
+        top: isMobile ? '10px' : '20px',
         left: '50%',
         transform: 'translateX(-50%)',
         zIndex: 9999,
         display: 'flex',
         flexDirection: 'column',
         alignItems: 'center',
-        gap: '10px'
+        gap: isMobile ? '6px' : '10px'
       }}>
-        <div style={{
-          display: 'flex',
-          gap: '20px',
-          background: 'rgba(0,0,0,0.6)',
-          padding: '10px 30px',
-          borderRadius: '20px',
-          border: '1px solid rgba(255,255,255,0.1)',
-          backdropFilter: 'blur(10px)',
-          alignItems: 'center'
-        }}>
-          <div style={{ color: '#ff4757', fontSize: '32px', fontWeight: 'bold' }}>{scores?.red ?? 0}</div>
-          <div style={{ 
+        <div 
+          className="game-scoreboard"
+          style={{
+            display: 'flex',
+            gap: isMobile ? '12px' : '20px',
+            background: 'rgba(0,0,0,0.6)',
+            padding: isMobile ? '8px 20px' : '10px 30px',
+            borderRadius: isMobile ? '16px' : '20px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            backdropFilter: 'blur(10px)',
+            alignItems: 'center'
+          }}
+        >
+          <div className="score-value" style={{ color: '#ff4757', fontSize: isMobile ? '24px' : '32px', fontWeight: 'bold' }}>{scores?.red ?? 0}</div>
+          <div className="timer-value" style={{ 
             color: 'white', 
-            fontSize: '24px', 
+            fontSize: isMobile ? '18px' : '24px', 
             fontWeight: 'bold',
-            minWidth: '80px',
+            minWidth: isMobile ? '60px' : '80px',
             textAlign: 'center',
             fontFamily: 'monospace'
           }}>
             {Math.floor((gameTimer || 300) / 60)}:{((gameTimer || 300) % 60).toString().padStart(2, '0')}
           </div>
-          <div style={{ color: '#3742fa', fontSize: '32px', fontWeight: 'bold' }}>{scores?.blue ?? 0}</div>
+          <div className="score-value" style={{ color: '#3742fa', fontSize: isMobile ? '24px' : '32px', fontWeight: 'bold' }}>{scores?.blue ?? 0}</div>
         </div>
 
         {roomCode && (
-          <div style={{
-            background: 'rgba(0,0,0,0.45)',
-            color: 'white',
-            padding: '6px 14px',
-            borderRadius: '999px',
-            border: '1px solid rgba(255,255,255,0.12)',
-            fontFamily: 'monospace',
-            letterSpacing: '2px',
-            fontSize: '12px'
-          }}>
+          <div 
+            className="room-code-badge"
+            style={{
+              background: 'rgba(0,0,0,0.45)',
+              color: 'white',
+              padding: isMobile ? '4px 10px' : '6px 14px',
+              borderRadius: '999px',
+              border: '1px solid rgba(255,255,255,0.12)',
+              fontFamily: 'monospace',
+              letterSpacing: isMobile ? '1px' : '2px',
+              fontSize: isMobile ? '10px' : '12px'
+            }}
+          >
             CODE: {roomCode}
           </div>
         )}
@@ -774,36 +805,43 @@ export default function Scene() {
 
       {/* Exit Confirmation Modal */}
       {showExitConfirm && (
-        <div style={{
-          position: 'absolute',
-          top: 0,
-          left: 0,
-          right: 0,
-          bottom: 0,
-          zIndex: 20000,
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          background: 'rgba(0,0,0,0.8)',
-          backdropFilter: 'blur(10px)',
-          animation: 'fadeIn 0.3s ease-out'
-        }}>
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(20,20,30,0.9), rgba(40,40,60,0.9))',
-            padding: '40px',
-            borderRadius: '24px',
-            border: '1px solid rgba(255,255,255,0.1)',
-            boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,71,87,0.2)',
-            textAlign: 'center',
-            maxWidth: '400px',
-            width: '90%',
-            animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-          }}>
-            <div style={{ fontSize: '64px', marginBottom: '20px' }}>🚪</div>
+        <div 
+          className="exit-confirm-backdrop"
+          style={{
+            position: 'absolute',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            zIndex: 20000,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: 'rgba(0,0,0,0.8)',
+            backdropFilter: 'blur(10px)',
+            animation: 'fadeIn 0.3s ease-out',
+            padding: isMobile ? '15px' : '20px'
+          }}
+        >
+          <div 
+            className="exit-confirm-modal"
+            style={{
+              background: 'linear-gradient(135deg, rgba(20,20,30,0.9), rgba(40,40,60,0.9))',
+              padding: isMobile ? '24px' : '40px',
+              borderRadius: isMobile ? '20px' : '24px',
+              border: '1px solid rgba(255,255,255,0.1)',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5), 0 0 20px rgba(255,71,87,0.2)',
+              textAlign: 'center',
+              maxWidth: isMobile ? '350px' : '400px',
+              width: '95%',
+              animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+            }}
+          >
+            <div className="modal-icon" style={{ fontSize: isMobile ? '48px' : '64px', marginBottom: isMobile ? '16px' : '20px' }}>🚪</div>
             <h2 style={{
               color: 'white',
-              fontSize: '28px',
-              margin: '0 0 15px 0',
+              fontSize: isMobile ? '22px' : '28px',
+              margin: isMobile ? '0 0 10px 0' : '0 0 15px 0',
               fontWeight: '900',
               textTransform: 'uppercase',
               letterSpacing: '1px'
@@ -812,25 +850,27 @@ export default function Scene() {
             </h2>
             <p style={{
               color: 'rgba(255,255,255,0.7)',
-              fontSize: '16px',
-              margin: '0 0 30px 0',
+              fontSize: isMobile ? '14px' : '16px',
+              margin: isMobile ? '0 0 24px 0' : '0 0 30px 0',
               lineHeight: '1.5'
             }}>
               Are you sure you want to leave the match? Your current score will be lost.
             </p>
-            <div style={{ display: 'flex', gap: '15px' }}>
+            <div className="modal-buttons" style={{ display: 'flex', gap: isMobile ? '10px' : '15px', flexDirection: isMobile && window.innerWidth <= 400 ? 'column' : 'row' }}>
               <button
                 onClick={() => setShowExitConfirm(false)}
                 style={{
                   flex: 1,
-                  padding: '15px',
-                  borderRadius: '12px',
+                  padding: isMobile ? '14px' : '15px',
+                  borderRadius: isMobile ? '10px' : '12px',
                   border: '1px solid rgba(255,255,255,0.1)',
                   background: 'rgba(255,255,255,0.05)',
                   color: 'white',
                   fontWeight: 'bold',
+                  fontSize: isMobile ? '14px' : '16px',
                   cursor: 'pointer',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  minHeight: '48px'
                 }}
                 onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.1)'}
                 onMouseLeave={(e) => e.currentTarget.style.background = 'rgba(255,255,255,0.05)'}
@@ -841,15 +881,17 @@ export default function Scene() {
                 onClick={handleLeave}
                 style={{
                   flex: 1,
-                  padding: '15px',
-                  borderRadius: '12px',
+                  padding: isMobile ? '14px' : '15px',
+                  borderRadius: isMobile ? '10px' : '12px',
                   border: 'none',
                   background: 'linear-gradient(45deg, #ff4757, #ff6b81)',
                   color: 'white',
                   fontWeight: 'bold',
+                  fontSize: isMobile ? '14px' : '16px',
                   cursor: 'pointer',
                   boxShadow: '0 5px 15px rgba(255,71,87,0.4)',
-                  transition: 'all 0.2s'
+                  transition: 'all 0.2s',
+                  minHeight: '48px'
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.transform = 'translateY(-2px)'
@@ -869,18 +911,21 @@ export default function Scene() {
 
       {/* Overlays (Goal & Game Over) */}
       {celebration && (
-        <div style={{
-          position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          zIndex: 10000,
-          fontSize: '80px',
-          fontWeight: 'bold',
-          color: celebration.team === 'red' ? '#ff4757' : '#3742fa',
-          textShadow: '0 0 20px rgba(255,255,255,0.8)',
-          animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
-        }}>
+        <div 
+          className="goal-celebration-text"
+          style={{
+            position: 'absolute',
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            zIndex: 10000,
+            fontSize: isMobile ? (window.innerWidth <= 480 ? '48px' : '60px') : '80px',
+            fontWeight: 'bold',
+            color: celebration.team === 'red' ? '#ff4757' : '#3742fa',
+            textShadow: '0 0 20px rgba(255,255,255,0.8)',
+            animation: 'popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275)'
+          }}
+        >
           GOAL!
         </div>
       )}
@@ -891,20 +936,23 @@ export default function Scene() {
 
       {/* Power-up Collection Overlay */}
       {collectedEmoji && (
-        <div style={{
-          position: 'absolute',
-          top: '80px',
-          right: '0px',
-          zIndex: 10000,
-          fontSize: '80px',
-          background: 'linear-gradient(135deg, rgba(20,20,30,0.9), rgba(40,40,60,0.9))',
-          padding: '5px',
-          borderRadius: '24px',
-          border: '1px solid rgba(255,255,255,0.1)',
-          boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
-          animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-          pointerEvents: 'none'
-        }}>
+        <div 
+          className="powerup-collected-overlay"
+          style={{
+            position: 'absolute',
+            top: isMobile ? '60px' : '80px',
+            right: isMobile ? '5px' : '0px',
+            zIndex: 10000,
+            fontSize: isMobile ? (window.innerWidth <= 480 ? '48px' : '60px') : '80px',
+            background: 'linear-gradient(135deg, rgba(20,20,30,0.9), rgba(40,40,60,0.9))',
+            padding: isMobile ? '4px' : '5px',
+            borderRadius: isMobile ? '18px' : '24px',
+            border: '1px solid rgba(255,255,255,0.1)',
+            boxShadow: '0 20px 50px rgba(0,0,0,0.5)',
+            animation: 'popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+            pointerEvents: 'none'
+          }}
+        >
           {collectedEmoji}
         </div>
       )}
