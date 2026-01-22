@@ -152,25 +152,36 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     joinedRoom.onStateChange((state) => {
       if (!state) return
 
-      // Sync Players List (Efficiently)
+      // Sync Players List - Always update to capture stat changes (goals, assists, shots)
       if (state.players) {
-        const playerIds = []
-        state.players.forEach((p, id) => {
-          playerIds.push(id)
+        const newPlayers = []
+        state.players.forEach((p) => {
+          // Clone the player object to capture current values including stats
+          newPlayers.push({
+            sessionId: p.sessionId,
+            name: p.name,
+            team: p.team,
+            character: p.character,
+            x: p.x,
+            y: p.y,
+            z: p.z,
+            vx: p.vx,
+            vy: p.vy,
+            vz: p.vz,
+            rotY: p.rotY,
+            invisible: p.invisible,
+            giant: p.giant,
+            speedMult: p.speedMult,
+            jumpMult: p.jumpMult,
+            kickMult: p.kickMult,
+            jumpCount: p.jumpCount,
+            tick: p.tick,
+            goals: p.goals || 0,
+            assists: p.assists || 0,
+            shots: p.shots || 0
+          })
         })
-
-        setPlayers(prev => {
-          const prevIds = prev.map(p => p.sessionId)
-          const hasChanged = playerIds.length !== prevIds.length || 
-                             !playerIds.every(id => prevIds.includes(id))
-          
-          if (hasChanged) {
-            const newPlayers = []
-            state.players.forEach((p) => newPlayers.push(p))
-            return newPlayers
-          }
-          return prev
-        })
+        setPlayers(newPlayers)
       }
 
       // Sync Ball Proxy

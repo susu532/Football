@@ -26,7 +26,9 @@ export default function StatsOverlay({ players }) {
 
   if (!visible) return null
 
-  const playerList = Array.from(players.values()).sort((a, b) => (b.goals * 3 + b.assists) - (a.goals * 3 + a.assists))
+  // Handle both array and Map formats for players
+  const playerArray = Array.isArray(players) ? players : Array.from(players.values?.() || [])
+  const playerList = playerArray.sort((a, b) => (b.goals * 3 + b.assists) - (a.goals * 3 + a.assists))
 
   return (
     <div style={{
