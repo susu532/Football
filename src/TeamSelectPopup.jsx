@@ -539,13 +539,22 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
       {/* Top Bar */}
       <div className="lobby-top-bar">
         <div className="top-bar-left">
-          {/* Logo or other info could go here */}
+          <button className="btn-settings" onClick={() => useStore.getState().setShowSettings(true)}>⚙️</button>
         </div>
 
         <div className="top-bar-right">
-          <div className="player-profile-card">
-            <div className="avatar-wrapper">
-              <div className="avatar-placeholder">
+          <div className="player-profile-card" style={{
+            transform: 'scale(1.2)',
+            transformOrigin: 'right top',
+            background: 'rgba(20, 20, 30, 0.8)',
+            backdropFilter: 'blur(10px)',
+            border: '1px solid rgba(255, 255, 255, 0.1)',
+            padding: '8px 16px',
+            borderRadius: '16px',
+            boxShadow: '0 8px 32px rgba(0, 0, 0, 0.3)'
+          }}>
+            <div className="avatar-wrapper" style={{ width: '50px', height: '50px' }}>
+              <div className="avatar-placeholder" style={{ fontSize: '28px' }}>
                 <span className="avatar-icon">👤</span>
               </div>
               <div className="level-badge-mini">1</div>
@@ -559,6 +568,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
                   value={playerName}
                   onChange={(e) => setPlayerName(e.target.value)}
                   maxLength={15}
+                  style={{ fontSize: '18px', fontWeight: 'bold' }}
                 />
                 <button className="profile-dice-btn" onClick={() => setPlayerName(generateRandomName())}>🎲</button>
               </div>
@@ -566,13 +576,11 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
               <div className="profile-stats-row">
                 <div className="stat-item">
                   <span className="stat-icon">🪙</span>
-                  <span className="stat-value">0</span>
+                  <span className="stat-value" style={{ fontSize: '14px' }}>0</span>
                 </div>
               </div>
             </div>
           </div>
-
-          <button className="btn-settings" onClick={() => useStore.getState().setShowSettings(true)}>⚙️</button>
         </div>
       </div>
 
@@ -591,7 +599,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
           <button 
             className="lobby-btn btn-blue btn-gamemodes"
             onClick={() => setView('gamemodes')}
-            style={{ marginTop: '10px' }}
+            style={{ marginTop: '10px', height: '60px', fontSize: '18px' }}
           >
             <span className="btn-icon">🎮</span>
             Game Modes
