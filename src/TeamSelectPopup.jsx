@@ -34,6 +34,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   const [playerName, setPlayerName] = useState(defaultName || '')
   const [isRoomBusy, setIsRoomBusy] = useState(false)
   const [notifications, setNotifications] = useState([])
+  const [joinCode, setJoinCode] = useState('')
 
   const showNotification = (message, type = 'info') => {
     const id = Date.now()
@@ -282,7 +283,6 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
   )
 
   const renderJoinView = () => {
-    const [joinCode, setJoinCode] = useState('')
     
     const handleKeyDown = (e) => {
       if (e.key === 'Enter' && joinCode.trim().length === 4) {
