@@ -1600,3 +1600,287 @@ html,
   backdrop-filter: blur(10px);
 }
 
+/* =========================================
+   MOBILE NAVIGATION GRID
+   ========================================= */
+.mobile-nav-grid {
+  display: none; /* Hidden on desktop */
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  width: 100%;
+  max-width: 320px;
+  margin-top: 15px;
+}
+
+.btn-mobile-nav {
+  padding: 14px 16px;
+  font-size: 0.95rem;
+  border-radius: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.btn-mobile-nav .btn-icon {
+  font-size: 1.1rem;
+}
+
+/* =========================================
+   ENHANCED MOBILE RESPONSIVE STYLES
+   ========================================= */
+@media (max-width: 900px) {
+  /* Show mobile navigation grid */
+  .mobile-nav-grid {
+    display: grid;
+  }
+
+  /* Profile card - tighter and smaller */
+  .player-profile-card {
+    transform: none !important;
+    padding: 8px 14px !important;
+    gap: 10px !important;
+    border-radius: 16px !important;
+  }
+
+  .avatar-wrapper {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .avatar-placeholder {
+    border-radius: 10px !important;
+  }
+
+  .level-badge-mini {
+    width: 16px !important;
+    height: 16px !important;
+    font-size: 9px !important;
+    bottom: -3px !important;
+    right: -3px !important;
+  }
+
+  .profile-details .profile-name-row input {
+    width: 90px !important;
+    font-size: 14px !important;
+  }
+
+  .profile-dice-btn {
+    padding: 2px !important;
+    font-size: 12px !important;
+  }
+
+  .profile-stats-row .stat-item {
+    padding: 2px 8px !important;
+  }
+
+  .profile-stats-row .stat-icon {
+    font-size: 11px !important;
+  }
+
+  .profile-stats-row .stat-value {
+    font-size: 11px !important;
+  }
+
+  /* Immersive view mobile fixes */
+  .immersive-view {
+    padding: 0 !important;
+  }
+
+  .immersive-header {
+    padding: 12px 16px !important;
+  }
+
+  .immersive-header h2 {
+    font-size: 1.3rem !important;
+    letter-spacing: 1px !important;
+  }
+
+  .spacer {
+    width: 60px !important;
+  }
+
+  .btn-back {
+    padding: 8px 12px !important;
+    font-size: 1rem !important;
+  }
+
+  /* Map scroll container mobile */
+  .map-scroll-container {
+    padding: 12px 16px !important;
+  }
+
+  /* Customize layout mobile */
+  .customize-layout {
+    flex-direction: column !important;
+    gap: 20px !important;
+    padding: 10px !important;
+    overflow-y: auto !important;
+  }
+
+  .customize-preview {
+    height: 200px !important;
+    min-height: 200px !important;
+    flex: none !important;
+  }
+
+  .customize-options {
+    padding: 10px !important;
+    gap: 20px !important;
+  }
+
+  .option-group h3 {
+    font-size: 1.1rem !important;
+    margin-bottom: 10px !important;
+  }
+
+  .option-row {
+    gap: 10px !important;
+  }
+
+  .option-btn {
+    padding: 14px !important;
+    font-size: 1rem !important;
+    border-radius: 14px !important;
+  }
+
+  /* Game modes layout mobile */
+  .gamemodes-layout {
+    padding: 10px !important;
+    gap: 20px !important;
+  }
+
+  .gamemode-card {
+    padding: 15px !important;
+    gap: 15px !important;
+  }
+
+  .mode-icon {
+    font-size: 2rem !important;
+  }
+
+  .mode-info h3 {
+    font-size: 1.2rem !important;
+  }
+
+  .difficulty-options {
+    gap: 10px !important;
+  }
+
+  .difficulty-btn {
+    padding: 12px 20px !important;
+    font-size: 0.9rem !important;
+  }
+
+  /* Help modal mobile */
+  .help-modal-content {
+    width: 90% !important;
+    max-width: 350px !important;
+    padding: 20px !important;
+  }
+
+  .keybind-item {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+    justify-content: center !important;
+  }
+
+  .key-icon {
+    padding: 4px 8px !important;
+    font-size: 0.8rem !important;
+  }
+
+  .key-desc {
+    width: 100% !important;
+    text-align: center !important;
+    font-size: 0.8rem !important;
+    margin-top: 5px !important;
+  }
+
+  /* Help button mobile */
+  .btn-help {
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 1rem !important;
+    bottom: 15px !important;
+    right: 15px !important;
+  }
+}
+
+/* Extra small devices (phones in portrait) */
+@media (max-width: 480px) {
+  .lobby-logo {
+    font-size: 2rem !important;
+  }
+
+  .lobby-character-stage {
+    height: 180px !important;
+    max-width: 220px !important;
+  }
+
+  .btn-play {
+    font-size: 1.6rem !important;
+    padding: 14px 40px !important;
+  }
+
+  .sub-controls {
+    flex-direction: column !important;
+    width: 100% !important;
+    max-width: 200px !important;
+  }
+
+  .sub-controls .btn-small {
+    width: 100% !important;
+  }
+
+  .mobile-nav-grid {
+    max-width: 280px !important;
+  }
+
+  .btn-mobile-nav {
+    padding: 12px 10px !important;
+    font-size: 0.85rem !important;
+  }
+
+  /* Join private view mobile small */
+  .valley-input {
+    font-size: 2rem !important;
+    letter-spacing: 4px !important;
+  }
+
+  .input-valley {
+    padding: 15px !important;
+  }
+
+  .valley-label {
+    font-size: 14px !important;
+  }
+}
+
+/* Landscape mobile adjustments */
+@media (max-width: 900px) and (orientation: landscape) {
+  .mobile-nav-grid {
+    max-width: 400px !important;
+  }
+
+  .lobby-character-stage {
+    height: 150px !important;
+    width: 150px !important;
+  }
+
+  .play-controls {
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 10px !important;
+  }
+
+  .customize-layout {
+    flex-direction: row !important;
+  }
+
+  .customize-preview {
+    height: auto !important;
+    min-height: 0 !important;
+    flex: 1 !important;
+  }
+}

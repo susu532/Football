@@ -275,6 +275,24 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             Join Private
           </button>
         </div>
+
+        {/* Mobile Navigation - visible only on mobile */}
+        <div className="mobile-nav-grid">
+          <button 
+            className="lobby-btn btn-orange btn-mobile-nav"
+            onClick={() => setView('customize')}
+          >
+            <span className="btn-icon">🛠️</span>
+            Customize
+          </button>
+          <button 
+            className="lobby-btn btn-blue btn-mobile-nav"
+            onClick={() => setView('gamemodes')}
+          >
+            <span className="btn-icon">🎮</span>
+            Game Modes
+          </button>
+        </div>
       </div>
 
       <button className="btn-help" onClick={() => setShowHelp(true)}>?</button>
