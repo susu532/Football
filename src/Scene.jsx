@@ -595,23 +595,9 @@ export default function Scene() {
               >
                 START GAME
               </button>
-            ) : (
-              <button
-                onClick={endGame}
-                style={{
-                  background: '#e74c3c',
-                  color: 'white',
-                  border: 'none',
-                  padding: '8px 16px',
-                  borderRadius: '8px',
-                  fontWeight: 'bold',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 15px rgba(231, 76, 60, 0.3)'
-                }}
-              >
-                END GAME
-              </button>
-            )}
+            ) : null} 
+              
+            
           </div>
         )}
       </div>

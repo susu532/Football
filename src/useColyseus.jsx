@@ -399,11 +399,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   }, [])
 
   // End game (host only)
-  const endGame = useCallback(() => {
-    if (roomRef.current) {
-      roomRef.current.send('end-game')
-    }
-  }, [])
+ 
 
   // On message handler
   const onMessage = useCallback((type, callback) => {
