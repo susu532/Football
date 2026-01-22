@@ -8,6 +8,7 @@ const useStore = create((set) => ({
   playerMap: 'OceanFloor',
   hasJoined: false,
   showSettings: false,
+  serverUrl: typeof window !== 'undefined' ? localStorage.getItem('colyseus_server_url') || import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567' : 'ws://localhost:2567',
   graphicsQuality: 'medium', // 'low', 'medium', 'high'
   showFPS: false,
   // Audio settings
@@ -51,6 +52,12 @@ const useStore = create((set) => ({
   setShowSettings: (show) => set({ showSettings: show }),
   setGraphicsQuality: (quality) => set({ graphicsQuality: quality }),
   setShowFPS: (show) => set({ showFPS: show }),
+  setServerUrl: (url) => {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('colyseus_server_url', url)
+    }
+    set({ serverUrl: url })
+  },
 }))
 
 export default useStore

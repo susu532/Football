@@ -40,7 +40,7 @@ const CSS_ANIMATIONS = `
 `
 
 // Server URL - change for production
-const SERVER_URL = import.meta.env.VITE_COLYSEUS_SERVER || 'ws://localhost:2567'
+  const serverUrl = useStore((s) => s.serverUrl)
 
 // CameraController removed - replaced by SmartCamera
 
@@ -88,7 +88,7 @@ export default function Scene() {
     joinRoomById,
     joinPrivateRoomByCode,
     refreshAvailableRooms
-  } = useColyseus(SERVER_URL)
+  } = useColyseus(serverUrl)
 
 
 

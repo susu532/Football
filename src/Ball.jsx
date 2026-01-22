@@ -488,14 +488,12 @@ export const ClientBallVisual = React.forwardRef(({
       }
 
       // === WALL/ARENA COLLISION PREDICTION (MATCHES SERVER enforceBallBoundaries) ===
-      // ENHANCED: Thicker goal net walls and improved edge detection
       const ARENA_HALF_WIDTH = PHYSICS.ARENA_HALF_WIDTH  // 14.5
       const ARENA_HALF_DEPTH = PHYSICS.ARENA_HALF_DEPTH  // 9.5
       const GOAL_POST_Z = 2.5  // Goal posts at z = ±2.5
       const GOAL_LINE_X = PHYSICS.GOAL_LINE_X  // 10.8
       const GOAL_BACK_X = 17.0  // Back of goal net
       const GOAL_HEIGHT = PHYSICS.GOAL_HEIGHT  // 4.0
-      const GOAL_NET_WALL_THICKNESS = PHYSICS.GOAL_NET_WALL_THICKNESS || 0.5  // Thick side walls
       const ballR = BALL_RADIUS
       
       // Effective boundaries
@@ -509,14 +507,10 @@ export const ClientBallVisual = React.forwardRef(({
       const isDeepInGoal = absX > ARENA_HALF_WIDTH
       const isInGoalOpening = absZ < GOAL_POST_Z && physicsPos.current.y < GOAL_HEIGHT && isPastGoalLine
       
-      // === ENHANCED GOAL NET SIDE WALL DETECTION ===
-      // Check if ball is approaching the thick goal net side walls
-      const goalSideLimit = GOAL_POST_Z - ballR
-      const goalNetThickZone = GOAL_POST_Z + GOAL_NET_WALL_THICKNESS
-      
       // === Z AXIS ENFORCEMENT ===
       if (isDeepInGoal) {
         // Ball is deep in goal extension (x > 14.5) - MUST be inside net width
+        const goalSideLimit = GOAL_POST_Z - ballR
         if (Math.abs(physicsPos.current.z) > goalSideLimit) {
           // Ball is deep X but outside net Z -> Push back to arena X
           // Handle both left and right goals correctly
@@ -524,35 +518,14 @@ export const ClientBallVisual = React.forwardRef(({
           physicsPos.current.x = sign * (ARENA_HALF_WIDTH - ballR)
           predictedVelocity.current.x *= -PHYSICS.WALL_RESTITUTION
         } else {
-          // Ball is inside net width - enforce side walls with stronger bounce
+          // Ball is inside net width - enforce side walls
           if (physicsPos.current.z > goalSideLimit) {
-            predictedVelocity.current.z = -Math.abs(predictedVelocity.current.z) * PHYSICS.GOAL_RESTITUTION
+            predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
             physicsPos.current.z = goalSideLimit
           } else if (physicsPos.current.z < -goalSideLimit) {
-            predictedVelocity.current.z = Math.abs(predictedVelocity.current.z) * PHYSICS.GOAL_RESTITUTION
+            predictedVelocity.current.z *= -PHYSICS.GOAL_RESTITUTION
             physicsPos.current.z = -goalSideLimit
           }
-        }
-      } else if (isPastGoalLine && !isInGoalOpening) {
-        // Ball is past goal line but NOT in goal opening (approaching side walls)
-        // ENHANCED: Pre-emptive boundary enforcement for thick walls
-        if (absZ > goalSideLimit - GOAL_NET_WALL_THICKNESS && absX > GOAL_LINE_X - ballR) {
-          // Ball is approaching thick goal side wall zone - push back to arena
-          if (physicsPos.current.x > GOAL_LINE_X - ballR) {
-            physicsPos.current.x = GOAL_LINE_X - ballR
-            predictedVelocity.current.x *= -PHYSICS.GOAL_RESTITUTION
-          } else if (physicsPos.current.x < -(GOAL_LINE_X - ballR)) {
-            physicsPos.current.x = -(GOAL_LINE_X - ballR)
-            predictedVelocity.current.x *= -PHYSICS.GOAL_RESTITUTION
-          }
-        }
-        // Normal arena wall enforcement
-        if (physicsPos.current.z > maxZ) {
-          predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION
-          physicsPos.current.z = maxZ
-        } else if (physicsPos.current.z < -maxZ) {
-          predictedVelocity.current.z *= -PHYSICS.WALL_RESTITUTION
-          physicsPos.current.z = -maxZ
         }
       } else {
         // Ball is in main arena (or corner) - enforce arena walls
@@ -570,10 +543,10 @@ export const ClientBallVisual = React.forwardRef(({
         // Ball is in goal area - clamp to goal back wall
         const goalBackLimit = GOAL_BACK_X - ballR
         if (physicsPos.current.x > goalBackLimit) {
-          predictedVelocity.current.x = -Math.abs(predictedVelocity.current.x) * PHYSICS.GOAL_RESTITUTION
+          predictedVelocity.current.x *= -PHYSICS.GOAL_RESTITUTION
           physicsPos.current.x = goalBackLimit
         } else if (physicsPos.current.x < -goalBackLimit) {
-          predictedVelocity.current.x = Math.abs(predictedVelocity.current.x) * PHYSICS.GOAL_RESTITUTION
+          predictedVelocity.current.x *= -PHYSICS.GOAL_RESTITUTION
           physicsPos.current.x = -goalBackLimit
         }
       } else {

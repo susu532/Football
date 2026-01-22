@@ -528,7 +528,7 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             </div>
           </div>
 
-          <button className="btn-settings" onClick={() => showNotification('Settings coming soon!')}>⚙️</button>
+          <button className="btn-settings" onClick={() => useStore.getState().setShowSettings(true)}>⚙️</button>
         </div>
       </div>
 

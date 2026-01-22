@@ -13,6 +13,15 @@ export default function SettingsMenu() {
   const setGraphicsQuality = useStore((s) => s.setGraphicsQuality)
   const showFPS = useStore((s) => s.showFPS)
   const setShowFPS = useStore((s) => s.setShowFPS)
+  const serverUrl = useStore((s) => s.serverUrl)
+  const setServerUrl = useStore((s) => s.setServerUrl)
+
+  const [tempServerUrl, setTempServerUrl] = React.useState(serverUrl)
+
+  const handleSaveServer = () => {
+    setServerUrl(tempServerUrl)
+    window.location.reload()
+  }
 
   if (!showSettings) return null
 
@@ -158,6 +167,46 @@ export default function SettingsMenu() {
                 style={{ width: '20px', height: '20px', cursor: 'pointer' }}
               />
               <label htmlFor="fps-toggle" style={{ cursor: 'pointer' }}>Show FPS Counter</label>
+            </div>
+          </div>
+
+          <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.1)', paddingTop: '15px', marginTop: '5px' }}>
+            <label style={{ display: 'block', marginBottom: '10px', fontWeight: 'bold', fontSize: '14px', color: '#aaa' }}>SERVER</label>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+              <input 
+                type="text" 
+                value={tempServerUrl}
+                onChange={(e) => setTempServerUrl(e.target.value)}
+                placeholder="ws://localhost:2567"
+                style={{
+                  width: '100%',
+                  padding: '10px',
+                  borderRadius: '8px',
+                  border: '1px solid rgba(255, 255, 255, 0.2)',
+                  background: 'rgba(255, 255, 255, 0.05)',
+                  color: 'white',
+                  fontSize: '14px',
+                  outline: 'none'
+                }}
+              />
+              <button
+                onClick={handleSaveServer}
+                style={{
+                  padding: '8px',
+                  borderRadius: '8px',
+                  border: 'none',
+                  background: '#2ecc71',
+                  color: 'white',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px',
+                  transition: 'background 0.2s'
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.background = '#27ae60'}
+                onMouseLeave={(e) => e.currentTarget.style.background = '#2ecc71'}
+              >
+                SAVE & RELOAD
+              </button>
             </div>
           </div>
         </div>
