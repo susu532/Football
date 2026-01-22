@@ -157,7 +157,9 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
       options.isPublic = false // Training rooms are private by default
     }
 
-    const joined = await rooming.createPublicRoom(options)
+    const joined = isPublic 
+      ? await rooming.createPublicRoom(options)
+      : await rooming.createPrivateRoom(options)
     setIsRoomBusy(false)
     if (joined) {
       joinGame(playerName.trim(), selectedTeam, selectedCharacter, selectedMap)
@@ -292,13 +294,37 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
       <div className="lobby-center immersive-view">
         <div className="immersive-header">
           <button className="btn-back" onClick={() => setView('home')}>◀ Back</button>
-          <h2>Private Match</h2>
+          <h2>Join Private Match</h2>
           <div className="spacer"></div>
         </div>
         
-        <div className="join-private-container">
-          <div className="input-valley">
-            <div className="valley-label">ENTER 4-CHAR CODE</div>
+        <div className="join-private-container" style={{
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          height: '60%',
+          gap: '40px'
+        }}>
+          <div className="input-valley" style={{
+            background: 'rgba(255, 255, 255, 0.05)',
+            padding: '40px',
+            borderRadius: '32px',
+            border: '2px solid rgba(255, 255, 255, 0.1)',
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3)',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '20px',
+            width: '100%',
+            maxWidth: '500px'
+          }}>
+            <div className="valley-label" style={{
+              fontSize: '18px',
+              fontWeight: 'bold',
+              color: '#4488ff',
+              letterSpacing: '2px'
+            }}>ENTER ROOM CODE</div>
             <input 
               type="text" 
               className="valley-input"
@@ -308,6 +334,19 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
               onKeyDown={handleKeyDown}
               autoFocus
               maxLength={4}
+              style={{
+                background: 'none',
+                border: 'none',
+                borderBottom: '4px solid #4488ff',
+                color: 'white',
+                fontSize: '80px',
+                textAlign: 'center',
+                width: '100%',
+                outline: 'none',
+                fontFamily: 'monospace',
+                letterSpacing: '10px',
+                padding: '10px 0'
+              }}
             />
           </div>
           
@@ -315,9 +354,14 @@ export default function TeamSelectPopup({ defaultName, rooming }) {
             className="lobby-btn btn-green btn-large-action"
             onClick={() => handleJoinPrivateCode(joinCode.trim())}
             disabled={joinCode.trim().length !== 4 || isRoomBusy}
-            style={{ marginTop: '40px', minWidth: '200px' }}
+            style={{ 
+              fontSize: '24px',
+              padding: '20px 60px',
+              borderRadius: '20px',
+              boxShadow: '0 10px 30px rgba(46, 204, 113, 0.3)'
+            }}
           >
-            JOIN MATCH
+            {isRoomBusy ? 'JOINING...' : 'JOIN MATCH'}
           </button>
         </div>
       </div>
