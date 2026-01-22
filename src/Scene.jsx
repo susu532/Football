@@ -68,6 +68,7 @@ export default function Scene() {
     scores,
     gameState,
     gameTimer,
+    countdownTimer,
     isHost,
     me,
     sendInput,
@@ -124,6 +125,7 @@ export default function Scene() {
   const [showExitConfirm, setShowExitConfirm] = useState(false)
   const [gameOverData, setGameOverData] = useState(null)
   const [collectedEmoji, setCollectedEmoji] = useState(null)
+  const [showGo, setShowGo] = useState(false)
 
   // Mobile detection & Performance Optimization
   const [isMobile, setIsMobile] = useState(false)
@@ -254,11 +256,17 @@ export default function Scene() {
       }
     })
 
+    const unsubCountdownGo = onMessage('countdown-go', () => {
+      setShowGo(true)
+      setTimeout(() => setShowGo(false), 1500)
+    })
+
     return () => {
       if (typeof unsubGoal === 'function') unsubGoal()
       if (typeof unsubReset === 'function') unsubReset()
       if (typeof unsubOver === 'function') unsubOver()
       if (typeof unsubPowerUp === 'function') unsubPowerUp()
+      if (typeof unsubCountdownGo === 'function') unsubCountdownGo()
     }
   }, [isConnected, onMessage, playerTeam, me])
 
@@ -601,6 +609,65 @@ export default function Scene() {
           </div>
         )}
       </div>
+
+      {/* Countdown Overlay */}
+      {(gameState === 'countdown' || showGo) && (
+        <div style={{
+          position: 'absolute',
+          top: 0,
+          left: 0,
+          right: 0,
+          bottom: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          zIndex: 9998,
+          pointerEvents: 'none',
+          background: 'rgba(0, 0, 0, 0.4)'
+        }}>
+          {gameState === 'countdown' && !showGo && (
+            <>
+              <div style={{
+                fontSize: isMobile ? '24px' : '36px',
+                fontWeight: 'bold',
+                color: '#ffd700',
+                textTransform: 'uppercase',
+                letterSpacing: '4px',
+                textShadow: '0 0 20px rgba(255, 215, 0, 0.8), 0 0 40px rgba(255, 215, 0, 0.4)',
+                marginBottom: '20px',
+                animation: 'fadeIn 0.3s ease-out'
+              }}>
+                ⚡ GET READY! ⚡
+              </div>
+              <div style={{
+                fontSize: isMobile ? '120px' : '180px',
+                fontWeight: 'bold',
+                color: '#fff',
+                textShadow: '0 0 30px rgba(255, 255, 255, 0.8), 0 0 60px rgba(0, 200, 255, 0.6)',
+                fontFamily: 'monospace',
+                animation: 'popIn 0.3s ease-out',
+                key: countdownTimer
+              }}>
+                {countdownTimer}
+              </div>
+            </>
+          )}
+          {showGo && (
+            <div style={{
+              fontSize: isMobile ? '80px' : '140px',
+              fontWeight: 'bold',
+              color: '#00ff00',
+              textTransform: 'uppercase',
+              letterSpacing: '8px',
+              textShadow: '0 0 40px rgba(0, 255, 0, 0.9), 0 0 80px rgba(0, 255, 0, 0.5)',
+              animation: 'popIn 0.2s ease-out'
+            }}>
+              🚀 GO! 🚀
+            </div>
+          )}
+        </div>
+      )}
 
       {/* 3D Canvas */}
       <Canvas 

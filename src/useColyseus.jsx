@@ -73,6 +73,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
   const [powerUps, setPowerUps] = useState([]) // Array for easier mapping
   const [ping, setPing] = useState(0)
   const [pingJitter, setPingJitter] = useState(0)
+  const [countdownTimer, setCountdownTimer] = useState(0)
   const pingHistory = useRef([])
 
   const roomRef = useRef(null)
@@ -122,6 +123,29 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
 
     joinedRoom.onMessage('game-reset', (message) => {
       console.log('Game Reset:', message)
+    })
+
+    // Countdown events
+    joinedRoom.onMessage('countdown-start', (message) => {
+      console.log('Countdown started:', message)
+      AudioManager.playSFX('countdownReady')
+    })
+
+    joinedRoom.onMessage('countdown-tick', (message) => {
+      console.log('Countdown tick:', message.seconds)
+      // Play beep for every second of the countdown (10 to 1)
+      if (message.seconds >= 1 && message.seconds <= 10) {
+        AudioManager.playSFX('countdownBeep')
+      }
+      // Play "GO!" sound when countdown reaches 4 seconds
+      if (message.seconds === 4) {
+        AudioManager.playSFX('countdownGo')
+      }
+    })
+
+    joinedRoom.onMessage('countdown-go', (message) => {
+      console.log('Countdown GO!')
+      // GO sound already played at 4 seconds, no additional sound here
     })
 
     joinedRoom.onMessage('chat-message', (message) => {
@@ -201,6 +225,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
       setScores({ red: state.redScore, blue: state.blueScore })
       setGamePhase(state.gamePhase)
       setGameTimer(state.timer)
+      setCountdownTimer(state.countdownTimer || 0)
       if (state.selectedMap) setSelectedMap(state.selectedMap)
 
       // Sync Power-ups (Only if collection changes)
@@ -460,6 +485,7 @@ export function useColyseus(serverUrl = 'ws://localhost:2567') {
     powerUps,
     ping,
     pingJitter, // For adaptive collision smoothing
+    countdownTimer,
 
     // Actions
     sendInput,

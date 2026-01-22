@@ -23,6 +23,10 @@ class AudioManager {
       endgame: '/sounds/endgame.mp3',
       winner: '/winner-game-sound-404167.mp3',
       pop: '/sounds/pop.mp3',
+      // Countdown sounds
+      countdownReady: '/sounds/countdown-ready.mp3',
+      countdownBeep: '/sounds/countdown-beep.mp3',
+      countdownGo: '/sounds/countdown-go.mp3',
     }
 
     // Define music

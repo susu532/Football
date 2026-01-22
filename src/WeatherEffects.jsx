@@ -3,8 +3,8 @@ import React, { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'
 import * as THREE from 'three'
 
-// Rain Effect - Fast falling raindrops with slight wind drift
-export function RainEffect({ count = 800, area = [40, 30, 30] }) {
+// Rain Effect - Gentle falling raindrops with slight wind drift
+export function RainEffect({ count = 300, area = [50, 35, 35] }) {
   const pointsRef = useRef()
   
   const { positions, velocities } = useMemo(() => {
@@ -17,8 +17,8 @@ export function RainEffect({ count = 800, area = [40, 30, 30] }) {
       positions[i * 3 + 1] = Math.random() * area[1]          // y (height)
       positions[i * 3 + 2] = (Math.random() - 0.5) * area[2]  // z
       
-      // Random fall speed variation
-      velocities[i] = 0.3 + Math.random() * 0.3
+      // Slower fall speed variation
+      velocities[i] = 0.08 + Math.random() * 0.08
     }
     
     return { positions, velocities }
@@ -61,10 +61,10 @@ export function RainEffect({ count = 800, area = [40, 30, 30] }) {
         />
       </bufferGeometry>
       <pointsMaterial
-        color="#aaccff"
-        size={0.08}
+        color="#aaddff"
+        size={0.05}
         transparent
-        opacity={0.6}
+        opacity={0.35}
         sizeAttenuation
         depthWrite={false}
         blending={THREE.AdditiveBlending}
@@ -73,8 +73,8 @@ export function RainEffect({ count = 800, area = [40, 30, 30] }) {
   )
 }
 
-// Snow Effect - Slow falling snowflakes with gentle drift
-export function SnowEffect({ count = 500, area = [40, 25, 30] }) {
+// Snow Effect - Gentle floating snowflakes with soft drift
+export function SnowEffect({ count = 150, area = [50, 30, 35] }) {
   const pointsRef = useRef()
   
   const { positions, velocities, driftOffsets } = useMemo(() => {
@@ -88,8 +88,8 @@ export function SnowEffect({ count = 500, area = [40, 25, 30] }) {
       positions[i * 3 + 1] = Math.random() * area[1]          // y (height)
       positions[i * 3 + 2] = (Math.random() - 0.5) * area[2]  // z
       
-      // Slow, varied fall speed for snow
-      velocities[i] = 0.02 + Math.random() * 0.03
+      // Very slow, varied fall speed for snow
+      velocities[i] = 0.008 + Math.random() * 0.012
       
       // Random phase offset for drift
       driftOffsets[i] = Math.random() * Math.PI * 2
@@ -137,9 +137,9 @@ export function SnowEffect({ count = 500, area = [40, 25, 30] }) {
       </bufferGeometry>
       <pointsMaterial
         color="#ffffff"
-        size={0.15}
+        size={0.12}
         transparent
-        opacity={0.85}
+        opacity={0.5}
         sizeAttenuation
         depthWrite={false}
       />
