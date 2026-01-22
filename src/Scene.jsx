@@ -27,6 +27,7 @@ import { LocalPlayer, ClientPlayerVisual } from './PlayerSync'
 import { SoccerPitch, SoccerGoal, GameSkybox, GoalCelebrationEffect, MobileSky, StadiumLights } from './Environment'
 import { SmartCamera } from './SmartCamera'
 import Video360Player from './components/Video360Player'
+import { WeatherSystem } from './WeatherEffects'
 
 const CSS_ANIMATIONS = `
   @keyframes popIn {
@@ -697,6 +698,9 @@ export default function Scene() {
 
           {/* Stadium Lights */}
           <StadiumLights />
+
+          {/* Weather Effects - Rain/Snow on specific maps */}
+          <WeatherSystem mapId={selectedMap} />
 
           {/* 360 Video Player - Only for AlAqsa360 map */}
           {selectedMap === 'AlAqsa360' && (() => {
