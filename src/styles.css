@@ -1532,8 +1532,8 @@ html,
 .immersive-view {
   position: absolute;
   inset: 0;
-  background: rgba(10, 10, 18, 0.95);
-  backdrop-filter: blur(20px);
+  background: rgba(10, 10, 18, 0.6); /* Semi-transparent to show the grid */
+  backdrop-filter: blur(8px); /* Reduced blur */
   z-index: 200;
   display: flex;
   flex-direction: column;
