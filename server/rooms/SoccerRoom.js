@@ -532,61 +532,16 @@ export class SoccerRoom extends Room {
     const keys = [...this.state.players.keys()]
     if (keys[0] !== client.sessionId) return
 
-    // Reset game state and player stats
     this.resetGame()
-    
-    // Reset player individual stats
-    this.state.players.forEach((player) => {
-      player.goals = 0
-      player.assists = 0
-      player.shots = 0
-    })
-    
-    // Start countdown phase (10 seconds)
-    this.state.gamePhase = 'countdown'
-    this.state.countdownTimer = 10
-    
-    // Broadcast countdown start
-    this.broadcast('countdown-start', { seconds: 10 })
+    this.state.gamePhase = 'playing'
 
-    // Clear any existing intervals
-    if (this.timerInterval) {
-      this.timerInterval.clear()
-      this.timerInterval = null
-    }
-    if (this.countdownInterval) {
-      this.countdownInterval.clear()
-      this.countdownInterval = null
-    }
-
-    // Countdown interval
-    this.countdownInterval = this.clock.setInterval(() => {
-      if (this.state.gamePhase === 'countdown') {
-        this.state.countdownTimer--
-        
-        // Broadcast each tick for audio sync
-        this.broadcast('countdown-tick', { seconds: this.state.countdownTimer })
-        
-        if (this.state.countdownTimer <= 0) {
-          // Stop countdown interval
-          if (this.countdownInterval) {
-            this.countdownInterval.clear()
-            this.countdownInterval = null
-          }
-          
-          // Transition to playing
-          this.state.gamePhase = 'playing'
-          this.broadcast('countdown-go', {})
-          
-          // Start game timer
-          this.timerInterval = this.clock.setInterval(() => {
-            if (this.state.gamePhase === 'playing') {
-              this.state.timer--
-              if (this.state.timer <= 0) {
-                this.endGame()
-              }
-            }
-          }, 1000)
+    // Start timer
+    if (this.timerInterval) clearInterval(this.timerInterval)
+    this.timerInterval = this.clock.setInterval(() => {
+      if (this.state.gamePhase === 'playing') {
+        this.state.timer--
+        if (this.state.timer <= 0) {
+          this.endGame()
         }
       }
     }, 1000)
@@ -696,10 +651,6 @@ export class SoccerRoom extends Room {
         const jumpRequestId = input.jumpRequestId || 0
         const rotY = input.rotY || 0
 
-        // FREEZE PLAYERS DURING COUNTDOWN
-        // Players can look around but not move
-        const isCountdown = this.state.gamePhase === 'countdown'
-
         // Handle forced reset
         if (player.resetPosition) {
           const spawnX = player.team === 'red' ? -6 : 6
@@ -732,18 +683,14 @@ export class SoccerRoom extends Room {
       player.vx = player.vx || 0
       player.vz = player.vz || 0
       
-      // During countdown, force zero movement
-      const effectiveX = isCountdown ? 0 : x
-      const effectiveZ = isCountdown ? 0 : z
-      
-      if (effectiveX === 0 && effectiveZ === 0) {
+      if (x === 0 && z === 0) {
         // Instant stop to prevent sliding
         player.vx = 0
         player.vz = 0
       } else {
         const smoothing = PHYSICS.VELOCITY_SMOOTHING
-        player.vx = player.vx + (effectiveX * speed - player.vx) * smoothing
-        player.vz = player.vz + (effectiveZ * speed - player.vz) * smoothing
+        player.vx = player.vx + (x * speed - player.vx) * smoothing
+        player.vz = player.vz + (z * speed - player.vz) * smoothing
       }
 
 
@@ -757,8 +704,8 @@ export class SoccerRoom extends Room {
         player.jumpCount = 0
       }
 
-      // Jump Request ID Logic: Only jump if we see a NEW request ID (and not during countdown)
-      if (!isCountdown && jumpRequestId > (player.lastProcessedJumpRequestId || 0) && player.jumpCount < PHYSICS.MAX_JUMPS) {
+      // Jump Request ID Logic: Only jump if we see a NEW request ID
+      if (jumpRequestId > (player.lastProcessedJumpRequestId || 0) && player.jumpCount < PHYSICS.MAX_JUMPS) {
         const jumpForce = PHYSICS.JUMP_FORCE * (player.jumpMult || 1)
         player.vy = player.jumpCount === 0 ? jumpForce : jumpForce * PHYSICS.DOUBLE_JUMP_MULTIPLIER
         player.jumpCount++
