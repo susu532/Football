@@ -713,22 +713,32 @@ export const ClientBallVisual = React.forwardRef(({
       
       // Get engine's prediction and blend with existing system
       const enginePrediction = predictionEngine.current.predictCollision(players, sessionId)
-      if (enginePrediction && enginePrediction.timeToCollision < PREDICTION.TTC_THRESHOLD / 2) {
+      
+      // FIRST TOUCH DETECTION from engine
+      const engineFirstTouch = predictionEngine.current.isInFirstTouch()
+      const adaptiveLookahead = predictionEngine.current.getAdaptiveLookahead()
+      
+      if (enginePrediction && enginePrediction.timeToCollision < adaptiveLookahead) {
         // Engine detected imminent collision - boost confidence
+        const confidenceBoost = engineFirstTouch ? 
+          PHYSICS.COLLISION_CONFIDENCE_BOOST * 1.5 : // Extra boost for first touch
+          PHYSICS.COLLISION_CONFIDENCE_BOOST
         collisionConfidence.current = Math.max(collisionConfidence.current, 
-          predictionEngine.current.getConfidence() * PHYSICS.COLLISION_CONFIDENCE_BOOST)
+          predictionEngine.current.getConfidence() * confidenceBoost)
         
         // Pre-emptive visual response from engine
         if (!collisionThisFrame.current) {
           const engineVel = predictionEngine.current.getVelocity()
+          // FIRST TOUCH: More aggressive velocity blend
+          const blendFactor = engineFirstTouch ? 0.6 : 0.3
           predictedVelocity.current.x = THREE.MathUtils.lerp(
-            predictedVelocity.current.x, engineVel.x, 0.3
+            predictedVelocity.current.x, engineVel.x, blendFactor
           )
           predictedVelocity.current.y = THREE.MathUtils.lerp(
-            predictedVelocity.current.y, engineVel.y, 0.3
+            predictedVelocity.current.y, engineVel.y, blendFactor
           )
           predictedVelocity.current.z = THREE.MathUtils.lerp(
-            predictedVelocity.current.z, engineVel.z, 0.3
+            predictedVelocity.current.z, engineVel.z, blendFactor
           )
         }
       }
@@ -739,8 +749,9 @@ export const ClientBallVisual = React.forwardRef(({
     visualAccumulator.current += delta
     const VISUAL_STEP = PHYSICS.VISUAL_TIMESTEP
     
-    // Detect First Touch for Instant Response
-    const isFirstTouch = collisionThisFrame.current && !wasColliding.current
+    // Detect First Touch for Instant Response (also check engine)
+    const engineFirstTouchState = predictionEngine.current?.isInFirstTouch?.() || false
+    const isFirstTouch = (collisionThisFrame.current && !wasColliding.current) || engineFirstTouchState
     wasColliding.current = collisionThisFrame.current
 
     while (visualAccumulator.current >= VISUAL_STEP) {

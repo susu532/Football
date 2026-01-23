@@ -26,11 +26,25 @@ export const PREDICTION = {
   TTC_THRESHOLD: 0.1,                     // Time-to-collision trigger (100ms)
   TTC_PREEMPTIVE_FRAMES: 3,               // Frames before collision to start response
   
+  // PING-BASED ADAPTIVE LOOKAHEAD
+  LOOKAHEAD_MIN_MS: 50,                   // Minimum lookahead at low ping
+  LOOKAHEAD_MAX_MS: 200,                  // Maximum lookahead at high ping
+  LOOKAHEAD_PING_SCALE: 1.5,              // Lookahead = ping * scale
+  PING_TIER_LOW: 50,                      // Low ping threshold (ms)
+  PING_TIER_MED: 150,                     // Medium ping threshold (ms)
+  
+  // FIRST TOUCH PREDICTION
+  FIRST_TOUCH_SNAP_FACTOR: 0.98,          // Near-instant visual snap on first contact
+  FIRST_TOUCH_WINDOW_MS: 100,             // Time window to consider "first touch"
+  FIRST_TOUCH_VELOCITY_BOOST: 1.2,        // Velocity boost for first touch responsiveness
+  TOUCH_MEMORY_DURATION: 200,             // How long to remember a touch (ms)
+  
   // Confidence Scoring
   CONFIDENCE_MIN: 0.3,                    // Minimum to apply prediction
   CONFIDENCE_DECAY_RATE: 0.85,            // Per-frame decay
   CONFIDENCE_COLLISION_BOOST: 1.5,        // Boost on confirmed collision
   CONFIDENCE_SERVER_WEIGHT: 0.4,          // Weight for server authority
+  CONFIDENCE_FIRST_TOUCH_BOOST: 2.0,      // Extra boost for first touch
   
   // Trajectory Interpolation
   SPLINE_TENSION: 0.5,                    // Catmull-Rom tension (0 = sharp, 1 = smooth)
@@ -54,10 +68,18 @@ export const PREDICTION = {
   ADAPTIVE_SMOOTH_MIN: 0.1,               // Minimum smoothing (low ping)
   ADAPTIVE_SMOOTH_MAX: 0.4,               // Maximum smoothing (high ping)
   
+  // JITTER REDUCTION (EMA)
+  JITTER_EMA_ALPHA: 0.15,                 // EMA alpha for position smoothing
+  JITTER_VELOCITY_EMA_ALPHA: 0.25,        // EMA alpha for velocity smoothing
+  JITTER_THRESHOLD: 0.02,                 // Position jitter threshold (units)
+  JITTER_VELOCITY_THRESHOLD: 0.5,         // Velocity jitter threshold (units/s)
+  MICRO_JITTER_FILTER: 0.005,             // Filter out micro-jitter below this
+  
   // Visual Response
   INSTANT_RESPONSE_FACTOR: 0.95,          // Near-instant on first touch
   CONTINUOUS_COLLISION_FACTOR: 0.8,       // Ongoing collision response
   VISUAL_VELOCITY_CAP: 100,               // Max visual velocity (units/s)
+  VISUAL_ACCELERATION_CAP: 500,           // Max visual acceleration (units/s²)
 }
 
 // ============================================================================
@@ -518,15 +540,27 @@ export class BallPredictionEngine {
     this.predictedVelocity = { x: 0, y: 0, z: 0 }
     this.visualPosition = { x: 0, y: 2, z: 0 }
     
+    // EMA smoothing for jitter reduction
+    this.emaPosition = { x: 0, y: 2, z: 0 }
+    this.emaVelocity = { x: 0, y: 0, z: 0 }
+    this.prevVisualPosition = { x: 0, y: 2, z: 0 }
+    
     // Confidence tracking
     this.confidence = 1.0
     this.lastCollisionTime = 0
     this.collisionActive = false
     
+    // FIRST TOUCH tracking
+    this.isFirstTouch = false
+    this.lastTouchTime = 0
+    this.touchCount = 0
+    this.wasCollidingLastFrame = false
+    
     // Latency tracking
     this.ping = 0
     this.jitter = 0
     this.lastServerTime = 0
+    this.pingHistory = []  // For jitter calculation
     
     // Pre-computed trajectory
     this.trajectory = []
@@ -535,14 +569,37 @@ export class BallPredictionEngine {
     // Collision prediction cache
     this.pendingCollisions = []
     this.collisionCooldown = 0
+    
+    // Ping-based adaptive lookahead
+    this.adaptiveLookahead = PREDICTION.LOOKAHEAD_MAX_TIME
   }
   
   /**
-   * Update network metrics
+   * Update network metrics with jitter calculation
    */
   updateLatency(ping, jitter = 0) {
     this.ping = ping
     this.jitter = jitter
+    
+    // Track ping history for adaptive smoothing
+    this.pingHistory.push(ping)
+    if (this.pingHistory.length > 10) this.pingHistory.shift()
+    
+    // Calculate adaptive lookahead based on ping
+    const scaledLookahead = (ping / 1000) * PREDICTION.LOOKAHEAD_PING_SCALE
+    this.adaptiveLookahead = Math.max(
+      PREDICTION.LOOKAHEAD_MIN_MS / 1000,
+      Math.min(PREDICTION.LOOKAHEAD_MAX_MS / 1000, scaledLookahead)
+    )
+  }
+  
+  /**
+   * Get ping tier for adaptive behavior
+   */
+  getPingTier() {
+    if (this.ping < PREDICTION.PING_TIER_LOW) return 'low'
+    if (this.ping < PREDICTION.PING_TIER_MED) return 'medium'
+    return 'high'
   }
   
   /**
@@ -608,8 +665,14 @@ export class BallPredictionEngine {
    * Smooth blend towards server without full rollback
    */
   blendToServer(serverState) {
-    // Adaptive blend rate based on ping
-    const baseRate = this.ping < 50 ? 0.1 : (this.ping < 150 ? 0.2 : 0.35)
+    // PING-TIER ADAPTIVE blend rate
+    const pingTier = this.getPingTier()
+    let baseRate
+    switch (pingTier) {
+      case 'low':   baseRate = 0.08; break  // Trust local more
+      case 'medium': baseRate = 0.18; break  // Balanced
+      default:       baseRate = 0.32; break  // Trust server more
+    }
     
     // Latency-adjusted server position
     const latencySeconds = this.ping / 2000 // Half RTT
@@ -619,12 +682,30 @@ export class BallPredictionEngine {
       z: serverState.z + (serverState.vz || 0) * latencySeconds
     }
     
-    this.predictedPosition = lerp3D(this.predictedPosition, serverPosAdjusted, baseRate)
-    this.predictedVelocity = lerp3D(
-      this.predictedVelocity,
-      { x: serverState.vx || 0, y: serverState.vy || 0, z: serverState.vz || 0 },
-      baseRate * 0.8
-    )
+    // Apply EMA for jitter reduction before blending
+    this.emaPosition = {
+      x: this.emaPosition.x + PREDICTION.JITTER_EMA_ALPHA * (serverPosAdjusted.x - this.emaPosition.x),
+      y: this.emaPosition.y + PREDICTION.JITTER_EMA_ALPHA * (serverPosAdjusted.y - this.emaPosition.y),
+      z: this.emaPosition.z + PREDICTION.JITTER_EMA_ALPHA * (serverPosAdjusted.z - this.emaPosition.z)
+    }
+    
+    const serverVel = { x: serverState.vx || 0, y: serverState.vy || 0, z: serverState.vz || 0 }
+    this.emaVelocity = {
+      x: this.emaVelocity.x + PREDICTION.JITTER_VELOCITY_EMA_ALPHA * (serverVel.x - this.emaVelocity.x),
+      y: this.emaVelocity.y + PREDICTION.JITTER_VELOCITY_EMA_ALPHA * (serverVel.y - this.emaVelocity.y),
+      z: this.emaVelocity.z + PREDICTION.JITTER_VELOCITY_EMA_ALPHA * (serverVel.z - this.emaVelocity.z)
+    }
+    
+    // Filter micro-jitter
+    const posDiff = distance3D(this.predictedPosition, this.emaPosition)
+    if (posDiff > PREDICTION.MICRO_JITTER_FILTER) {
+      this.predictedPosition = lerp3D(this.predictedPosition, this.emaPosition, baseRate)
+    }
+    
+    const velDiff = distance3D(this.predictedVelocity, this.emaVelocity)
+    if (velDiff > PREDICTION.JITTER_VELOCITY_THRESHOLD * 0.1) {
+      this.predictedVelocity = lerp3D(this.predictedVelocity, this.emaVelocity, baseRate * 0.8)
+    }
     
     // Boost confidence on clean updates
     this.confidence = Math.min(1, this.confidence + 0.05)
@@ -643,7 +724,9 @@ export class BallPredictionEngine {
     const ballPos = this.predictedPosition
     const ballVel = this.predictedVelocity
     const ballRadius = PHYSICS.BALL_RADIUS
-    const maxTime = PREDICTION.LOOKAHEAD_MAX_TIME
+    
+    // PING-BASED ADAPTIVE LOOKAHEAD
+    const maxTime = this.adaptiveLookahead
     
     let earliestCollision = null
     
@@ -654,7 +737,7 @@ export class BallPredictionEngine {
       const playerPos = player.position
       const playerVel = player.velocity || { x: 0, y: 0, z: 0 }
       
-      // Calculate time to collision
+      // Calculate time to collision with ping-scaled lookahead
       const ttc = calculateTimeToCollision(
         ballPos, ballVel,
         playerPos, playerVel,
@@ -681,8 +764,20 @@ export class BallPredictionEngine {
     }
     
     if (earliestCollision && earliestCollision.timeToCollision < PREDICTION.TTC_THRESHOLD / 2) {
+      // FIRST TOUCH DETECTION
+      const timeSinceLastTouch = now - this.lastTouchTime
+      this.isFirstTouch = !this.wasCollidingLastFrame && 
+                          timeSinceLastTouch > PREDICTION.FIRST_TOUCH_WINDOW_MS
+      
       // Pre-apply collision response for instant feel
       this.preApplyCollision(earliestCollision)
+      
+      // Update touch tracking
+      this.lastTouchTime = now
+      this.touchCount++
+      this.wasCollidingLastFrame = true
+    } else {
+      this.wasCollidingLastFrame = false
     }
     
     return earliestCollision
@@ -717,32 +812,41 @@ export class BallPredictionEngine {
     
     if (approachSpeed >= 0) return // Moving apart
     
+    // FIRST TOUCH BOOST
+    const firstTouchMultiplier = this.isFirstTouch ? PREDICTION.FIRST_TOUCH_VELOCITY_BOOST : 1.0
+    const confidenceBoost = this.isFirstTouch ? PREDICTION.CONFIDENCE_FIRST_TOUCH_BOOST : PREDICTION.CONFIDENCE_COLLISION_BOOST
+    
     // Pre-apply impulse with confidence scaling
     const restitution = PHYSICS.PLAYER_BALL_RESTITUTION
     const playerSpeed = Math.sqrt((playerVel.x || 0) ** 2 + (playerVel.z || 0) ** 2)
     const momentumTransfer = playerSpeed > 3 ? PHYSICS.PLAYER_BALL_VELOCITY_TRANSFER : 0.5
     
-    const impulseMag = -(1 + restitution) * approachSpeed * momentumTransfer * this.confidence
+    const impulseMag = -(1 + restitution) * approachSpeed * momentumTransfer * this.confidence * firstTouchMultiplier
     
     // Apply with ramping for smooth response
     const rampFactor = Math.min(1, (PREDICTION.TTC_THRESHOLD - collision.timeToCollision) / PREDICTION.TTC_THRESHOLD)
     
-    this.predictedVelocity.x += impulseMag * nx * rampFactor * PREDICTION.INSTANT_RESPONSE_FACTOR
-    this.predictedVelocity.y += (impulseMag * ny + PHYSICS.COLLISION_LIFT) * rampFactor * PREDICTION.INSTANT_RESPONSE_FACTOR
-    this.predictedVelocity.z += impulseMag * nz * rampFactor * PREDICTION.INSTANT_RESPONSE_FACTOR
+    // FIRST TOUCH uses instant snap factor
+    const responseFactor = this.isFirstTouch ? 
+      PREDICTION.FIRST_TOUCH_SNAP_FACTOR : 
+      PREDICTION.INSTANT_RESPONSE_FACTOR
+    
+    this.predictedVelocity.x += impulseMag * nx * rampFactor * responseFactor
+    this.predictedVelocity.y += (impulseMag * ny + PHYSICS.COLLISION_LIFT) * rampFactor * responseFactor
+    this.predictedVelocity.z += impulseMag * nz * rampFactor * responseFactor
     
     // Add player momentum transfer
     this.predictedVelocity.x += (playerVel.x || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * rampFactor
     this.predictedVelocity.z += (playerVel.z || 0) * PHYSICS.TOUCH_VELOCITY_TRANSFER * rampFactor
     
-    // Set cooldown
-    this.collisionCooldown = 50 // 50ms cooldown
+    // Set cooldown (shorter for first touch)
+    this.collisionCooldown = this.isFirstTouch ? 30 : 50
     this.lastCollisionTime = performance.now()
     this.collisionActive = true
     
-    // Boost local confidence on predicted collision
+    // Boost confidence
     if (collision.isLocalPlayer) {
-      this.confidence = Math.min(1, this.confidence + PREDICTION.CONFIDENCE_COLLISION_BOOST * 0.2)
+      this.confidence = Math.min(1, this.confidence + confidenceBoost * 0.2)
     }
     
     // Recompute trajectory
@@ -822,40 +926,55 @@ export class BallPredictionEngine {
    * Update visual position with adaptive smoothing
    */
   updateVisual(dt) {
-    // Adaptive smoothing based on latency and collision state
+    // Store previous for acceleration limiting
+    this.prevVisualPosition = { ...this.visualPosition }
+    
+    // Adaptive smoothing based on latency, collision state, and first touch
     let smoothFactor
     
-    if (this.collisionActive) {
-      // Instant snap for collision response
+    if (this.isFirstTouch && this.collisionActive) {
+      // FIRST TOUCH: Near-instant snap
+      smoothFactor = PREDICTION.FIRST_TOUCH_SNAP_FACTOR
+      this.isFirstTouch = false // Reset after applying
+    } else if (this.collisionActive) {
+      // Continuous collision: fast but not instant
       smoothFactor = PREDICTION.INSTANT_RESPONSE_FACTOR
       
       // Fade out collision state
-      if (performance.now() - this.lastCollisionTime > 100) {
+      if (performance.now() - this.lastCollisionTime > PREDICTION.TOUCH_MEMORY_DURATION) {
         this.collisionActive = false
       }
     } else {
-      // Ping-adaptive smoothing
-      const pingFactor = Math.min(1, this.ping / 200)
-      smoothFactor = lerp(
-        PREDICTION.ADAPTIVE_SMOOTH_MIN,
-        PREDICTION.ADAPTIVE_SMOOTH_MAX,
-        pingFactor
-      )
-      smoothFactor = 1 - Math.exp(-30 * dt * (1 - smoothFactor))
+      // PING-TIER adaptive smoothing
+      const pingTier = this.getPingTier()
+      let baseSmoothness
+      switch (pingTier) {
+        case 'low':   baseSmoothness = PREDICTION.ADAPTIVE_SMOOTH_MIN; break
+        case 'medium': baseSmoothness = (PREDICTION.ADAPTIVE_SMOOTH_MIN + PREDICTION.ADAPTIVE_SMOOTH_MAX) / 2; break
+        default:       baseSmoothness = PREDICTION.ADAPTIVE_SMOOTH_MAX; break
+      }
+      smoothFactor = 1 - Math.exp(-30 * dt * (1 - baseSmoothness))
     }
     
     this.visualPosition = lerp3D(this.visualPosition, this.predictedPosition, smoothFactor)
     
-    // Clamp visual velocity
-    const visualVel = {
-      x: (this.visualPosition.x - this.predictedPosition.x) / dt,
-      y: (this.visualPosition.y - this.predictedPosition.y) / dt,
-      z: (this.visualPosition.z - this.predictedPosition.z) / dt
-    }
-    const visualSpeed = Math.sqrt(visualVel.x ** 2 + visualVel.y ** 2 + visualVel.z ** 2)
+    // JITTER REDUCTION: Clamp visual velocity and acceleration
+    const visualVelX = (this.visualPosition.x - this.prevVisualPosition.x) / dt
+    const visualVelY = (this.visualPosition.y - this.prevVisualPosition.y) / dt
+    const visualVelZ = (this.visualPosition.z - this.prevVisualPosition.z) / dt
+    const visualSpeed = Math.sqrt(visualVelX ** 2 + visualVelY ** 2 + visualVelZ ** 2)
+    
+    // Velocity capping
     if (visualSpeed > PREDICTION.VISUAL_VELOCITY_CAP) {
       const scale = PREDICTION.VISUAL_VELOCITY_CAP / visualSpeed
-      this.visualPosition = lerp3D(this.predictedPosition, this.visualPosition, scale)
+      this.visualPosition = lerp3D(this.prevVisualPosition, this.visualPosition, scale)
+    }
+    
+    // Micro-jitter filter: if movement is below threshold, snap to prevent wobble
+    const frameDist = distance3D(this.visualPosition, this.prevVisualPosition)
+    if (frameDist < PREDICTION.MICRO_JITTER_FILTER && !this.collisionActive) {
+      // Don't show micro-movements
+      this.visualPosition = { ...this.prevVisualPosition }
     }
   }
   
@@ -941,10 +1060,32 @@ export class BallPredictionEngine {
     this.predictedPosition = { ...position }
     this.predictedVelocity = { x: 0, y: 0, z: 0 }
     this.visualPosition = { ...position }
+    this.emaPosition = { ...position }
+    this.emaVelocity = { x: 0, y: 0, z: 0 }
+    this.prevVisualPosition = { ...position }
     this.confidence = 1.0
+    this.isFirstTouch = false
+    this.lastTouchTime = 0
+    this.touchCount = 0
+    this.wasCollidingLastFrame = false
     this.rollbackBuffer.clear()
     this.trajectory = []
     this.pendingCollisions = []
+    this.pingHistory = []
+  }
+  
+  /**
+   * Check if currently in first touch state
+   */
+  isInFirstTouch() {
+    return this.isFirstTouch
+  }
+  
+  /**
+   * Get adaptive lookahead time based on ping
+   */
+  getAdaptiveLookahead() {
+    return this.adaptiveLookahead
   }
 }
 
