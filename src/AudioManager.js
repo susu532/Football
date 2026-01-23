@@ -195,7 +195,7 @@ class AudioManager {
     }
     
     // Play 'go' sound at 4 seconds
-    if (seconds === 4) {
+    if (seconds === 7) {
       this.playSFX('countdownGo')
     }
   }
