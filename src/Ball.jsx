@@ -233,6 +233,9 @@ export const ClientBallVisual = React.forwardRef(({
   const collisionConfidence = useRef(0) // Confidence score for current prediction
   const subFrameTime = useRef(0) // For sub-frame collision timing
   
+  // Pre-allocated vectors to reduce GC pressure
+  const relVelRef = useRef(new THREE.Vector3())
+  
   // Phase 4: Snapshot Interpolation Buffer
   const serverStateBuffer = useRef([])
   const INTERPOLATION_DELAY = 0.05 // 50ms buffer
@@ -484,12 +487,13 @@ export const ClientBallVisual = React.forwardRef(({
     const playerPos = localPlayerRef?.current?.position
     const distToPlayer = playerPos ? groupRef.current.position.distanceTo(playerPos) : 999
     const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
-    const relVel = new THREE.Vector3(
+    // Use pre-allocated vector to avoid GC pressure
+    relVelRef.current.set(
       predictedVelocity.current.x - (playerVel.x || 0),
       predictedVelocity.current.y - (playerVel.y || 0),
       predictedVelocity.current.z - (playerVel.z || 0)
     )
-    const relativeSpeed = relVel.length()
+    const relativeSpeed = relVelRef.current.length()
     
     // Dynamic subdivisions scaling linearly with relative speed
     // 1 sub at 10m/s, up to 12 subs at 120m/s
@@ -642,7 +646,7 @@ export const ClientBallVisual = React.forwardRef(({
             const playerSpeed = localPlayerRef.current.userData?.velocityMagnitude || 0
             const isRunning = localPlayerRef.current.userData?.isRunning || false
 
-            // Momentum transfer calculation
+            // Momentum transfer calculation - ALIGNED WITH SERVER
             const momentumFactor = isRunning ? 
               (playerSpeed / 8) * PHYSICS.PLAYER_BALL_VELOCITY_TRANSFER : 0.5
             
@@ -650,7 +654,9 @@ export const ClientBallVisual = React.forwardRef(({
             const approachDot = ((playerVel.x || 0) * nx + (playerVel.z || 0) * nz) / (playerSpeed + 0.001)
             const approachBoost = approachDot < -0.5 ? PHYSICS.PLAYER_BALL_APPROACH_BOOST : 1.0
 
-            let impulseMag = -(1 + PHYSICS.BALL_RESTITUTION) * approachSpeed * (0.8 + speedCurve * 0.4) * (1 + angleMultiplier) * momentumFactor * approachBoost
+            // ALIGNED WITH SERVER: Uses same formula as SoccerRoom.handlePlayerBallCollisions()
+            let impulseMag = Math.abs(approachSpeed) * PHYSICS.BALL_MASS * 
+              (1 + PHYSICS.PLAYER_BALL_RESTITUTION) * momentumFactor * approachBoost
             
             // Ensure a minimum impulse for responsiveness
             impulseMag = Math.max(PHYSICS.PLAYER_BALL_IMPULSE_MIN, impulseMag)
@@ -850,8 +856,8 @@ export const ClientBallVisual = React.forwardRef(({
       }
     }
 
-    // 7. Linear damping
-    predictedVelocity.current.multiplyScalar(1 - LINEAR_DAMPING * delta)
+    // NOTE: Linear damping already applied in sub-step loop (line 507-509)
+    // Removed duplicate damping that was causing over-sluggish ball
   })
 
   return (
