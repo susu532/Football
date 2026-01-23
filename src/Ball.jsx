@@ -10,6 +10,7 @@ import * as THREE from 'three'
 
 import { PHYSICS } from './PhysicsConstants.js'
 import { enforceGoalNetBoundaries, applyCCDBoundaryCorrection } from './GoalNetBoundaryEnforcer.js'
+import { BallPredictionEngine, PREDICTION } from './BallPredictionEngine.js'
 
 // Soccer Ball Visual Component
 export const SoccerBall = React.forwardRef(({ radius = PHYSICS.BALL_RADIUS, onKickFeedback }, ref) => {
@@ -258,6 +259,12 @@ export const ClientBallVisual = React.forwardRef(({
   const lastPingTier = useRef(0)
   const kickTimestampOffset = useRef(0) // Offset between local clock and kick timestamp
   
+  // === BALL PREDICTION ENGINE (Competitive Netcode) ===
+  const predictionEngine = useRef(null)
+  if (!predictionEngine.current) {
+    predictionEngine.current = new BallPredictionEngine()
+  }
+  
   // Ownership state
   const isOwner = localPlayerRef?.current?.userData?.sessionId === ballOwner
   
@@ -299,6 +306,11 @@ export const ClientBallVisual = React.forwardRef(({
       visualPos.current.copy(physicsPos.current)
       
       collisionThisFrame.current = true
+      
+      // === SYNC WITH PREDICTION ENGINE ===
+      if (predictionEngine.current) {
+        predictionEngine.current.applyKickPrediction(impulse, timestamp)
+      }
     }
     return obj
   })
@@ -345,6 +357,9 @@ export const ClientBallVisual = React.forwardRef(({
     const now = state.clock.getElapsedTime()
     collisionThisFrame.current = false
 
+    // === UPDATE PREDICTION ENGINE ===
+    predictionEngine.current.updateLatency(ping, pingJitter)
+
     // === S-TIER PING-AWARE PARAMETERS ===
     const pingSeconds = ping / 1000
     const dynamicLookahead = Math.min(MAX_LOOKAHEAD, BASE_LOOKAHEAD + pingSeconds / 2)
@@ -367,6 +382,17 @@ export const ClientBallVisual = React.forwardRef(({
         timestamp: performance.now()
       })
       if (serverStateBuffer.current.length > 5) serverStateBuffer.current.pop()
+      
+      // === FEED PREDICTION ENGINE ===
+      predictionEngine.current.onServerUpdate({
+        x: ballState.x,
+        y: ballState.y,
+        z: ballState.z,
+        vx: ballState.vx || 0,
+        vy: ballState.vy || 0,
+        vz: ballState.vz || 0,
+        tick: ballState.tick
+      })
     }
 
     if (!serverPosSmoothed.current) {
@@ -659,6 +685,48 @@ export const ClientBallVisual = React.forwardRef(({
       }
     }
 
+
+    // === PREDICTION ENGINE LOOKAHEAD COLLISION ===
+    // Use engine's advanced multi-frame lookahead for enhanced prediction
+    if (localPlayerRef?.current) {
+      const playerPos = localPlayerRef.current.position
+      const playerVel = localPlayerRef.current.userData?.velocity || { x: 0, y: 0, z: 0 }
+      const isGiant = localPlayerRef.current.userData?.giant || false
+      const sessionId = localPlayerRef.current.userData?.sessionId || ''
+      
+      // Build player list for engine
+      const players = [{
+        position: { x: playerPos.x, y: playerPos.y, z: playerPos.z },
+        velocity: playerVel,
+        giant: isGiant,
+        sessionId: sessionId
+      }]
+      
+      // Run engine update with lookahead collision
+      predictionEngine.current.update(delta, players, sessionId)
+      
+      // Get engine's prediction and blend with existing system
+      const enginePrediction = predictionEngine.current.predictCollision(players, sessionId)
+      if (enginePrediction && enginePrediction.timeToCollision < PREDICTION.TTC_THRESHOLD / 2) {
+        // Engine detected imminent collision - boost confidence
+        collisionConfidence.current = Math.max(collisionConfidence.current, 
+          predictionEngine.current.getConfidence() * PHYSICS.COLLISION_CONFIDENCE_BOOST)
+        
+        // Pre-emptive visual response from engine
+        if (!collisionThisFrame.current) {
+          const engineVel = predictionEngine.current.getVelocity()
+          predictedVelocity.current.x = THREE.MathUtils.lerp(
+            predictedVelocity.current.x, engineVel.x, 0.3
+          )
+          predictedVelocity.current.y = THREE.MathUtils.lerp(
+            predictedVelocity.current.y, engineVel.y, 0.3
+          )
+          predictedVelocity.current.z = THREE.MathUtils.lerp(
+            predictedVelocity.current.z, engineVel.z, 0.3
+          )
+        }
+      }
+    }
 
     // 5. ULTRA-AGGRESSIVE visual interpolation with CONFIDENCE WEIGHTING
     // S-Tier: 240Hz Visual Interpolation Loop
