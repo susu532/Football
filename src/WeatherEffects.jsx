@@ -73,7 +73,7 @@ export function RainEffect({ count = 300, area = [50, 35, 35] }) {
       </bufferGeometry>
       <pointsMaterial
         color="#aaddff"
-        size={0.05}
+        size={0.2}
         transparent
         opacity={0.35}
         sizeAttenuation
@@ -148,7 +148,7 @@ export function SnowEffect({ count = 150, area = [50, 30, 35] }) {
       </bufferGeometry>
       <pointsMaterial
         color="#ffffff"
-        size={0.12}
+        size={0.5}
         transparent
         opacity={0.5}
         sizeAttenuation

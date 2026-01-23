@@ -654,7 +654,7 @@ export default function Scene() {
             marginTop: isMobile ? '10px' : '20px',
             animation: 'popIn 0.2s ease-out'
           }}>
-            🚀 GO! 🚀
+             GO! 
           </div>
         )}
       </div>

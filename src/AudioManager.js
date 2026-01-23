@@ -176,6 +176,29 @@ class AudioManager {
       this.currentMusic = null
     }
   }
+
+  /**
+   * Play countdown sounds based on remaining seconds
+   * @param {number} seconds - Remaining seconds in the countdown
+   */
+  playCountdownSound(seconds) {
+    if (!this.initialized) this.init()
+    
+    // Play 'ready' sound at 10 seconds
+    if (seconds === 10) {
+      this.playSFX('countdownReady')
+    }
+    
+    // Play 'beep' sound every second from 10 to 1
+    if (seconds >= 1 && seconds <= 10) {
+      this.playSFX('countdownBeep')
+    }
+    
+    // Play 'go' sound at 4 seconds
+    if (seconds === 4) {
+      this.playSFX('countdownGo')
+    }
+  }
 }
 
 const audioManager = new AudioManager()

@@ -403,7 +403,7 @@ export function StadiumLight({ position, rotationY = 0 }) {
           position={[0, 0, 0.6]}
           angle={Math.PI / 3}
           penumbra={0.5}
-          intensity={50}
+          intensity={80}
           distance={40}
           castShadow
           shadow-mapSize={[512, 512]}
@@ -423,7 +423,7 @@ export function StadiumLights() {
       <StadiumLight position={[16, 0, 11]} rotationY={(-3 * Math.PI) / 4} />
       
       {/* Extra ambient light for stadium vibe */}
-      <ambientLight intensity={0.4} />
+      <ambientLight intensity={0.8} />
     </group>
   )
 }
