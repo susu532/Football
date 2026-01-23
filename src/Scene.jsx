@@ -188,6 +188,13 @@ export default function Scene() {
     }
   }, [gameOverData])
 
+  // Countdown sound effects
+  useEffect(() => {
+    if (gameState === 'countdown' && countdownTimer >= 1 && countdownTimer <= 10) {
+      AudioManager.playCountdownSound(countdownTimer)
+    }
+  }, [gameState, countdownTimer])
+
   // Start background music when joined
   useEffect(() => {
     if (hasJoined) {
