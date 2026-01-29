@@ -1,3 +1,13 @@
+/**
+ * OmniPitch 3D Soccer Experience
+ * Copyright (c) 2026 OmniPitch Games. All Rights Reserved.
+ *
+ * This file is proprietary and confidential.
+ * Unauthorized copying, transfer, or use is strictly prohibited.
+ *
+ * For licensing inquiries: hentertrabelsi@gmail.com
+ */
+
 import React, { useMemo, useEffect, useRef } from 'react'
 import { useThree, useFrame } from '@react-three/fiber'
 import { Stars, Sparkles, useGLTF, RoundedBox } from '@react-three/drei'

@@ -2,6 +2,9 @@
   "name": "Soccer-3d-experience",
   "version": "0.1.0",
   "private": true,
+  "license": "SEE LICENSE IN LICENSE",
+  "author": "OmniPitch Games <hentertrabelsi@gmail.com>",
+  "copyright": "Copyright (c) 2026 OmniPitch Games. All Rights Reserved.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",

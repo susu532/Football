@@ -4,6 +4,9 @@
   "description": "Colyseus server for Soccer 3D Experience",
   "main": "index.js",
   "type": "module",
+  "license": "SEE LICENSE IN ../LICENSE",
+  "author": "OmniPitch Games <hentertrabelsi@gmail.com>",
+  "copyright": "Copyright (c) 2026 OmniPitch Games. All Rights Reserved.",
   "scripts": {
     "start": "node index.js",
     "dev": "node --watch index.js"

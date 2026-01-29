@@ -1,3 +1,13 @@
+/**
+ * OmniPitch 3D Soccer Experience
+ * Copyright (c) 2026 OmniPitch Games. All Rights Reserved.
+ *
+ * This file is proprietary and confidential.
+ * Unauthorized copying, transfer, or use is strictly prohibited.
+ *
+ * For licensing inquiries: hentertrabelsi@gmail.com
+ */
+
 // WeatherEffects.jsx - Rain and Snow particle systems for atmospheric maps
 import React, { useRef, useMemo } from 'react'
 import { useFrame } from '@react-three/fiber'

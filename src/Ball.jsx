@@ -1,3 +1,13 @@
+/**
+ * OmniPitch 3D Soccer Experience
+ * Copyright (c) 2026 OmniPitch Games. All Rights Reserved.
+ *
+ * This file is proprietary and confidential.
+ * Unauthorized copying, transfer, or use is strictly prohibited.
+ *
+ * For licensing inquiries: hentertrabelsi@gmail.com
+ */
+
 // Ball.jsx - Client ball visual with interpolation for Colyseus
 // Server-authoritative: Client NEVER moves the ball, only displays
 

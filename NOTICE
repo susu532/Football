@@ -1,0 +1,213 @@
+THIRD-PARTY NOTICES AND ATTRIBUTIONS
+
+OmniPitch 3D Soccer Experience
+Copyright (c) 2026 OmniPitch Games. All Rights Reserved.
+
+================================================================================
+
+This software uses third-party libraries, frameworks, and assets that are
+licensed under their respective terms. This file provides attribution and
+license information for these components.
+
+================================================================================
+
+OPEN SOURCE SOFTWARE COMPONENTS
+
+The following open source software components are used in this product:
+
+1. React
+   Copyright (c) Meta Platforms, Inc. and affiliates.
+   License: MIT License
+   https://github.com/facebook/react/blob/main/LICENSE
+
+2. React Three Fiber (@react-three/fiber)
+   Copyright (c) Paul Henschel and contributors.
+   License: MIT License
+   https://github.com/pmndrs/react-three-fiber/blob/master/LICENSE
+
+3. React Three Drei (@react-three/drei)
+   Copyright (c) Paul Henschel and contributors.
+   License: MIT License
+   https://github.com/pmndrs/drei/blob/master/LICENSE
+
+4. Three.js
+   Copyright (c) 2010-2024 Three.js Authors.
+   License: MIT License
+   https://github.com/mrdoob/three.js/blob/dev/LICENSE
+
+5. Colyseus
+   Copyright (c) Endel Dreyer.
+   License: MIT License
+   https://github.com/colyseus/colyseus/blob/master/LICENSE
+
+6. Colyseus Schema (@colyseus/schema)
+   Copyright (c) Endel Dreyer.
+   License: MIT License
+   https://github.com/colyseus/schema/blob/master/LICENSE
+
+7. Zustand
+   Copyright (c) 2019 Paul Henschel.
+   License: MIT License
+   https://github.com/pmndrs/zustand/blob/main/LICENSE
+
+8. Vite
+   Copyright (c) 2019-present, Yuxi (Evan) You and Vite contributors.
+   License: MIT License
+   https://github.com/vitejs/vite/blob/main/LICENSE
+
+9. Rapier Physics Engine (@dimforge/rapier3d-compat)
+   Copyright (c) 2020 Sébastien Crozet.
+   License: Apache License 2.0
+   https://github.com/dimforge/rapier/blob/master/LICENSE
+
+10. Cannon-es
+    Copyright (c) 2015-2021 Stefan Hedman.
+    License: MIT License
+    https://github.com/pmndrs/cannon-es/blob/master/LICENSE
+
+11. Socket.IO
+    Copyright (c) 2014-2021 Automattic.
+    License: MIT License
+    https://github.com/socketio/socket.io/blob/main/LICENSE
+
+12. Express.js
+    Copyright (c) 2009-2014 TJ Holowaychuk <tj@vision-media.ca>
+    Copyright (c) 2013-2014 Roman Shtylman <shtylman+expressjs@gmail.com>
+    Copyright (c) 2014-2015 Douglas Christopher Wilson <doug@somethingdoug.com>
+    License: MIT License
+    https://github.com/expressjs/express/blob/master/LICENSE
+
+13. Vitest
+    Copyright (c) 2021-Present Vitest Team.
+    License: MIT License
+    https://github.com/vitest-dev/vitest/blob/main/LICENSE
+
+================================================================================
+
+3D MODELS AND ASSETS
+
+The following 3D models and assets are used in this product:
+
+1. Soccer Ball Model
+   Source: Sketchfab / Various creators
+   License: CC-BY or similar (verify individual asset)
+   Note: Verify license for /models/soccer_ball.glb
+
+2. Cat Character Model
+   Source: Sketchfab / Various creators
+   License: CC-BY or similar (verify individual asset)
+   Note: Verify license for /models/cat.glb
+
+3. Low Poly Car Model
+   Source: Sketchfab / Various creators
+   License: CC-BY or similar (verify individual asset)
+   Note: Verify license for /models/low_poly_car.glb
+
+4. Map Assets
+   The following map files are included in the public/maps directories:
+   - city_at_night.glb
+   - cloud_station.glb
+   - creek_falls_world_maps.glb
+   - gravity_falls.glb
+   - oceanfloor.glb
+   - minecraft_world.glb
+   - moon\_-_mare_moscoviense.glb
+   - ship_in_clouds.glb
+   - stylized_desert_skybox_2.glb
+   - soccer_stadium_draco.glb
+   - tropical_island.glb
+   - world_1-1.glb
+   - japanese_town.glb
+
+   IMPORTANT: These map names reference popular franchises (Minecraft, Gravity
+   Falls, World 1-1) for descriptive purposes only. The actual 3D models are:
+   - Either original creations by OmniPitch Games
+   - Or licensed from third-party creators on platforms like Sketchfab
+   - Subject to their respective licenses (CC-BY, royalty-free, etc.)
+
+   OmniPitch Games does not claim ownership of any trademarked names used for
+   descriptive purposes.
+
+================================================================================
+
+AUDIO ASSETS
+
+The following audio files are included:
+
+1. Background Music (/sounds/bg-music.mp3)
+2. Sound Effects (/sounds/_.mp3, /sounds/_.wav)
+3. Winner Sound (/winner-game-sound-404167.mp3)
+
+These audio assets are either:
+
+- Original compositions by OmniPitch Games
+- Licensed royalty-free assets
+- Public domain sounds
+
+================================================================================
+
+TRADEMARK NOTICES
+
+The following trademarks are owned by their respective companies and are used
+for descriptive purposes only:
+
+- "Minecraft" is a trademark of Mojang Studios (Microsoft Corporation)
+- "Gravity Falls" is a trademark of Disney Enterprises, Inc.
+- "Super Mario" and "World 1-1" are trademarks of Nintendo Co., Ltd.
+
+OmniPitch Games is not affiliated with, endorsed by, or sponsored by any of
+these companies. Any references to these properties are purely descriptive
+and do not imply any association.
+
+================================================================================
+
+IMAGE AND TEXTURE ASSETS
+
+Screenshots and placeholder images in /public/placeholders/ are either:
+
+- Original screenshots from the game
+- Licensed stock imagery
+- Created by OmniPitch Games
+
+================================================================================
+
+DISCLAIMER
+
+OmniPitch Games has made reasonable efforts to ensure all third-party
+components are properly licensed for use in this product. If you believe
+any content has been included in error or without proper authorization,
+please contact us immediately at: hentertrabelsi@gmail.com
+
+================================================================================
+
+LICENSE TEXTS
+
+MIT License (applies to most dependencies listed above):
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+
+For questions about third-party licenses or attributions, contact:
+OmniPitch Games
+Email: hentertrabelsi@gmail.com
+
+================================================================================
+
+Last Updated: January 2026

@@ -1,3 +1,13 @@
+/**
+ * OmniPitch 3D Soccer Experience
+ * Copyright (c) 2026 OmniPitch Games. All Rights Reserved.
+ *
+ * This file is proprietary and confidential.
+ * Unauthorized copying, transfer, or use is strictly prohibited.
+ *
+ * For licensing inquiries: hentertrabelsi@gmail.com
+ */
+
 import React, { useEffect, useMemo } from 'react'
 import { useGLTF, useAnimations } from '@react-three/drei'
 import * as THREE from 'three'
@@ -60,9 +70,9 @@ export const MAP_DATA = [
     lightIntensity: 0.9
   },
   { 
-    id: 'GravityFallsMap', 
-    name: 'Gravity Falls', 
-    path: '/maps_1/gravity_falls.glb', 
+    id: 'PineForestMap', 
+    name: 'Pine Forest', 
+    path: '/maps_1/pine_forest.glb', 
     scale: 4, 
     position: [10, 0, -26], 
     emoji: '🌲', 
@@ -71,9 +81,9 @@ export const MAP_DATA = [
     lightIntensity: 0.7
   },
   { 
-    id: 'MinecraftMap', 
-    name: 'Minecraft', 
-    path: '/maps_2/minecraft_world.glb', 
+    id: 'VoxelWorldMap', 
+    name: 'Voxel World', 
+    path: '/maps_2/voxel_world.glb', 
     scale: 80, 
     position: [0, -11.5, 0], 
     emoji: '⛏️', 
@@ -127,9 +137,9 @@ export const MAP_DATA = [
     lightIntensity: 0.02
   },
   { 
-    id: 'MarioMap', 
-    name: 'Mario World', 
-    path: '/maps_3/world_1-1.glb', 
+    id: 'RetroPlainsMap', 
+    name: 'Retro Plains', 
+    path: '/maps_3/retro_plains.glb', 
     scale: 50, 
     position: [0, 1.4, 0], 
     emoji: '🍄', 
@@ -138,9 +148,9 @@ export const MAP_DATA = [
     lightIntensity: 0.9
   },
   { 
-    id: 'MysteryShack', 
-    name: 'Mystery Shack', 
-    path: '/models/gravity_falls.glb', 
+    id: 'WoodlandCabinMap', 
+    name: 'Woodland Cabin', 
+    path: '/models/woodland_cabin.glb', 
     scale: 4, 
     position: [0, -8, 0], 
     emoji: '🏚️', 

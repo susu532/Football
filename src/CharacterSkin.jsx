@@ -1,3 +1,13 @@
+/**
+ * OmniPitch 3D Soccer Experience
+ * Copyright (c) 2026 OmniPitch Games. All Rights Reserved.
+ *
+ * This file is proprietary and confidential.
+ * Unauthorized copying, transfer, or use is strictly prohibited.
+ *
+ * For licensing inquiries: hentertrabelsi@gmail.com
+ */
+
 // CharacterSkin.jsx - Pure visual component for player characters
 // All movement logic has been moved to PlayerController.jsx
 // This component handles: model loading, team colors, visual effects (invisible/giant)

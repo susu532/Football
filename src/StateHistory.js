@@ -1,3 +1,11 @@
+/**
+ * OmniPitch 3D Soccer Experience
+ * Copyright (c) 2026 OmniPitch Games. All Rights Reserved.
+ *
+ * This file is proprietary and confidential.
+ * Unauthorized copying, transfer, or use is strictly prohibited.
+ */
+
 // StateHistory.js - Ring buffer for game state history
 // Used for server reconciliation and input replay
 

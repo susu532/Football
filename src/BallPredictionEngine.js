@@ -1,4 +1,12 @@
 /**
+ * OmniPitch 3D Soccer Experience
+ * Copyright (c) 2026 OmniPitch Games. All Rights Reserved.
+ *
+ * This file is proprietary and confidential.
+ * Unauthorized copying, transfer, or use is strictly prohibited.
+ */
+
+/**
  * BallPredictionEngine.js
  * 
  * Competitive-grade ball prediction system with gold-standard netcode.
